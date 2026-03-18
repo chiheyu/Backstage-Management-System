@@ -1,16 +1,23 @@
 ######################################################################
 # Build Tools
 
-/unpackage/*
-/node_modules/*
+/unpackage/
+/node_modules/
 
 ######################################################################
 # Development Tools
 
-/.idea/*
-/.vscode/*
-/.hbuilderx/*
+/.idea/
+/.vscode/
+/.hbuilderx/
 
-package-lock.json
-yarn.lock
+######################################################################
+# Logs & System Files
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
 

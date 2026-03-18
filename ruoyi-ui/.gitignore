@@ -1,4 +1,5 @@
 .DS_Store
+Thumbs.db
 node_modules/
 dist/
 npm-debug.log*
@@ -11,13 +12,10 @@ tests/e2e/reports
 selenium-debug.log
 
 # Editor directories and files
-.idea
-.vscode
+.idea/
+.vscode/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.local
-
-package-lock.json
-yarn.lock

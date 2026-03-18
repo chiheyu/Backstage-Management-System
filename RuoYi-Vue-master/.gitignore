@@ -1,0 +1,11 @@
+# Editor directories and files
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+
+# Logs & System Files
+*.log
+.DS_Store
+Thumbs.db
