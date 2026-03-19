@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.app.mapper.AppMerchantMapper">
+
+    <resultMap type="AppMerchant" id="AppMerchantResult">
+        <id property="merchantId" column="merchant_id"/>
+        <result property="appUserId" column="app_user_id"/>
+        <result property="sysUserId" column="sys_user_id"/>
+        <result property="merchantName" column="merchant_name"/>
+        <result property="contactName" column="contact_name"/>
+        <result property="contactPhone" column="contact_phone"/>
+        <result property="address" column="address"/>
+        <result property="serviceScope" column="service_scope"/>
+        <result property="merchantDesc" column="merchant_desc"/>
+        <result property="cityName" column="city_name"/>
+        <result property="auditStatus" column="audit_status"/>
+        <result property="userName" column="user_name"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectMerchantVo">
+        select am.merchant_id, am.app_user_id, am.sys_user_id, am.merchant_name, am.contact_name,
+               am.contact_phone, am.address, am.service_scope, am.merchant_desc, am.city_name,
+               am.audit_status, am.create_by, am.create_time, am.update_by, am.update_time,
+               am.remark, su.user_name
+        from app_merchant am
+        left join sys_user su on su.user_id = am.sys_user_id
+    </sql>
+
+    <select id="selectMerchantById" parameterType="Long" resultMap="AppMerchantResult">
+        <include refid="selectMerchantVo"/>
+        where am.merchant_id = #{merchantId}
+    </select>
+
+    <select id="selectMerchantByAppUserId" parameterType="Long" resultMap="AppMerchantResult">
+        <include refid="selectMerchantVo"/>
+        where am.app_user_id = #{appUserId}
+    </select>
+
+    <select id="selectMerchantBySysUserId" parameterType="Long" resultMap="AppMerchantResult">
+        <include refid="selectMerchantVo"/>
+        where am.sys_user_id = #{sysUserId}
+    </select>
+
+    <select id="selectMerchantList" parameterType="AppMerchant" resultMap="AppMerchantResult">
+        <include refid="selectMerchantVo"/>
+        <where>
+            <if test="merchantName != null and merchantName != ''">
+                and am.merchant_name like concat('%', #{merchantName}, '%')
+            </if>
+            <if test="contactPhone != null and contactPhone != ''">
+                and am.contact_phone like concat('%', #{contactPhone}, '%')
+            </if>
+            <if test="auditStatus != null and auditStatus != ''">
+                and am.audit_status = #{auditStatus}
+            </if>
+            <if test="cityName != null and cityName != ''">
+                and am.city_name = #{cityName}
+            </if>
+        </where>
+        order by am.merchant_id desc
+    </select>
+
+    <insert id="insertMerchant" parameterType="AppMerchant" useGeneratedKeys="true" keyProperty="merchantId">
+        insert into app_merchant
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="appUserId != null">app_user_id,</if>
+            <if test="sysUserId != null">sys_user_id,</if>
+            <if test="merchantName != null and merchantName != ''">merchant_name,</if>
+            <if test="contactName != null and contactName != ''">contact_name,</if>
+            <if test="contactPhone != null and contactPhone != ''">contact_phone,</if>
+            <if test="address != null and address != ''">address,</if>
+            <if test="serviceScope != null and serviceScope != ''">service_scope,</if>
+            <if test="merchantDesc != null and merchantDesc != ''">merchant_desc,</if>
+            <if test="cityName != null and cityName != ''">city_name,</if>
+            <if test="auditStatus != null and auditStatus != ''">audit_status,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time,
+            remark
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="appUserId != null">#{appUserId},</if>
+            <if test="sysUserId != null">#{sysUserId},</if>
+            <if test="merchantName != null and merchantName != ''">#{merchantName},</if>
+            <if test="contactName != null and contactName != ''">#{contactName},</if>
+            <if test="contactPhone != null and contactPhone != ''">#{contactPhone},</if>
+            <if test="address != null and address != ''">#{address},</if>
+            <if test="serviceScope != null and serviceScope != ''">#{serviceScope},</if>
+            <if test="merchantDesc != null and merchantDesc != ''">#{merchantDesc},</if>
+            <if test="cityName != null and cityName != ''">#{cityName},</if>
+            <if test="auditStatus != null and auditStatus != ''">#{auditStatus},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate(),
+            #{remark}
+        </trim>
+    </insert>
+
+    <update id="updateMerchant" parameterType="AppMerchant">
+        update app_merchant
+        <set>
+            <if test="appUserId != null">app_user_id = #{appUserId},</if>
+            <if test="sysUserId != null">sys_user_id = #{sysUserId},</if>
+            <if test="merchantName != null and merchantName != ''">merchant_name = #{merchantName},</if>
+            <if test="contactName != null and contactName != ''">contact_name = #{contactName},</if>
+            <if test="contactPhone != null and contactPhone != ''">contact_phone = #{contactPhone},</if>
+            <if test="address != null and address != ''">address = #{address},</if>
+            <if test="serviceScope != null and serviceScope != ''">service_scope = #{serviceScope},</if>
+            <if test="merchantDesc != null">merchant_desc = #{merchantDesc},</if>
+            <if test="cityName != null and cityName != ''">city_name = #{cityName},</if>
+            <if test="auditStatus != null and auditStatus != ''">audit_status = #{auditStatus},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = sysdate()
+        </set>
+        where merchant_id = #{merchantId}
+    </update>
+
+    <delete id="deleteMerchantById" parameterType="Long">
+        delete from app_merchant where merchant_id = #{merchantId}
+    </delete>
+</mapper>

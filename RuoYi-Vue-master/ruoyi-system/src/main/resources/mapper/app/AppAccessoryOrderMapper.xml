@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.app.mapper.AppAccessoryOrderMapper">
+
+    <resultMap type="AppAccessoryOrder" id="AppAccessoryOrderResult">
+        <id property="accessoryOrderId" column="accessory_order_id"/>
+        <result property="orderNo" column="order_no"/>
+        <result property="accessoryId" column="accessory_id"/>
+        <result property="appUserId" column="app_user_id"/>
+        <result property="quantity" column="quantity"/>
+        <result property="price" column="price"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="status" column="status"/>
+        <result property="receiverName" column="receiver_name"/>
+        <result property="receiverPhone" column="receiver_phone"/>
+        <result property="receiverAddress" column="receiver_address"/>
+        <result property="orderRemark" column="order_remark"/>
+        <result property="accessoryName" column="accessory_name"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="userName" column="user_name"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectAccessoryOrderVo">
+        select aao.accessory_order_id, aao.order_no, aao.accessory_id, aao.app_user_id, aao.quantity,
+               aao.price, aao.total_amount, aao.status, aao.receiver_name, aao.receiver_phone,
+               aao.receiver_address, aao.order_remark, aao.create_by, aao.create_time, aao.update_by,
+               aao.update_time, aao.remark, aa.accessory_name, aa.cover_image, au.nick_name as user_name
+        from app_accessory_order aao
+        left join app_accessory aa on aa.accessory_id = aao.accessory_id
+        left join app_user au on au.app_user_id = aao.app_user_id
+    </sql>
+
+    <select id="selectAccessoryOrderById" parameterType="Long" resultMap="AppAccessoryOrderResult">
+        <include refid="selectAccessoryOrderVo"/>
+        where aao.accessory_order_id = #{accessoryOrderId}
+    </select>
+
+    <select id="selectAccessoryOrderList" parameterType="AppAccessoryOrder" resultMap="AppAccessoryOrderResult">
+        <include refid="selectAccessoryOrderVo"/>
+        <where>
+            <if test="orderNo != null and orderNo != ''">
+                and aao.order_no like concat('%', #{orderNo}, '%')
+            </if>
+            <if test="appUserId != null">
+                and aao.app_user_id = #{appUserId}
+            </if>
+            <if test="status != null and status != ''">
+                and aao.status = #{status}
+            </if>
+            <if test="accessoryId != null">
+                and aao.accessory_id = #{accessoryId}
+            </if>
+            <if test="userName != null and userName != ''">
+                and au.nick_name like concat('%', #{userName}, '%')
+            </if>
+        </where>
+        order by aao.accessory_order_id desc
+    </select>
+
+    <insert id="insertAccessoryOrder" parameterType="AppAccessoryOrder" useGeneratedKeys="true" keyProperty="accessoryOrderId">
+        insert into app_accessory_order
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">order_no,</if>
+            <if test="accessoryId != null">accessory_id,</if>
+            <if test="appUserId != null">app_user_id,</if>
+            <if test="quantity != null">quantity,</if>
+            <if test="price != null">price,</if>
+            <if test="totalAmount != null">total_amount,</if>
+            <if test="status != null and status != ''">status,</if>
+            <if test="receiverName != null and receiverName != ''">receiver_name,</if>
+            <if test="receiverPhone != null and receiverPhone != ''">receiver_phone,</if>
+            <if test="receiverAddress != null and receiverAddress != ''">receiver_address,</if>
+            <if test="orderRemark != null">order_remark,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time,
+            remark
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderNo != null and orderNo != ''">#{orderNo},</if>
+            <if test="accessoryId != null">#{accessoryId},</if>
+            <if test="appUserId != null">#{appUserId},</if>
+            <if test="quantity != null">#{quantity},</if>
+            <if test="price != null">#{price},</if>
+            <if test="totalAmount != null">#{totalAmount},</if>
+            <if test="status != null and status != ''">#{status},</if>
+            <if test="receiverName != null and receiverName != ''">#{receiverName},</if>
+            <if test="receiverPhone != null and receiverPhone != ''">#{receiverPhone},</if>
+            <if test="receiverAddress != null and receiverAddress != ''">#{receiverAddress},</if>
+            <if test="orderRemark != null">#{orderRemark},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate(),
+            #{remark}
+        </trim>
+    </insert>
+
+    <update id="updateAccessoryOrder" parameterType="AppAccessoryOrder">
+        update app_accessory_order
+        <set>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="receiverName != null">receiver_name = #{receiverName},</if>
+            <if test="receiverPhone != null">receiver_phone = #{receiverPhone},</if>
+            <if test="receiverAddress != null">receiver_address = #{receiverAddress},</if>
+            <if test="orderRemark != null">order_remark = #{orderRemark},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = sysdate()
+        </set>
+        where accessory_order_id = #{accessoryOrderId}
+    </update>
+</mapper>

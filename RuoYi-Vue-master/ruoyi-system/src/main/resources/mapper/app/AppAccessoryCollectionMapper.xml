@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.app.mapper.AppAccessoryCollectionMapper">
+
+    <resultMap type="AppAccessoryCollection" id="AppAccessoryCollectionResult">
+        <id property="collectionId" column="collection_id"/>
+        <result property="appUserId" column="app_user_id"/>
+        <result property="accessoryId" column="accessory_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="accessoryName" column="accessory_name"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="price" column="price"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectCollectionVo">
+        select ac.collection_id, ac.app_user_id, ac.accessory_id, ac.create_by, ac.create_time,
+               ac.update_by, ac.update_time, ac.remark, au.nick_name as user_name, aa.accessory_name,
+               aa.cover_image, aa.price
+        from app_accessory_collection ac
+        left join app_user au on au.app_user_id = ac.app_user_id
+        left join app_accessory aa on aa.accessory_id = ac.accessory_id
+    </sql>
+
+    <select id="selectCollectionById" parameterType="Long" resultMap="AppAccessoryCollectionResult">
+        <include refid="selectCollectionVo"/>
+        where ac.collection_id = #{collectionId}
+    </select>
+
+    <select id="selectCollectionByUserAndAccessory" resultMap="AppAccessoryCollectionResult">
+        <include refid="selectCollectionVo"/>
+        where ac.app_user_id = #{appUserId} and ac.accessory_id = #{accessoryId}
+    </select>
+
+    <select id="selectCollectionList" parameterType="AppAccessoryCollection" resultMap="AppAccessoryCollectionResult">
+        <include refid="selectCollectionVo"/>
+        <where>
+            <if test="appUserId != null">
+                and ac.app_user_id = #{appUserId}
+            </if>
+            <if test="accessoryId != null">
+                and ac.accessory_id = #{accessoryId}
+            </if>
+        </where>
+        order by ac.collection_id desc
+    </select>
+
+    <insert id="insertCollection" parameterType="AppAccessoryCollection" useGeneratedKeys="true" keyProperty="collectionId">
+        insert into app_accessory_collection
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="appUserId != null">app_user_id,</if>
+            <if test="accessoryId != null">accessory_id,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time,
+            remark
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="appUserId != null">#{appUserId},</if>
+            <if test="accessoryId != null">#{accessoryId},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate(),
+            #{remark}
+        </trim>
+    </insert>
+
+    <delete id="deleteCollectionById" parameterType="Long">
+        delete from app_accessory_collection where collection_id = #{collectionId}
+    </delete>
+
+    <delete id="deleteCollectionByUserAndAccessory">
+        delete from app_accessory_collection
+        where app_user_id = #{appUserId} and accessory_id = #{accessoryId}
+    </delete>
+</mapper>
