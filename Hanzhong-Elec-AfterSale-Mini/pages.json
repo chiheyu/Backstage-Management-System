@@ -1,0 +1,144 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "汉中电子售后",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/applyAfterSale/index",
+      "style": {
+        "navigationBarTitleText": "申请售后",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/afterSaleOrder/index",
+      "style": {
+        "navigationBarTitleText": "售后订单",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/accessoryMall/index",
+      "style": {
+        "navigationBarTitleText": "配件商城",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/merchantDetail/index",
+      "style": {
+        "navigationBarTitleText": "商家详情",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/accessoryDetail/index",
+      "style": {
+        "navigationBarTitleText": "配件详情",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "default",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/profile/login",
+      "style": {
+        "navigationBarTitleText": "登录/注册"
+      }
+    },
+    {
+      "path": "pages/address/index",
+      "style": {
+        "navigationBarTitleText": "收货地址",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/cart/index",
+      "style": {
+        "navigationBarTitleText": "我的购物车",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/merchant/shopSetting/index",
+      "style": {
+        "navigationBarTitleText": "店铺设置",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    }
+  ],
+  "tabBar": {
+    "color": "#666",
+    "selectedColor": "#2f54eb",
+    "backgroundColor": "#fff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "/static/images/tabbar/home.png",
+        "selectedIconPath": "/static/images/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/applyAfterSale/index",
+        "text": "申请售后",
+        "iconPath": "/static/images/tabbar/aftersale.png",
+        "selectedIconPath": "/static/images/tabbar/aftersale-active.png"
+      },
+      {
+        "pagePath": "pages/accessoryMall/index",
+        "text": "配件商城",
+        "iconPath": "/static/images/tabbar/mall.png",
+        "selectedIconPath": "/static/images/tabbar/mall-active.png"
+      },
+      {
+        "pagePath": "pages/cart/index",
+        "text": "购物车",
+        "iconPath": "/static/images/tabbar/cart.png",
+        "selectedIconPath": "/static/images/tabbar/cart-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "/static/images/tabbar/profile.png",
+        "selectedIconPath": "/static/images/tabbar/profile-active.png"
+      }
+    ]
+  },
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "汉中电子售后",
+    "navigationBarBackgroundColor": "#2f54eb",
+    "backgroundColor": "#f8f8f8",
+    "enablePullDownRefresh": false,
+    "backgroundTextStyle": "dark"
+  }
+}
