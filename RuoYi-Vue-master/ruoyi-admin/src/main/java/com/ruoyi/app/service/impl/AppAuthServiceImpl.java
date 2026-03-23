@@ -1,15 +1,24 @@
 package com.ruoyi.app.service.impl;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import com.ruoyi.app.domain.AppConstants;
 import com.ruoyi.app.domain.AppMerchant;
 import com.ruoyi.app.domain.AppUser;
@@ -47,6 +56,8 @@ import com.ruoyi.system.service.ISysUserService;
 @Service
 public class AppAuthServiceImpl implements IAppAuthService
 {
+    private static final DateTimeFormatter SMS_CODE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     @Autowired
     private RedisCache redisCache;
 
@@ -71,6 +82,12 @@ public class AppAuthServiceImpl implements IAppAuthService
     @Resource
     private AuthenticationManager authenticationManager;
 
+    @Autowired
+    private TransactionTemplate transactionTemplate;
+
+    @Value("${app.debug.smsCodeFile:}")
+    private String smsCodeDebugFile;
+
     /**
      * 发送模拟验证码。
      *
@@ -85,6 +102,7 @@ public class AppAuthServiceImpl implements IAppAuthService
         }
         String code = StringUtils.leftPad(String.valueOf(new Random().nextInt(1000000)), 6, "0");
         redisCache.setCacheObject(AppConstants.SMS_CODE_CACHE_PREFIX + phone, code, 5, TimeUnit.MINUTES);
+        persistDebugSmsCode(phone, code);
         return code;
     }
 
@@ -92,7 +110,6 @@ public class AppAuthServiceImpl implements IAppAuthService
      * App 注册。
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public AppLoginVo register(AppRegisterBody registerBody)
     {
         validateRegisterBody(registerBody);
@@ -104,55 +121,63 @@ public class AppAuthServiceImpl implements IAppAuthService
             throw new ServiceException("该手机号已注册");
         }
 
-        SysUser sysUser = new SysUser();
-        sysUser.setUserName(registerBody.getPhone());
-        sysUser.setNickName(StringUtils.defaultIfEmpty(registerBody.getNickName(), registerBody.getPhone()));
-        sysUser.setPhonenumber(registerBody.getPhone());
-        sysUser.setStatus(AppConstants.STATUS_NORMAL);
-        sysUser.setPwdUpdateDate(DateUtils.getNowDate());
-        sysUser.setPassword(SecurityUtils.encryptPassword(registerBody.getPassword()));
-        userService.registerUser(sysUser);
+        String username = transactionTemplate.execute((status) -> {
+            SysUser sysUser = new SysUser();
+            sysUser.setUserName(registerBody.getPhone());
+            sysUser.setNickName(StringUtils.defaultIfEmpty(registerBody.getNickName(), registerBody.getPhone()));
+            sysUser.setPhonenumber(registerBody.getPhone());
+            sysUser.setStatus(AppConstants.STATUS_NORMAL);
+            sysUser.setPwdUpdateDate(DateUtils.getNowDate());
+            sysUser.setPassword(SecurityUtils.encryptPassword(registerBody.getPassword()));
+            userService.registerUser(sysUser);
 
-        SysUser savedUser = sysUserMapper.checkPhoneUnique(registerBody.getPhone());
-        if (StringUtils.isNull(savedUser))
+            SysUser savedUser = sysUserMapper.checkPhoneUnique(registerBody.getPhone());
+            if (StringUtils.isNull(savedUser))
+            {
+                throw new ServiceException("注册失败，请稍后重试");
+            }
+
+            String roleType = AppConstants.ROLE_MERCHANT.equals(registerBody.getRoleType())
+                ? AppConstants.ROLE_PENDING_MERCHANT : AppConstants.ROLE_USER;
+
+            AppUser appUser = new AppUser();
+            appUser.setSysUserId(savedUser.getUserId());
+            appUser.setPhone(registerBody.getPhone());
+            appUser.setNickName(StringUtils.defaultIfEmpty(registerBody.getNickName(), registerBody.getPhone()));
+            appUser.setRoleType(roleType);
+            appUser.setStatus(AppConstants.STATUS_NORMAL);
+            appUser.setCreateBy(savedUser.getUserName());
+            appUserMapper.insertAppUser(appUser);
+
+            if (AppConstants.ROLE_PENDING_MERCHANT.equals(roleType))
+            {
+                AppMerchant merchant = new AppMerchant();
+                merchant.setAppUserId(appUser.getAppUserId());
+                merchant.setSysUserId(savedUser.getUserId());
+                merchant.setMerchantName(StringUtils.defaultIfEmpty(registerBody.getMerchantName(), registerBody.getNickName()));
+                merchant.setContactName(StringUtils.defaultIfEmpty(registerBody.getContactName(), registerBody.getNickName()));
+                merchant.setContactPhone(registerBody.getPhone());
+                merchant.setAddress(registerBody.getAddress());
+                merchant.setServiceScope(registerBody.getServiceScope());
+                merchant.setCityName("汉中市");
+                merchant.setAuditStatus(AppConstants.MERCHANT_AUDIT_PENDING);
+                merchant.setCreateBy(savedUser.getUserName());
+                merchantMapper.insertMerchant(merchant);
+
+                appUser.setMerchantId(merchant.getMerchantId());
+                appUser.setUpdateBy(savedUser.getUserName());
+                appUserMapper.updateAppUser(appUser);
+            }
+
+            userService.insertUserAuth(savedUser.getUserId(), new Long[] { getRoleIdByKey("user") });
+            return savedUser.getUserName();
+        });
+
+        if (StringUtils.isEmpty(username))
         {
             throw new ServiceException("注册失败，请稍后重试");
         }
-
-        String roleType = AppConstants.ROLE_MERCHANT.equals(registerBody.getRoleType())
-            ? AppConstants.ROLE_PENDING_MERCHANT : AppConstants.ROLE_USER;
-
-        AppUser appUser = new AppUser();
-        appUser.setSysUserId(savedUser.getUserId());
-        appUser.setPhone(registerBody.getPhone());
-        appUser.setNickName(StringUtils.defaultIfEmpty(registerBody.getNickName(), registerBody.getPhone()));
-        appUser.setRoleType(roleType);
-        appUser.setStatus(AppConstants.STATUS_NORMAL);
-        appUser.setCreateBy(savedUser.getUserName());
-        appUserMapper.insertAppUser(appUser);
-
-        if (AppConstants.ROLE_PENDING_MERCHANT.equals(roleType))
-        {
-            AppMerchant merchant = new AppMerchant();
-            merchant.setAppUserId(appUser.getAppUserId());
-            merchant.setSysUserId(savedUser.getUserId());
-            merchant.setMerchantName(StringUtils.defaultIfEmpty(registerBody.getMerchantName(), registerBody.getNickName()));
-            merchant.setContactName(StringUtils.defaultIfEmpty(registerBody.getContactName(), registerBody.getNickName()));
-            merchant.setContactPhone(registerBody.getPhone());
-            merchant.setAddress(registerBody.getAddress());
-            merchant.setServiceScope(registerBody.getServiceScope());
-            merchant.setCityName("汉中市");
-            merchant.setAuditStatus(AppConstants.MERCHANT_AUDIT_PENDING);
-            merchant.setCreateBy(savedUser.getUserName());
-            merchantMapper.insertMerchant(merchant);
-
-            appUser.setMerchantId(merchant.getMerchantId());
-            appUser.setUpdateBy(savedUser.getUserName());
-            appUserMapper.updateAppUser(appUser);
-        }
-
-        userService.insertUserAuth(savedUser.getUserId(), new Long[] { getRoleIdByKey("user") });
-        return loginByUsername(savedUser.getUserName(), registerBody.getPassword());
+        return loginByUsername(username, registerBody.getPassword());
     }
 
     /**
@@ -291,5 +316,45 @@ public class AppAuthServiceImpl implements IAppAuthService
             throw new ServiceException("请先在系统中初始化角色：" + roleKey);
         }
         return role.getRoleId();
+    }
+
+    /**
+     * 测试环境下把验证码落盘，便于联调注册流程。
+     */
+    private void persistDebugSmsCode(String phone, String code)
+    {
+        if (StringUtils.isEmpty(smsCodeDebugFile))
+        {
+            return;
+        }
+
+        Path smsCodeFilePath = Paths.get(smsCodeDebugFile);
+        Path parentPath = smsCodeFilePath.getParent();
+        LocalDateTime now = LocalDateTime.now();
+        String fileContent = new StringBuilder()
+            .append("phone=").append(phone).append(System.lineSeparator())
+            .append("code=").append(code).append(System.lineSeparator())
+            .append("generatedAt=").append(now.format(SMS_CODE_TIME_FORMATTER)).append(System.lineSeparator())
+            .append("expireAt=").append(now.plusMinutes(5).format(SMS_CODE_TIME_FORMATTER)).append(System.lineSeparator())
+            .toString();
+
+        try
+        {
+            if (parentPath != null)
+            {
+                Files.createDirectories(parentPath);
+            }
+            Files.write(
+                smsCodeFilePath,
+                fileContent.getBytes(StandardCharsets.UTF_8),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE
+            );
+        }
+        catch (IOException exception)
+        {
+            throw new ServiceException("验证码写入测试文件失败：" + exception.getMessage());
+        }
     }
 }

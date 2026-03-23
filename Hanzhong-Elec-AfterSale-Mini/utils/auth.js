@@ -1,13 +1,17 @@
-const TokenKey = 'App-Token'
+const TokenKey = 'token'
+const LegacyTokenKey = 'App-Token'
 
 export function getToken() {
-  return uni.getStorageSync(TokenKey)
+  return uni.getStorageSync(TokenKey) || uni.getStorageSync(LegacyTokenKey)
 }
 
 export function setToken(token) {
-  return uni.setStorageSync(TokenKey, token)
+  uni.setStorageSync(TokenKey, token)
+  uni.removeStorageSync(LegacyTokenKey)
+  return token
 }
 
 export function removeToken() {
-  return uni.removeStorageSync(TokenKey)
+  uni.removeStorageSync(TokenKey)
+  return uni.removeStorageSync(LegacyTokenKey)
 }

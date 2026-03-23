@@ -1,305 +1,551 @@
 <template>
   <view class="order-page">
-    <view class="empty" v-if="filteredList.length === 0">
-      <uni-icons type="empty" size="100" color="#ccc" class="empty-icon"></uni-icons>
-      <text class="empty-text">{{ isAuditMode ? '暂无待审核订单' : '暂无售后订单' }}</text>
-      <button class="empty-btn" @click="toApplyAfterSale" v-if="!isAuditMode" hover-class="empty-btn-hover">去申请售后</button>
+    <view class="loading-wrap" v-if="isLoading">
+      <uni-icons type="spinner-cycle" size="32" color="#2f54eb" class="loading-icon"></uni-icons>
+      <text class="loading-text">加载中...</text>
     </view>
-    
+
+    <view class="empty" v-else-if="filteredList.length === 0">
+      <uni-icons type="empty" size="100" color="#ccc" class="empty-icon"></uni-icons>
+      <text class="empty-text">{{ emptyText }}</text>
+      <button
+        v-if="!isMerchantMode"
+        class="empty-btn"
+        @tap="toApplyAfterSale"
+        hover-class="empty-btn-hover"
+      >
+        去申请售后
+      </button>
+    </view>
+
     <view class="order-list" v-else>
-      <view class="order-item" v-for="item in filteredList" :key="item.id" hover-class="order-item-hover">
+      <view
+        v-for="item in filteredList"
+        :key="item.orderId"
+        class="order-item"
+        hover-class="order-item-hover"
+      >
         <view class="order-header">
-          <text class="order-no">订单号：{{ item.orderNo || 'SH' + item.id }}</text>
+          <text class="order-no">订单号：{{ item.orderNo || `AS${item.orderId}` }}</text>
           <view :class="['status-tag', getStatusClass(item.status)]">
             {{ getStatusText(item.status) }}
           </view>
         </view>
-        
+
         <view class="order-body">
           <view class="info-row">
-            <text class="label">产品名称：</text>
-            <text class="value">{{ item.productName || '未填写' }}</text>
+            <text class="label">产品类型</text>
+            <text class="value">{{ item.productType || '未填写' }}</text>
           </view>
           <view class="info-row">
-            <text class="label">产品型号：</text>
-            <text class="value">{{ item.productModel || '未填写' }}</text>
-          </view>
-          <view class="info-row">
-            <text class="label">故障描述：</text>
+            <text class="label">故障描述</text>
             <text class="value">{{ item.faultDesc || '未填写' }}</text>
           </view>
-          
-          <view class="info-row" v-if="item.faultImage && item.faultImage.trim() && item.faultImage.split(',').filter(i => i.trim()).length > 0">
-            <text class="label">故障图片：</text>
+          <view class="info-row">
+            <text class="label">联系人</text>
+            <text class="value">{{ item.contactName || '未填写' }}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">联系电话</text>
+            <text class="value">{{ item.contactPhone || '未填写' }}</text>
+          </view>
+          <view class="info-row">
+            <text class="label">服务地址</text>
+            <text class="value">{{ item.address || '未填写' }}</text>
+          </view>
+          <view v-if="displayCounterpart(item)" class="info-row">
+            <text class="label">{{ isMerchantMode ? '用户昵称' : '接单商家' }}</text>
+            <text class="value">{{ displayCounterpart(item) }}</text>
+          </view>
+          <view v-if="item.serviceRemark" class="info-row">
+            <text class="label">处理备注</text>
+            <text class="value">{{ item.serviceRemark }}</text>
+          </view>
+          <view v-if="item.imageList.length" class="info-row">
+            <text class="label">故障图片</text>
             <view class="img-group">
-              <image 
-                :src="img.trim() === '/static/images/avatar.png' ? '/static/images/default-img.png' : img" 
-                mode="aspectFill" 
-                class="img" 
-                v-for="(img, idx) in item.faultImage.split(',').filter(i => i.trim())" 
-                :key="idx"
-                @tap="previewImage(img, item.faultImage)"
-                lazy-load="true"
-                @error="imgError(idx)"
+              <image
+                v-for="(img, index) in item.imageList"
+                :key="`${img}-${index}`"
+                :src="img"
+                mode="aspectFill"
+                class="img"
+                @tap="previewImage(item.imageList, index)"
               ></image>
             </view>
           </view>
         </view>
-        
+
         <view class="order-footer">
-          <text class="create-time">{{ formatTime(item.createTime) || '暂无时间' }}</text>
-          
-          <view class="btn-group" v-if="item.status === 0">
-            <template v-if="isAuditMode">
-              <button class="btn primary-btn" size="mini" @click="auditOrder(item.id, 1)">接单</button>
-              <button class="btn warn-btn" size="mini" @click="auditOrder(item.id, -1)">拒绝</button>
-            </template>
-            <button class="btn default-btn" size="mini" @click="cancelOrder(item.id)" v-else>取消申请</button>
-          </view>
-          
-          <view class="btn-group" v-if="isAuditMode && item.status === 1">
-            <button class="btn primary-btn" size="mini" @click="completeOrder(item.id)">完成</button>
+          <text class="create-time">{{ formatTime(item.createTime) }}</text>
+
+          <view class="btn-group">
+            <button
+              v-if="canUserCancel(item)"
+              class="btn default-btn"
+              size="mini"
+              :disabled="actioningOrderId === item.orderId"
+              @tap="cancelOrder(item)"
+            >
+              {{ actioningOrderId === item.orderId ? '处理中...' : '取消申请' }}
+            </button>
+            <button
+              v-if="canTake(item)"
+              class="btn primary-btn"
+              size="mini"
+              :disabled="actioningOrderId === item.orderId"
+              @tap="takeOrder(item)"
+            >
+              {{ actioningOrderId === item.orderId ? '处理中...' : '接单' }}
+            </button>
+            <button
+              v-if="canStartRepair(item)"
+              class="btn primary-btn"
+              size="mini"
+              :disabled="actioningOrderId === item.orderId"
+              @tap="updateOrderStatus(item, STATUS.REPAIRING, '开始维修', '已更新为维修中')"
+            >
+              {{ actioningOrderId === item.orderId ? '处理中...' : '开始维修' }}
+            </button>
+            <button
+              v-if="canComplete(item)"
+              class="btn success-btn"
+              size="mini"
+              :disabled="actioningOrderId === item.orderId"
+              @tap="updateOrderStatus(item, STATUS.COMPLETED, '维修完成', '订单已完成')"
+            >
+              {{ actioningOrderId === item.orderId ? '处理中...' : '完成订单' }}
+            </button>
+            <button
+              v-if="canMerchantCancel(item)"
+              class="btn warn-btn"
+              size="mini"
+              :disabled="actioningOrderId === item.orderId"
+              @tap="updateOrderStatus(item, STATUS.CANCELED, merchantCancelRemark(item), '订单已取消')"
+            >
+              {{ actioningOrderId === item.orderId ? '处理中...' : '终止订单' }}
+            </button>
           </view>
         </view>
+      </view>
+
+      <view
+        v-if="orderList.length > 0"
+        class="load-more"
+        :class="{ disabled: !hasMore || isLoadingMore }"
+        @tap="loadMoreOrders"
+      >
+        <text class="load-more-text">{{ loadMoreText }}</text>
+        <text v-if="total > 0" class="load-more-total">已加载 {{ orderList.length }} / {{ total }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <script>
+import {
+  cancelAfterSaleOrder,
+  getMerchantOrders,
+  getMerchantPendingOrders,
+  getUserAfterSaleOrders,
+  takeMerchantOrder,
+  updateMerchantOrderStatus
+} from '@/api/afterSale'
+
+const STATUS = {
+  WAIT_ACCEPT: '0',
+  ACCEPTED: '1',
+  REPAIRING: '2',
+  COMPLETED: '3',
+  CANCELED: '4'
+}
+
+const DEFAULT_PAGE_SIZE = 20
+
 export default {
   data() {
     return {
+      STATUS,
       orderList: [],
-      type: '', 
-      isAuditMode: false,
-      isLoading: false
-    }
-  },
-  onLoad(options) {
-    this.type = options.type || 'all';
-    this.isAuditMode = options.audit === '1';
-    this.loadOrders();
-  },
-  onShow() {
-    if (this.orderList.length === 0 && !this.isLoading) {
-      this.loadOrders();
+      type: 'all',
+      role: 'user',
+      isMerchantMode: false,
+      isLoading: false,
+      isLoadingMore: false,
+      actioningOrderId: null,
+      pageNum: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+      total: 0,
+      hasMore: true,
+      LOGIN_PATH: '/pages/profile/login'
     }
   },
   computed: {
     filteredList() {
-      if (!Array.isArray(this.orderList)) return [];
-      if (this.type === 'all') return this.orderList;
-      if (this.type === 'pending') return this.orderList.filter(item => item.status === 0);
-      if (this.type === 'finished') return this.orderList.filter(item => 
-        item.status === 2 || item.status === -1 || item.status === -2
-      );
-      if (this.type === 'refund') return this.orderList.filter(item => 
-        item.status !== 0 || item.status !== 1
-      );
-      return this.orderList;
+      if (!Array.isArray(this.orderList)) {
+        return []
+      }
+
+      if (this.type === 'pending') {
+        if (this.isMerchantMode) {
+          return this.orderList.filter((item) => item.status === STATUS.WAIT_ACCEPT)
+        }
+        return this.orderList.filter((item) =>
+          [STATUS.WAIT_ACCEPT, STATUS.ACCEPTED, STATUS.REPAIRING].includes(item.status)
+        )
+      }
+
+      if (this.type === 'finished') {
+        if (this.isMerchantMode) {
+          return this.orderList.filter((item) =>
+            [STATUS.ACCEPTED, STATUS.REPAIRING, STATUS.COMPLETED, STATUS.CANCELED].includes(item.status)
+          )
+        }
+        return this.orderList.filter((item) =>
+          [STATUS.COMPLETED, STATUS.CANCELED].includes(item.status)
+        )
+      }
+
+      return this.orderList
+    },
+    emptyText() {
+      if (this.isMerchantMode && this.type === 'pending') {
+        return '暂无待接单订单'
+      }
+      return '暂无售后订单'
+    },
+    loadMoreText() {
+      if (this.isLoadingMore) {
+        return '加载更多中...'
+      }
+      if (this.hasMore) {
+        return '点击加载更多'
+      }
+      return '没有更多订单了'
     }
   },
+  onLoad(options = {}) {
+    this.type = options.type || 'all'
+    this.role = this.resolveRole(options)
+    this.isMerchantMode = this.role === 'merchant'
+    this.setNavigationTitle()
+  },
+  onShow() {
+    this.reloadOrders()
+  },
+  onReachBottom() {
+    this.loadMoreOrders()
+  },
   methods: {
-   getStatusText(status) {
-     const statusStr = String(status); 
-     const statusMap = {
-       "0": '待处理',
-       "1": '已接单',
-       "2": '已完成',
-       "-1": '已拒绝',
-       "-2": '已取消'
-     };
-     return statusMap[statusStr] || '未知状态';
-   },
-   
-   getStatusClass(status) {
-     const statusStr = String(status); 
-     const classMap = {
-       "0": 'status-pending',
-       "1": 'status-accepted',
-       "2": 'status-finished',
-       "-1": 'status-rejected',
-       "-2": 'status-canceled'
-     };
-     return classMap[statusStr] || 'status-unknown';
-   },
-
-    loadOrders() {
-      if (this.isLoading) return;
-      this.isLoading = true;
-      
-      const localOrders = uni.getStorageSync('afterSaleOrders');
-      if (localOrders && Array.isArray(localOrders) && localOrders.length > 0) {
-        this.orderList = localOrders;
-        this.isLoading = false;
-        return;
+    resolveRole(options) {
+      if (options.role === 'merchant' || options.role === 'user') {
+        return options.role
       }
-      
-      uni.showLoading({ title: '加载中...', mask: true });
-      setTimeout(() => {
-        const mockData = [
-          {
-            id: Date.now() + 1001,
-            orderNo: 'SH' + Date.now().toString().slice(-6),
-            productName: '无线蓝牙耳机',
-            productModel: 'Pro-Max',
-            faultDesc: '左耳无声，充电仓无法充电，偶尔断连',
-            faultImage: '/static/images/default-img.png',
-            status: 0,
-            createTime: Date.now() - 3600000 * 2
-          },
-          {
-            id: Date.now() + 1002,
-            orderNo: 'SH' + Date.now().toString().slice(-6) + 1,
-            productName: '智能手表',
-            productModel: 'Watch S1',
-            faultDesc: '心率监测不准，屏幕偶尔闪屏',
-            faultImage: '',
-            status: 2,
-            createTime: Date.now() - 86400000
-          },
-          {
-            id: Date.now() + 1003,
-            orderNo: 'SH' + Date.now().toString().slice(-6) + 2,
-            productName: '便携充电宝',
-            productModel: '20000mAh',
-            faultDesc: '充电发烫，输出功率不足',
-            faultImage: '/static/images/default-img.png',
-            status: -1,
-            createTime: Date.now() - 172800000
+
+      const userInfo = uni.getStorageSync('userInfo') || {}
+      return userInfo.role || (userInfo.roleType === '2' ? 'merchant' : 'user')
+    },
+    setNavigationTitle() {
+      const titleMap = this.isMerchantMode
+        ? {
+            pending: '待接单订单',
+            finished: '已处理订单',
+            all: '售后订单管理'
           }
-        ];
-        this.orderList = mockData;
-        uni.setStorageSync('afterSaleOrders', mockData);
-        uni.hideLoading();
-        this.isLoading = false;
-      }, 500);
-    },
+        : {
+            pending: '处理中订单',
+            finished: '已结束订单',
+            all: '售后订单'
+          }
 
-    formatTime(timeStr) {
-      if (!timeStr) return '暂无时间';
-      let date;
-      try {
-        if (typeof timeStr === 'number') {
-          date = new Date(timeStr);
-        } else {
-          date = new Date(timeStr);
-        }
-        if (isNaN(date.getTime())) {
-          return '暂无时间';
-        }
-        const padZero = (num) => num.toString().padStart(2, '0');
-        return `${date.getFullYear()}-${padZero(date.getMonth()+1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}`;
-      } catch (e) {
-        return '暂无时间';
+      uni.setNavigationBarTitle({
+        title: titleMap[this.type] || titleMap.all
+      })
+    },
+    ensureLogin() {
+      const token = uni.getStorageSync('token')
+      const userInfo = uni.getStorageSync('userInfo')
+
+      if (token && userInfo) {
+        return true
+      }
+
+      uni.showToast({
+        title: '请先登录',
+        icon: 'none'
+      })
+
+      setTimeout(() => {
+        uni.navigateTo({
+          url: this.LOGIN_PATH
+        })
+      }, 600)
+
+      return false
+    },
+    async reloadOrders() {
+      this.pageNum = 1
+      this.total = 0
+      this.hasMore = true
+      await this.loadOrders(true)
+    },
+    async loadMoreOrders() {
+      if (this.isLoading || this.isLoadingMore || !this.hasMore) {
+        return
+      }
+
+      this.pageNum += 1
+      await this.loadOrders(false)
+    },
+    mergeOrderList(nextRows, reset) {
+      const mergedRows = reset ? nextRows : [...this.orderList, ...nextRows]
+
+      return mergedRows.filter((item, index, array) => {
+        return index === array.findIndex((current) => current.orderId === item.orderId)
+      })
+    },
+    updatePagination(rows, reset) {
+      if (typeof this.total === 'number' && this.total > 0) {
+        this.hasMore = this.orderList.length < this.total
+        return
+      }
+
+      this.hasMore = rows.length >= this.pageSize
+
+      if (reset && rows.length === 0) {
+        this.hasMore = false
       }
     },
+    async loadOrders(reset = false) {
+      if (reset ? this.isLoading : this.isLoadingMore) {
+        return
+      }
 
-    toApplyAfterSale() {
-      uni.navigateTo({ 
-        url: '/pages/applyAfterSale/index',
-        fail: () => {
-          uni.switchTab({
-            url: '/pages/applyAfterSale/index',
-            fail: () => {
-              uni.showModal({ 
-                title: '跳转失败',
-                content: '请检查applyAfterSale页面路径是否正确，或是否在pages.json中注册',
-                showCancel: false
-              });
-            }
-          });
+      if (!this.ensureLogin()) {
+        return
+      }
+
+      if (reset) {
+        this.isLoading = true
+      } else {
+        this.isLoadingMore = true
+      }
+
+      try {
+        const response = await this.fetchOrders({
+          pageNum: this.pageNum,
+          pageSize: this.pageSize
+        })
+        const rows = Array.isArray(response.rows) ? response.rows : []
+        const normalizedRows = rows.map((item) => this.normalizeOrder(item))
+
+        this.total = Number(response.total || 0)
+        this.orderList = this.mergeOrderList(normalizedRows, reset)
+        this.updatePagination(normalizedRows, reset)
+      } catch (error) {
+        if (!reset) {
+          this.pageNum = Math.max(1, this.pageNum - 1)
+        } else {
+          this.orderList = []
+          this.total = 0
+          this.hasMore = false
         }
-      });
-    },
 
-    cancelOrder(id) {
+        if (!error || !error.msg) {
+          uni.showToast({
+            title: '加载订单失败',
+            icon: 'none'
+          })
+        }
+      } finally {
+        this.isLoading = false
+        this.isLoadingMore = false
+      }
+    },
+    fetchOrders(params) {
+      if (this.isMerchantMode) {
+        if (this.type === 'pending') {
+          return getMerchantPendingOrders(params)
+        }
+        return getMerchantOrders(params)
+      }
+
+      return getUserAfterSaleOrders(params)
+    },
+    normalizeOrder(order = {}) {
+      return {
+        ...order,
+        orderId: order.orderId,
+        status: String(order.status ?? ''),
+        imageList: this.parseImages(order.faultImages)
+      }
+    },
+    parseImages(value = '') {
+      return String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    },
+    displayCounterpart(item) {
+      return this.isMerchantMode ? item.userName : item.merchantName
+    },
+    getStatusText(status) {
+      const statusMap = {
+        [STATUS.WAIT_ACCEPT]: '待接单',
+        [STATUS.ACCEPTED]: '已接单',
+        [STATUS.REPAIRING]: '维修中',
+        [STATUS.COMPLETED]: '已完成',
+        [STATUS.CANCELED]: '已取消'
+      }
+
+      return statusMap[String(status)] || '未知状态'
+    },
+    getStatusClass(status) {
+      const classMap = {
+        [STATUS.WAIT_ACCEPT]: 'status-pending',
+        [STATUS.ACCEPTED]: 'status-accepted',
+        [STATUS.REPAIRING]: 'status-repairing',
+        [STATUS.COMPLETED]: 'status-completed',
+        [STATUS.CANCELED]: 'status-canceled'
+      }
+
+      return classMap[String(status)] || 'status-unknown'
+    },
+    formatTime(value) {
+      if (!value) {
+        return '暂无时间'
+      }
+
+      const normalizedValue = typeof value === 'string' ? value.replace(/-/g, '/') : value
+      const date = new Date(normalizedValue)
+
+      if (Number.isNaN(date.getTime())) {
+        return String(value)
+      }
+
+      const padZero = (num) => String(num).padStart(2, '0')
+      return `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())} ${padZero(date.getHours())}:${padZero(date.getMinutes())}`
+    },
+    canUserCancel(item) {
+      return (
+        !this.isMerchantMode &&
+        [STATUS.WAIT_ACCEPT, STATUS.ACCEPTED, STATUS.REPAIRING].includes(item.status)
+      )
+    },
+    canTake(item) {
+      return this.isMerchantMode && item.status === STATUS.WAIT_ACCEPT
+    },
+    canStartRepair(item) {
+      return this.isMerchantMode && item.status === STATUS.ACCEPTED
+    },
+    canComplete(item) {
+      return this.isMerchantMode && item.status === STATUS.REPAIRING
+    },
+    canMerchantCancel(item) {
+      return this.isMerchantMode && [STATUS.ACCEPTED, STATUS.REPAIRING].includes(item.status)
+    },
+    merchantCancelRemark(item) {
+      return item.status === STATUS.REPAIRING ? '维修终止，订单取消' : '商家取消接单'
+    },
+    toApplyAfterSale() {
+      uni.switchTab({
+        url: '/pages/applyAfterSale/index'
+      })
+    },
+    async runOrderAction(orderId, executor, successText, fallbackErrorText) {
+      if (this.actioningOrderId) {
+        return
+      }
+
+      this.actioningOrderId = orderId
+      uni.showLoading({
+        title: '处理中...',
+        mask: true
+      })
+
+      try {
+        await executor()
+        uni.hideLoading()
+        uni.showToast({
+          title: successText,
+          icon: 'success'
+        })
+        await this.reloadOrders()
+      } catch (error) {
+        if (!error || !error.msg) {
+          uni.showToast({
+            title: fallbackErrorText,
+            icon: 'none'
+          })
+        }
+      } finally {
+        uni.hideLoading()
+        this.actioningOrderId = null
+      }
+    },
+    cancelOrder(item) {
       uni.showModal({
         title: '确认取消',
-        content: '是否取消该售后申请？',
-        success: (res) => {
-          if (res.confirm) {
-            uni.showLoading({ title: '处理中...', mask: true });
-            setTimeout(() => {
-              const index = this.orderList.findIndex(item => item.id === id);
-              if (index !== -1) {
-                this.orderList[index].status = -2;
-                uni.setStorageSync('afterSaleOrders', this.orderList);
-              }
-              uni.hideLoading();
-              uni.showToast({ title: '已取消', icon: 'success' });
-            }, 600);
+        content: '确定取消这条售后申请吗？',
+        success: ({ confirm }) => {
+          if (confirm) {
+            this.runOrderAction(
+              item.orderId,
+              () => cancelAfterSaleOrder(item.orderId),
+              '已取消',
+              '取消失败'
+            )
           }
         }
-      });
+      })
     },
-
-    auditOrder(id, status) {
-      const tip = status === 1 ? '接单' : '拒绝';
+    takeOrder(item) {
       uni.showModal({
-        title: '确认审核',
-        content: `是否${tip}该售后申请？`,
-        success: (res) => {
-          if (res.confirm) {
-            uni.showLoading({ title: '处理中...', mask: true });
-            setTimeout(() => {
-              const index = this.orderList.findIndex(item => item.id === id);
-              if (index !== -1) {
-                this.orderList[index].status = status;
-                uni.setStorageSync('afterSaleOrders', this.orderList);
-              }
-              uni.hideLoading();
-              uni.showToast({ title: `已${tip}`, icon: 'success' });
-            }, 600);
+        title: '确认接单',
+        content: '确定接下这条售后订单吗？',
+        success: ({ confirm }) => {
+          if (confirm) {
+            this.runOrderAction(
+              item.orderId,
+              () => takeMerchantOrder(item.orderId),
+              '接单成功',
+              '接单失败'
+            )
           }
         }
-      });
+      })
     },
-
-    completeOrder(id) {
+    updateOrderStatus(item, targetStatus, serviceRemark, successText) {
+      const actionText = targetStatus === STATUS.CANCELED ? '取消订单' : successText
       uni.showModal({
-        title: '确认完成',
-        content: '是否确认完成该售后订单？',
-        success: (res) => {
-          if (res.confirm) {
-            uni.showLoading({ title: '处理中...', mask: true });
-            setTimeout(() => {
-              const index = this.orderList.findIndex(item => item.id === id);
-              if (index !== -1) {
-                this.orderList[index].status = 2;
-                uni.setStorageSync('afterSaleOrders', this.orderList);
-              }
-              uni.hideLoading();
-              uni.showToast({ title: '已完成', icon: 'success' });
-            }, 600);
+        title: actionText,
+        content: `确认执行“${actionText}”吗？`,
+        success: ({ confirm }) => {
+          if (confirm) {
+            this.runOrderAction(
+              item.orderId,
+              () =>
+                updateMerchantOrderStatus({
+                  orderId: item.orderId,
+                  status: targetStatus,
+                  serviceRemark
+                }),
+              successText,
+              '更新状态失败'
+            )
           }
         }
-      });
+      })
     },
+    previewImage(images, currentIndex) {
+      if (!Array.isArray(images) || !images.length) {
+        return
+      }
 
-    previewImage(imgUrl, faultImageStr) {
-      if (!imgUrl || imgUrl === '/static/images/avatar.png') {
-        imgUrl = '/static/images/default-img.png';
-      }
-      let imgList = [];
-      try {
-        imgList = faultImageStr ? faultImageStr.split(',').filter(i => i.trim()) : [imgUrl];
-        imgList = imgList.map(img => img.trim() === '/static/images/avatar.png' ? '/static/images/default-img.png' : img);
-      } catch (e) {
-        imgList = [imgUrl];
-      }
       uni.previewImage({
-        current: imgUrl,
-        urls: imgList,
-        fail: () => {
-          uni.showToast({ title: '图片预览失败，请检查图片路径', icon: 'none' });
-        }
-      });
-    },
-
-    imgError(idx) {
-      console.log(`图片加载失败，索引：${idx}`);
+        current: images[currentIndex],
+        urls: images
+      })
     }
   }
 }
@@ -313,19 +559,35 @@ export default {
   box-sizing: border-box;
 }
 
+.loading-wrap,
 .empty {
-  text-align: center;
-  padding: 150rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 150rpx 40rpx;
   color: #ccc;
 }
-.empty-icon {
-  margin-bottom: 30rpx;
+
+.loading-icon {
+  animation: spin 1s linear infinite;
+  margin-bottom: 20rpx;
 }
+
+.loading-text,
 .empty-text {
   font-size: 28rpx;
   color: #999;
+}
+
+.empty-icon {
+  margin-bottom: 30rpx;
+}
+
+.empty-text {
   margin-bottom: 40rpx;
 }
+
 .empty-btn {
   width: 60%;
   height: 88rpx;
@@ -336,23 +598,49 @@ export default {
   font-size: 30rpx;
   border: none;
 }
+
 .empty-btn-hover {
   background: #1e42d2;
   opacity: 0.9;
 }
 
 .order-list {
-  gap: 20rpx;
   display: flex;
   flex-direction: column;
+  gap: 20rpx;
   padding: 20rpx;
 }
+
+.load-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  padding: 24rpx 0 40rpx;
+  color: #666;
+}
+
+.load-more.disabled {
+  color: #999;
+}
+
+.load-more-text {
+  font-size: 26rpx;
+}
+
+.load-more-total {
+  font-size: 22rpx;
+  color: #999;
+}
+
 .order-item {
   background: #fff;
   padding: 30rpx;
   border-radius: 16rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.05);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
+
 .order-item-hover {
   background-color: #f8f8f8;
 }
@@ -361,40 +649,48 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20rpx;
   margin-bottom: 25rpx;
   padding-bottom: 15rpx;
   border-bottom: 1px solid #f5f5f5;
 }
+
 .order-no {
   font-size: 26rpx;
   color: #666;
+  flex: 1;
+  word-break: break-all;
 }
+
 .status-tag {
   font-size: 24rpx;
   font-weight: 500;
   padding: 6rpx 16rpx;
   border-radius: 20rpx;
+  white-space: nowrap;
 }
+
 .status-pending {
   background-color: #fff3e0;
   color: #ff7300;
 }
+
 .status-accepted {
   background-color: #e6f7ff;
   color: #1890ff;
 }
-.status-finished {
+
+.status-repairing {
+  background-color: #fff7e6;
+  color: #fa8c16;
+}
+
+.status-completed {
   background-color: #f0fff4;
   color: #07c160;
 }
-.status-rejected {
-  background-color: #fff2f0;
-  color: #f53f3f;
-}
-.status-canceled {
-  background-color: #f5f5f5;
-  color: #999;
-}
+
+.status-canceled,
 .status-unknown {
   background-color: #f5f5f5;
   color: #999;
@@ -403,19 +699,22 @@ export default {
 .order-body {
   margin-bottom: 20rpx;
 }
+
 .info-row {
   display: flex;
+  align-items: flex-start;
   margin-bottom: 20rpx;
   font-size: 28rpx;
-  align-items: flex-start;
   line-height: 1.5;
 }
+
 .label {
-  color: #666;
-  width: 120rpx;
+  width: 140rpx;
   flex-shrink: 0;
+  color: #666;
   font-weight: 500;
 }
+
 .value {
   flex: 1;
   color: #333;
@@ -428,28 +727,35 @@ export default {
   flex-wrap: wrap;
   gap: 15rpx;
 }
+
 .img {
   width: 120rpx;
   height: 120rpx;
   border-radius: 12rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
 }
 
 .order-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20rpx;
   padding-top: 20rpx;
   border-top: 1px solid #f5f5f5;
 }
+
 .create-time {
   font-size: 24rpx;
   color: #999;
 }
+
 .btn-group {
   display: flex;
   gap: 15rpx;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
+
 .btn {
   height: 70rpx;
   padding: 0 24rpx;
@@ -460,19 +766,38 @@ export default {
   align-items: center;
   justify-content: center;
 }
+
 .primary-btn {
   background-color: #2f54eb;
   color: #fff;
 }
-.warn-btn {
-  background-color: #ff3b30;
+
+.success-btn {
+  background-color: #07c160;
   color: #fff;
 }
+
+.warn-btn {
+  background-color: #ff7875;
+  color: #fff;
+}
+
 .default-btn {
   background-color: #f5f5f5;
   color: #666;
 }
-.btn:active {
-  opacity: 0.8;
+
+.btn[disabled] {
+  opacity: 0.6;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>

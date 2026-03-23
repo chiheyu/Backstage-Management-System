@@ -1,11 +1,11 @@
 import { getToken } from '@/utils/auth'
 
 // 登录页面
-const loginPage = "/pages/login"
+const loginPage = "/pages/profile/login"
   
 // 页面白名单
 const whiteList = [
-  '/pages/login', '/pages/register', '/pages/common/webview/index'
+  '/pages/profile/login', '/pages/common/webview/index'
 ]
 
 // 检查地址白名单
@@ -21,7 +21,7 @@ list.forEach(item => {
     invoke(to) {
       if (getToken()) {
         if (to.url === loginPage) {
-          uni.reLaunch({ url: "/" })
+          uni.reLaunch({ url: '/pages/profile/index' })
         }
         return true
       } else {

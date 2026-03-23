@@ -37,6 +37,8 @@
 </template>
 
 <script>
+import { getCartList, setCartList } from '@/utils/cart'
+
 export default {
   data() {
     return {
@@ -45,7 +47,7 @@ export default {
     }
   },
   onShow() {
-    this.cartList = wx.getStorageSync('cartList') || [];
+    this.cartList = getCartList();
   },
   computed: {
     totalPrice() {
@@ -108,7 +110,7 @@ export default {
       if (!Array.isArray(this.cartList)) {
         this.cartList = [];
       }
-      wx.setStorageSync('cartList', this.cartList);
+      setCartList(this.cartList);
     }
   }
 }
