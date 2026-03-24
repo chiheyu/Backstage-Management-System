@@ -18,4 +18,10 @@ public interface IAppAccessoryOrderService
     public AppAccessoryOrder createOrder(AppAccessoryOrderSubmitBody submitBody);
 
     public int updateAccessoryOrder(AppAccessoryOrder order);
+
+    public int shipOrder(Long accessoryOrderId);
+
+    public int completeOrder(Long accessoryOrderId);
+
+    public int cancelOrder(Long accessoryOrderId);
 }

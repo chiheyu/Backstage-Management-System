@@ -13,6 +13,11 @@ ruoyi:
   # 验证码类型 math 数字计算 char 字符验证
   captchaType: math
 
+app:
+  debug:
+    # 测试环境下把最新验证码写入本地文件，便于联调注册流程。
+    smsCodeFile: E:/Backstage-Management-System/security code.txt
+
 # 开发环境配置
 server:
   # 服务器的HTTP端口，默认为8080

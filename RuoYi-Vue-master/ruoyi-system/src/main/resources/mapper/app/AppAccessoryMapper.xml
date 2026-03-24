@@ -9,6 +9,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="categoryName" column="category_name"/>
         <result property="accessoryName" column="accessory_name"/>
         <result property="accessoryDesc" column="accessory_desc"/>
+        <result property="merchantId" column="merchant_id"/>
         <result property="coverImage" column="cover_image"/>
         <result property="price" column="price"/>
         <result property="stock" column="stock"/>
@@ -22,8 +23,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="remark" column="remark"/>
     </resultMap>
 
+    <sql id="selectAccessoryBaseVo">
+        select aa.accessory_id, aa.category_name, aa.accessory_name, aa.accessory_desc, aa.merchant_id, aa.cover_image,
+               aa.price, aa.stock, aa.sales_count, aa.status, aa.create_by, aa.create_time,
+               aa.update_by, aa.update_time, aa.remark, false as collected
+        from app_accessory aa
+    </sql>
+
     <sql id="selectAccessoryVo">
-        select aa.accessory_id, aa.category_name, aa.accessory_name, aa.accessory_desc, aa.cover_image,
+        select aa.accessory_id, aa.category_name, aa.accessory_name, aa.accessory_desc, aa.merchant_id, aa.cover_image,
                aa.price, aa.stock, aa.sales_count, aa.status, aa.create_by, aa.create_time,
                aa.update_by, aa.update_time, aa.remark,
                <choose>
@@ -42,7 +50,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </sql>
 
     <select id="selectAccessoryById" parameterType="Long" resultMap="AppAccessoryResult">
-        <include refid="selectAccessoryVo"/>
+        <include refid="selectAccessoryBaseVo"/>
         where aa.accessory_id = #{accessoryId}
     </select>
 
@@ -57,6 +65,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             </if>
             <if test="status != null and status != ''">
                 and aa.status = #{status}
+            </if>
+            <if test="merchantId != null">
+                and aa.merchant_id = #{merchantId}
             </if>
             <if test="params != null and params.beginPrice != null and params.beginPrice != ''">
                 and aa.price &gt;= #{params.beginPrice}
@@ -74,6 +85,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="categoryName != null and categoryName != ''">category_name,</if>
             <if test="accessoryName != null and accessoryName != ''">accessory_name,</if>
             <if test="accessoryDesc != null">accessory_desc,</if>
+            <if test="merchantId != null">merchant_id,</if>
             <if test="coverImage != null">cover_image,</if>
             <if test="price != null">price,</if>
             <if test="stock != null">stock,</if>
@@ -87,6 +99,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="categoryName != null and categoryName != ''">#{categoryName},</if>
             <if test="accessoryName != null and accessoryName != ''">#{accessoryName},</if>
             <if test="accessoryDesc != null">#{accessoryDesc},</if>
+            <if test="merchantId != null">#{merchantId},</if>
             <if test="coverImage != null">#{coverImage},</if>
             <if test="price != null">#{price},</if>
             <if test="stock != null">#{stock},</if>
@@ -104,6 +117,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="categoryName != null and categoryName != ''">category_name = #{categoryName},</if>
             <if test="accessoryName != null and accessoryName != ''">accessory_name = #{accessoryName},</if>
             <if test="accessoryDesc != null">accessory_desc = #{accessoryDesc},</if>
+            <if test="merchantId != null">merchant_id = #{merchantId},</if>
             <if test="coverImage != null">cover_image = #{coverImage},</if>
             <if test="price != null">price = #{price},</if>
             <if test="stock != null">stock = #{stock},</if>

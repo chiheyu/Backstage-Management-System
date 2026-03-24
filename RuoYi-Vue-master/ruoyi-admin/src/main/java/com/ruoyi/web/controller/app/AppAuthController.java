@@ -1,5 +1,6 @@
 package com.ruoyi.web.controller.app;
 
+import javax.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,7 +10,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.app.domain.bo.AppLoginBody;
 import com.ruoyi.app.domain.bo.AppRegisterBody;
 import com.ruoyi.app.service.IAppAuthService;
+import com.ruoyi.common.constant.Constants;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.core.domain.model.LoginUser;
+import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.framework.manager.AsyncManager;
+import com.ruoyi.framework.manager.factory.AsyncFactory;
+import com.ruoyi.framework.web.service.TokenService;
 
 /**
  * App 认证控制器。
@@ -23,6 +30,9 @@ public class AppAuthController
     @Autowired
     private IAppAuthService appAuthService;
 
+    @Autowired
+    private TokenService tokenService;
+
     /**
      * 发送模拟短信验证码。
      */
@@ -30,7 +40,7 @@ public class AppAuthController
     public AjaxResult sendCode(String phone)
     {
         AjaxResult ajaxResult = AjaxResult.success("验证码发送成功");
-        ajaxResult.put("code", appAuthService.sendRegisterCode(phone));
+        ajaxResult.put("smsCode", appAuthService.sendRegisterCode(phone));
         return ajaxResult;
     }
 
@@ -50,6 +60,21 @@ public class AppAuthController
     public AjaxResult login(@RequestBody AppLoginBody loginBody)
     {
         return AjaxResult.success(appAuthService.login(loginBody));
+    }
+
+    /**
+     * App 退出登录。
+     */
+    @PostMapping("/logout")
+    public AjaxResult logout(HttpServletRequest request)
+    {
+        LoginUser loginUser = tokenService.getLoginUser(request);
+        if (StringUtils.isNotNull(loginUser))
+        {
+            tokenService.delLoginUser(loginUser.getToken());
+            AsyncManager.me().execute(AsyncFactory.recordLogininfor(loginUser.getUsername(), Constants.LOGOUT, "App 退出成功"));
+        }
+        return AjaxResult.success("退出成功");
     }
 
     /**

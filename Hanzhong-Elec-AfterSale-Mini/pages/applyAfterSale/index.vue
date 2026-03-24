@@ -1,41 +1,43 @@
 <template>
-  <view class="aftersale-page">
+  <merchant-receipt-panel v-if="isMerchant" />
+
+  <view v-else class="aftersale-page">
     <view class="form-container">
       <view class="form-item">
         <view class="label-wrap">
           <text class="label">产品名称</text>
           <text class="required">*</text>
         </view>
-        <input 
-          v-model="form.productName" 
-          placeholder="请输入产品名称" 
+        <input
+          v-model="form.productName"
+          placeholder="请输入产品名称"
           class="input"
           placeholder-class="input-placeholder"
         />
       </view>
-      
+
       <view class="form-item">
         <view class="label-wrap">
           <text class="label">产品型号</text>
           <text class="required">*</text>
         </view>
-        <input 
-          v-model="form.productModel" 
-          placeholder="请输入产品型号" 
+        <input
+          v-model="form.productModel"
+          placeholder="请输入产品型号"
           class="input"
           placeholder-class="input-placeholder"
         />
       </view>
-      
+
       <view class="form-item">
         <view class="label-wrap">
           <text class="label">故障描述</text>
           <text class="required">*</text>
           <text class="desc-text">{{ form.faultDesc.length }}/200</text>
         </view>
-        <textarea 
-          v-model="form.faultDesc" 
-          placeholder="请描述故障问题" 
+        <textarea
+          v-model="form.faultDesc"
+          placeholder="请描述故障现象，方便商家快速判断"
           class="textarea"
           placeholder-class="textarea-placeholder"
           maxlength="200"
@@ -44,7 +46,7 @@
 
       <view class="form-item">
         <view class="label-wrap">
-          <text class="label">收货地址</text>
+          <text class="label">服务地址</text>
           <text class="required">*</text>
         </view>
         <view class="address-select" @tap="chooseAddress" hover-class="address-select-hover">
@@ -56,27 +58,43 @@
           <uni-icons type="arrowright" size="24" color="#ccc"></uni-icons>
         </view>
       </view>
-      
+
       <view class="form-item">
         <view class="label-wrap">
           <text class="label">故障图片</text>
           <text class="optional">（选填）</text>
         </view>
         <view class="upload-area">
-          <view class="upload-item" v-for="(url, idx) in form.imgList" :key="idx" v-if="url">
+          <view v-for="(url, index) in form.imgList" :key="`${url}-${index}`" class="upload-item">
             <image :src="url" mode="aspectFill" class="upload-img"></image>
-            <view class="del-btn" @tap="delImg(idx)" hover-class="del-btn-hover">×</view>
+            <view class="del-btn" @tap="removeImage(index)" hover-class="del-btn-hover">×</view>
           </view>
-          <view class="upload-btn" @tap="chooseImg" v-if="form.imgList.length < 3" hover-class="upload-btn-hover">
+          <view
+            v-if="form.imgList.length < maxImageCount"
+            class="upload-btn"
+            @tap="chooseImages"
+            hover-class="upload-btn-hover"
+          >
             <uni-icons type="plus" size="40" color="#ccc"></uni-icons>
             <text class="upload-tip">上传图片</text>
           </view>
         </view>
-        <text class="upload-desc">最多上传3张，支持jpg/png格式</text>
+        <text class="upload-desc">最多上传 {{ maxImageCount }} 张图片，提交时会自动上传到服务器。</text>
       </view>
-      
-      <button class="submit-btn" @tap="submit" :disabled="!isFormValid || isSubmitting" hover-class="submit-btn-hover">
-        <uni-icons v-if="isSubmitting" type="spinner-cycle" size="20" color="#fff" class="loading-icon"></uni-icons>
+
+      <button
+        class="submit-btn"
+        @tap="submit"
+        :disabled="!isFormValid || isSubmitting"
+        hover-class="submit-btn-hover"
+      >
+        <uni-icons
+          v-if="isSubmitting"
+          type="spinner-cycle"
+          size="20"
+          color="#fff"
+          class="loading-icon"
+        ></uni-icons>
         {{ isSubmitting ? '提交中...' : '提交售后申请' }}
       </button>
     </view>
@@ -84,196 +102,272 @@
 </template>
 
 <script>
+import { createAfterSaleOrder, uploadAfterSaleImage } from '@/api/afterSale'
+import MerchantReceiptPanel from '@/components/MerchantReceiptPanel.vue'
+import { syncRoleTabBar } from '@/utils/tabbar'
+
+const EMPTY_FORM = {
+  productName: '',
+  productModel: '',
+  faultDesc: '',
+  imgList: [],
+  name: '',
+  phone: '',
+  region: '',
+  detail: ''
+}
+const AFTER_SALE_PREFILL_KEY = 'afterSalePrefill'
+
 export default {
+  components: {
+    MerchantReceiptPanel
+  },
   data() {
     return {
+      isMerchant: false,
       form: {
-        productName: '',
-        productModel: '',
-        faultDesc: '',
-        imgList: [],
-        name: '',
-        phone: '',
-        region: '',
-        detail: ''
+        ...EMPTY_FORM
       },
       addressInfo: null,
       isSubmitting: false,
-      isFormValid: false,
-      ADDRESS_PATH: '/pages/address/index'
+      maxImageCount: 3,
+      ADDRESS_PATH: '/pages/address/index',
+      LOGIN_PATH: '/pages/profile/login'
     }
   },
-  watch: {
-    'form.productName': 'checkFormValid',
-    'form.productModel': 'checkFormValid',
-    'form.faultDesc': 'checkFormValid',
-    'form.name': 'checkFormValid',
-    'form.phone': 'checkFormValid',
-    'form.region': 'checkFormValid',
-    'form.detail': 'checkFormValid'
+  computed: {
+    isFormValid() {
+      return (
+        this.form.productName.trim().length > 0 &&
+        this.form.productModel.trim().length > 0 &&
+        this.form.faultDesc.trim().length > 0 &&
+        this.form.name.trim().length > 0 &&
+        /^1[3-9]\d{9}$/.test(this.form.phone.trim()) &&
+        this.form.detail.trim().length > 0
+      )
+    }
   },
   onShow() {
+    const userInfo = uni.getStorageSync('userInfo') || {}
+    this.isMerchant = userInfo.role === 'merchant' || userInfo.roleType === '2'
+    syncRoleTabBar(userInfo)
+
+    uni.setNavigationBarTitle({
+      title: this.isMerchant ? '售后回执' : '申请售后'
+    })
+
+    if (this.isMerchant) {
+      return
+    }
     this.loadDefaultAddress()
-    this.checkLoginStatus()
+    this.consumeAfterSalePrefill()
   },
   methods: {
-    checkLoginStatus() {
-      const token = wx.getStorageSync('token')
-      const userInfo = wx.getStorageSync('userInfo')
-      if (!token || !userInfo) {
-        wx.showToast({
-          title: '请先登录后再操作',
-          icon: 'none',
-          duration: 2000
-        })
-      }
-    },
-    loadDefaultAddress() {
-      const addressList = wx.getStorageSync('addressList') || []
-      const defaultAddr = addressList.find(item => item.isDefault)
-      if (defaultAddr) {
-        this.addressInfo = defaultAddr
-        this.form.name = defaultAddr.name
-        this.form.phone = defaultAddr.phone
-        this.form.region = defaultAddr.region
-        this.form.detail = defaultAddr.detail
-      }
-    },
-    checkFormValid() {
-      const nameValid = this.form.productName.trim().length > 0
-      const modelValid = this.form.productModel.trim().length > 0
-      const descValid = this.form.faultDesc.trim().length > 0
-      const addressNameValid = this.form.name.trim().length > 0
-      const addressPhoneValid = /^1[3-9]\d{9}$/.test(this.form.phone.trim())
-      const addressRegionValid = this.form.region.trim().length > 0
-      const addressDetailValid = this.form.detail.trim().length > 0
-
-      this.isFormValid = nameValid && modelValid && descValid && addressNameValid && addressPhoneValid && addressRegionValid && addressDetailValid
-    },
-    chooseAddress() {
-      const token = wx.getStorageSync('token')
-      const userInfo = wx.getStorageSync('userInfo')
-      if (!token || !userInfo) {
-        wx.showToast({
-          title: '请先登录',
-          icon: 'none',
-          duration: 1500
-        })
+    consumeAfterSalePrefill() {
+      const prefill = uni.getStorageSync(AFTER_SALE_PREFILL_KEY)
+      if (!prefill || typeof prefill !== 'object') {
         return
       }
-      wx.navigateTo({
+
+      uni.removeStorageSync(AFTER_SALE_PREFILL_KEY)
+
+      this.form.productName = prefill.productName || this.form.productName
+      this.form.productModel = prefill.productModel || this.form.productModel
+
+      this.form.name = prefill.name || this.form.name
+      this.form.phone = prefill.phone || this.form.phone
+
+      if (prefill.receiverAddress) {
+        this.form.region = ''
+        this.form.detail = prefill.receiverAddress
+        this.addressInfo = {
+          name: this.form.name,
+          phone: this.form.phone,
+          region: '',
+          detail: prefill.receiverAddress
+        }
+      }
+    },
+    ensureLogin(shouldRedirect = false) {
+      const token = uni.getStorageSync('token')
+      const userInfo = uni.getStorageSync('userInfo')
+
+      if (token && userInfo) {
+        return true
+      }
+
+      uni.showToast({
+        title: '请先登录后再操作',
+        icon: 'none'
+      })
+
+      if (shouldRedirect) {
+        setTimeout(() => {
+          uni.navigateTo({
+            url: this.LOGIN_PATH
+          })
+        }, 600)
+      }
+
+      return false
+    },
+    loadDefaultAddress() {
+      const addressList = uni.getStorageSync('addressList') || []
+      const defaultAddress = addressList.find((item) => item && item.isDefault)
+
+      if (!defaultAddress) {
+        this.addressInfo = null
+        return
+      }
+
+      this.addressInfo = defaultAddress
+      this.form.name = defaultAddress.name || ''
+      this.form.phone = defaultAddress.phone || ''
+      this.form.region = defaultAddress.region || ''
+      this.form.detail = defaultAddress.detail || ''
+    },
+    chooseAddress() {
+      if (!this.ensureLogin(true)) {
+        return
+      }
+
+      uni.navigateTo({
         url: this.ADDRESS_PATH,
         fail: () => {
-          wx.showToast({ title: '地址页未找到', icon: 'none' })
+          uni.showToast({
+            title: '地址页面未找到',
+            icon: 'none'
+          })
         }
       })
     },
-    chooseImg() {
-      const token = wx.getStorageSync('token')
-      const userInfo = wx.getStorageSync('userInfo')
-      if (!token || !userInfo) {
-        wx.showToast({
-          title: '请先登录',
-          icon: 'none',
-          duration: 1500
-        })
+    chooseImages() {
+      if (!this.ensureLogin(true)) {
         return
       }
-      const remainCount = 3 - this.form.imgList.length
-      if (remainCount <= 0) return
-      wx.showLoading({ title: '图片加载中...' })
-      wx.chooseImage({
+
+      const remainCount = this.maxImageCount - this.form.imgList.length
+      if (remainCount <= 0) {
+        return
+      }
+
+      uni.chooseImage({
         count: remainCount,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
-        success: (res) => {
-          this.form.imgList = [...this.form.imgList, ...res.tempFilePaths]
+        success: ({ tempFilePaths = [] }) => {
+          this.form.imgList = [...this.form.imgList, ...tempFilePaths].slice(0, this.maxImageCount)
         },
         fail: () => {
-          wx.showToast({ title: '图片选择失败，请重试', icon: 'none' })
-        },
-        complete: () => {
-          wx.hideLoading()
+          uni.showToast({
+            title: '图片选择失败，请重试',
+            icon: 'none'
+          })
         }
       })
     },
-    delImg(idx) {
-      if (idx < 0 || idx >= this.form.imgList.length) return
-      wx.showModal({
+    removeImage(index) {
+      uni.showModal({
         title: '确认删除',
         content: '是否删除这张故障图片？',
         confirmText: '删除',
-        cancelText: '取消',
-        success: (res) => {
-          if (res.confirm) {
-            this.form.imgList.splice(idx, 1)
+        success: ({ confirm }) => {
+          if (confirm) {
+            this.form.imgList.splice(index, 1)
           }
         }
       })
     },
-    submit() {
-      const token = wx.getStorageSync('token')
-      const userInfo = wx.getStorageSync('userInfo')
-      
-      if (!token || !userInfo) {
-        wx.showToast({
-          title: '请先登录后提交售后申请',
-          icon: 'none',
-          duration: 1500
-        })
-        return
-      }
-      
-      if (!this.isFormValid) {
-        wx.showToast({ title: '请填写所有必填项', icon: 'none' })
-        return
-      }
-      
-      if (this.isSubmitting) return
-      this.isSubmitting = true
-      
-      const afterSaleOrder = {
-        id: Date.now(),
-        orderNo: 'SH' + Date.now().toString().slice(-8),
-        userId: userInfo.username,
-        productName: this.form.productName,
-        productModel: this.form.productModel,
-        faultDesc: this.form.faultDesc,
-        faultImages: this.form.imgList.join(','),
-        receiverName: this.form.name,
-        receiverPhone: this.form.phone,
-        receiverRegion: this.form.region,
-        receiverDetail: this.form.detail,
-        status: 0,
-        createTime: new Date().toLocaleString()
+    async uploadImages() {
+      if (!this.form.imgList.length) {
+        return []
       }
 
-      const afterSaleOrders = wx.getStorageSync('afterSaleOrders') || []
-      afterSaleOrders.unshift(afterSaleOrder)
-      wx.setStorageSync('afterSaleOrders', afterSaleOrders)
-      
-      setTimeout(() => {
-        this.isSubmitting = false
-        wx.showToast({ 
-          title: '售后申请提交成功', 
-          icon: 'success', 
-          duration: 2000 
+      const uploadResults = await Promise.all(
+        this.form.imgList.map((filePath) => uploadAfterSaleImage(filePath))
+      )
+
+      return uploadResults
+        .map((item) => item && item.url)
+        .filter((url) => typeof url === 'string' && url.trim())
+    },
+    buildPayload(imageUrls) {
+      const productName = this.form.productName.trim()
+      const productModel = this.form.productModel.trim()
+      const region = this.form.region.trim()
+      const detail = this.form.detail.trim()
+      const address = [region, detail].filter(Boolean).join(' ')
+
+      return {
+        productType: `${productName} / ${productModel}`,
+        faultDesc: this.form.faultDesc.trim(),
+        faultImages: imageUrls.join(','),
+        contactName: this.form.name.trim(),
+        contactPhone: this.form.phone.trim(),
+        address
+      }
+    },
+    resetForm() {
+      this.form = {
+        ...EMPTY_FORM
+      }
+      this.addressInfo = null
+      this.loadDefaultAddress()
+    },
+    handleRequestError(error, fallbackMessage) {
+      if (!error || !error.msg) {
+        uni.showToast({
+          title: fallbackMessage,
+          icon: 'none'
         })
+      }
+    },
+    async submit() {
+      if (!this.ensureLogin(true)) {
+        return
+      }
+
+      if (!this.isFormValid) {
+        uni.showToast({
+          title: '请完整填写必填信息',
+          icon: 'none'
+        })
+        return
+      }
+
+      if (this.isSubmitting) {
+        return
+      }
+
+      this.isSubmitting = true
+      uni.showLoading({
+        title: this.form.imgList.length ? '上传并提交中...' : '提交中...',
+        mask: true
+      })
+
+      try {
+        const imageUrls = await this.uploadImages()
+        const payload = this.buildPayload(imageUrls)
+        await createAfterSaleOrder(payload)
+
+        uni.hideLoading()
+        this.resetForm()
+        uni.showToast({
+          title: '提交成功',
+          icon: 'success'
+        })
+
         setTimeout(() => {
-          wx.switchTab({ url: '/pages/afterSaleOrder/index' })
-          this.form = {
-            productName: '',
-            productModel: '',
-            faultDesc: '',
-            imgList: [],
-            name: '',
-            phone: '',
-            region: '',
-            detail: ''
-          }
-          this.addressInfo = null
-        }, 1500)
-      }, 800)
+          uni.navigateTo({
+            url: '/pages/afterSaleOrder/index?type=all&role=user'
+          })
+        }, 500)
+      } catch (error) {
+        this.handleRequestError(error, '提交失败，请稍后重试')
+      } finally {
+        uni.hideLoading()
+        this.isSubmitting = false
+      }
     }
   }
 }
@@ -285,12 +379,10 @@ export default {
   --light-primary: #f0f5ff;
   --text-color: #333;
   --text-gray: #999;
-  --text-light: #666;
   --bg-color: #f8f8f8;
   --white: #fff;
   --red: #ff3b30;
   --border-color: #eee;
-  --radius-sm: 8rpx;
   --radius-md: 12rpx;
   --radius-lg: 16rpx;
   --radius-full: 999rpx;
@@ -304,137 +396,137 @@ export default {
   padding: 0;
   box-sizing: border-box;
 }
+
 .form-container {
   background: var(--white);
   margin: 20rpx;
   padding: 40rpx 30rpx;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  margin-top: 20rpx;
 }
+
 .form-item {
   margin-bottom: 40rpx;
 }
+
 .label-wrap {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: 15rpx;
+  gap: 8rpx;
 }
+
 .label {
   font-size: 30rpx;
   color: var(--text-color);
   font-weight: 500;
 }
+
 .required {
   color: var(--red);
-  margin-left: 8rpx;
 }
-.optional {
+
+.optional,
+.desc-text,
+.upload-desc {
   font-size: 24rpx;
   color: var(--text-gray);
 }
+
 .desc-text {
-  font-size: 24rpx;
-  color: var(--text-gray);
+  margin-left: auto;
 }
-.input {
+
+.input,
+.textarea,
+.address-select {
   width: 100%;
-  height: 80rpx;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 0 20rpx;
-  font-size: 28rpx;
   background-color: #fafafa;
   transition: var(--transition);
+  box-sizing: border-box;
 }
-.input:focus {
-  border-color: var(--primary-color);
-  background-color: var(--white);
-  outline: none;
-  box-shadow: 0 0 0 4rpx rgba(47, 84, 235, 0.1);
+
+.input,
+.address-select {
+  height: 88rpx;
+  padding: 0 20rpx;
 }
-.input-placeholder {
+
+.input {
+  font-size: 28rpx;
+}
+
+.input-placeholder,
+.textarea-placeholder,
+.address-placeholder {
   color: var(--text-gray);
   font-size: 26rpx;
 }
+
 .textarea {
-  width: 100%;
   min-height: 180rpx;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
   padding: 20rpx;
   font-size: 28rpx;
-  background-color: #fafafa;
-  resize: none;
-  transition: var(--transition);
   line-height: 1.6;
 }
-.textarea:focus {
-  border-color: var(--primary-color);
-  background-color: var(--white);
-  outline: none;
-  box-shadow: 0 0 0 4rpx rgba(47, 84, 235, 0.1);
-}
-.textarea-placeholder {
-  color: var(--text-gray);
-  font-size: 26rpx;
-}
+
 .address-select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  height: 80rpx;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 0 20rpx;
-  background-color: #fafafa;
-  transition: var(--transition);
 }
+
 .address-select-hover {
   border-color: var(--primary-color);
   background-color: var(--light-primary);
 }
+
 .address-info {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
+
 .address-name {
   font-size: 28rpx;
   color: var(--text-color);
-  margin-bottom: 5rpx;
+  margin-bottom: 6rpx;
 }
+
 .address-detail {
   font-size: 24rpx;
   color: var(--text-gray);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.address-placeholder {
-  font-size: 26rpx;
-  color: var(--text-gray);
-}
+
 .upload-area {
   display: flex;
   flex-wrap: wrap;
   gap: 20rpx;
-  margin-top: 15rpx;
 }
-.upload-item {
-  position: relative;
+
+.upload-item,
+.upload-btn {
   width: 180rpx;
   height: 180rpx;
   border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
 }
+
+.upload-item {
+  position: relative;
+  overflow: hidden;
+}
+
 .upload-img {
   width: 100%;
   height: 100%;
 }
+
 .del-btn {
   position: absolute;
   top: 10rpx;
@@ -443,50 +535,48 @@ export default {
   height: 40rpx;
   line-height: 40rpx;
   text-align: center;
-  background: rgba(0,0,0,0.6);
-  color: var(--white);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
   font-size: 28rpx;
   border-radius: 50%;
-  z-index: 10;
-  transition: var(--transition);
 }
+
 .del-btn-hover {
   background: var(--red);
 }
+
 .upload-btn {
-  width: 180rpx;
-  height: 180rpx;
   border: 1px dashed var(--text-gray);
-  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   background: #fafafa;
-  transition: var(--transition);
 }
+
 .upload-btn-hover {
   border-color: var(--primary-color);
   background: var(--light-primary);
 }
+
 .upload-tip {
   font-size: 24rpx;
   color: var(--text-gray);
   margin-top: 10rpx;
 }
+
 .upload-desc {
-  font-size: 22rpx;
-  color: var(--text-gray);
-  margin-top: 15rpx;
   display: block;
   line-height: 1.5;
+  margin-top: 15rpx;
 }
+
 .submit-btn {
   width: 100%;
   height: 88rpx;
   line-height: 88rpx;
   background: var(--primary-color);
-  color: var(--white);
+  color: #fff;
   border-radius: var(--radius-full);
   font-size: 32rpx;
   border: none;
@@ -495,22 +585,30 @@ export default {
   justify-content: center;
   gap: 10rpx;
   margin-top: 20rpx;
-  transition: var(--transition);
   box-shadow: var(--shadow);
 }
+
 .submit-btn:disabled {
   background: var(--text-gray) !important;
-  color: var(--white);
+  color: #fff;
 }
+
 .submit-btn-hover {
   background: #1e42d2;
   transform: scale(0.98);
 }
+
 .loading-icon {
   animation: spin 1s linear infinite;
 }
+
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -44,6 +44,9 @@ public class AppAccessory extends BaseEntity
     @Excel(name = "销量")
     private Long salesCount;
 
+    /** 归属商家 ID。 */
+    private Long merchantId;
+
     /** 状态。 */
     @Excel(name = "状态")
     private String status;
@@ -131,6 +134,16 @@ public class AppAccessory extends BaseEntity
         this.salesCount = salesCount;
     }
 
+    public Long getMerchantId()
+    {
+        return merchantId;
+    }
+
+    public void setMerchantId(Long merchantId)
+    {
+        this.merchantId = merchantId;
+    }
+
     public String getStatus()
     {
         return status;
@@ -159,6 +172,7 @@ public class AppAccessory extends BaseEntity
             .append("categoryName", getCategoryName())
             .append("accessoryName", getAccessoryName())
             .append("accessoryDesc", getAccessoryDesc())
+            .append("merchantId", getMerchantId())
             .append("coverImage", getCoverImage())
             .append("price", getPrice())
             .append("stock", getStock())

@@ -9,6 +9,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="orderNo" column="order_no"/>
         <result property="accessoryId" column="accessory_id"/>
         <result property="appUserId" column="app_user_id"/>
+        <result property="merchantId" column="resolved_merchant_id"/>
         <result property="quantity" column="quantity"/>
         <result property="price" column="price"/>
         <result property="totalAmount" column="total_amount"/>
@@ -20,6 +21,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="accessoryName" column="accessory_name"/>
         <result property="coverImage" column="cover_image"/>
         <result property="userName" column="user_name"/>
+        <result property="merchantName" column="merchant_name"/>
         <result property="createBy" column="create_by"/>
         <result property="createTime" column="create_time"/>
         <result property="updateBy" column="update_by"/>
@@ -28,13 +30,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectAccessoryOrderVo">
-        select aao.accessory_order_id, aao.order_no, aao.accessory_id, aao.app_user_id, aao.quantity,
+        select aao.accessory_order_id, aao.order_no, aao.accessory_id, aao.app_user_id, aa.merchant_id as resolved_merchant_id, aao.quantity,
                aao.price, aao.total_amount, aao.status, aao.receiver_name, aao.receiver_phone,
                aao.receiver_address, aao.order_remark, aao.create_by, aao.create_time, aao.update_by,
-               aao.update_time, aao.remark, aa.accessory_name, aa.cover_image, au.nick_name as user_name
+               aao.update_time, aao.remark, aa.accessory_name, aa.cover_image, au.nick_name as user_name,
+               am.merchant_name
         from app_accessory_order aao
         left join app_accessory aa on aa.accessory_id = aao.accessory_id
         left join app_user au on au.app_user_id = aao.app_user_id
+        left join app_merchant am on am.merchant_id = aa.merchant_id
     </sql>
 
     <select id="selectAccessoryOrderById" parameterType="Long" resultMap="AppAccessoryOrderResult">
@@ -54,11 +58,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="status != null and status != ''">
                 and aao.status = #{status}
             </if>
+            <if test="merchantId != null">
+                and aa.merchant_id = #{merchantId}
+            </if>
             <if test="accessoryId != null">
                 and aao.accessory_id = #{accessoryId}
             </if>
             <if test="userName != null and userName != ''">
                 and au.nick_name like concat('%', #{userName}, '%')
+            </if>
+            <if test="merchantName != null and merchantName != ''">
+                and am.merchant_name like concat('%', #{merchantName}, '%')
             </if>
         </where>
         order by aao.accessory_order_id desc

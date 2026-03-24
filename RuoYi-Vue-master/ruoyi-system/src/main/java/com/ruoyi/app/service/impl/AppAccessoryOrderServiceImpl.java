@@ -9,12 +9,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ruoyi.app.domain.AppAccessory;
 import com.ruoyi.app.domain.AppAccessoryOrder;
 import com.ruoyi.app.domain.AppConstants;
+import com.ruoyi.app.domain.AppMerchant;
 import com.ruoyi.app.domain.AppUser;
 import com.ruoyi.app.domain.bo.AppAccessoryOrderSubmitBody;
 import com.ruoyi.app.mapper.AppAccessoryMapper;
 import com.ruoyi.app.mapper.AppAccessoryOrderMapper;
 import com.ruoyi.app.service.IAppAccessoryOrderService;
 import com.ruoyi.app.service.IAppAuthService;
+import com.ruoyi.app.service.IAppMerchantService;
 import com.ruoyi.common.exception.ServiceException;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.SecurityUtils;
@@ -38,6 +40,9 @@ public class AppAccessoryOrderServiceImpl implements IAppAccessoryOrderService
 
     @Autowired
     private IAppAuthService appAuthService;
+
+    @Autowired
+    private IAppMerchantService merchantService;
 
     @Override
     public AppAccessoryOrder selectAccessoryOrderById(Long accessoryOrderId)
@@ -86,6 +91,11 @@ public class AppAccessoryOrderServiceImpl implements IAppAccessoryOrderService
         order.setOrderNo(generateOrderNo());
         order.setAccessoryId(accessory.getAccessoryId());
         order.setAppUserId(currentUser.getAppUserId());
+        if (StringUtils.isNull(accessory.getMerchantId()))
+        {
+            throw new ServiceException("当前配件未绑定商家，暂时无法下单");
+        }
+        order.setMerchantId(accessory.getMerchantId());
         order.setQuantity(submitBody.getQuantity());
         order.setPrice(accessory.getPrice());
         order.setTotalAmount(accessory.getPrice().multiply(BigDecimal.valueOf(submitBody.getQuantity())));
@@ -112,10 +122,90 @@ public class AppAccessoryOrderServiceImpl implements IAppAccessoryOrderService
     }
 
     /**
+     * 商家发货。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int shipOrder(Long accessoryOrderId)
+    {
+        return updateOrderStatus(accessoryOrderId, AppConstants.ACCESSORY_ORDER_SHIPPED);
+    }
+
+    /**
+     * 商家完成订单。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int completeOrder(Long accessoryOrderId)
+    {
+        return updateOrderStatus(accessoryOrderId, AppConstants.ACCESSORY_ORDER_COMPLETED);
+    }
+
+    /**
+     * 商家取消订单。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int cancelOrder(Long accessoryOrderId)
+    {
+        return updateOrderStatus(accessoryOrderId, AppConstants.ACCESSORY_ORDER_CANCELED);
+    }
+
+    /**
      * 生成配件订单号。
      */
     private String generateOrderNo()
     {
         return "AO" + DateUtils.dateTimeNow("yyyyMMddHHmmss") + StringUtils.leftPad(String.valueOf(new Random().nextInt(10000)), 4, "0");
+    }
+
+    private int updateOrderStatus(Long accessoryOrderId, String targetStatus)
+    {
+        AppAccessoryOrder order = selectAccessoryOrderById(accessoryOrderId);
+        if (StringUtils.isNull(order))
+        {
+            throw new ServiceException("配件订单不存在");
+        }
+
+        validateMerchantOperator(order);
+        validateStatusTransition(order.getStatus(), targetStatus);
+
+        order.setStatus(targetStatus);
+        order.setUpdateBy(SecurityUtils.getUsername());
+        return accessoryOrderMapper.updateAccessoryOrder(order);
+    }
+
+    private void validateMerchantOperator(AppAccessoryOrder order)
+    {
+        AppMerchant merchant = merchantService.selectCurrentMerchant();
+        if (StringUtils.isNull(order.getMerchantId()) || !merchant.getMerchantId().equals(order.getMerchantId()))
+        {
+            throw new ServiceException("无权操作其他商家的配件订单");
+        }
+    }
+
+    private void validateStatusTransition(String oldStatus, String newStatus)
+    {
+        if (AppConstants.ACCESSORY_ORDER_PENDING.equals(oldStatus))
+        {
+            if (!AppConstants.ACCESSORY_ORDER_SHIPPED.equals(newStatus)
+                && !AppConstants.ACCESSORY_ORDER_CANCELED.equals(newStatus))
+            {
+                throw new ServiceException("待处理订单只允许更新为已发货或已取消");
+            }
+            return;
+        }
+
+        if (AppConstants.ACCESSORY_ORDER_SHIPPED.equals(oldStatus))
+        {
+            if (!AppConstants.ACCESSORY_ORDER_COMPLETED.equals(newStatus)
+                && !AppConstants.ACCESSORY_ORDER_CANCELED.equals(newStatus))
+            {
+                throw new ServiceException("已发货订单只允许更新为已完成或已取消");
+            }
+            return;
+        }
+
+        throw new ServiceException("当前订单状态不允许继续流转");
     }
 }

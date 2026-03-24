@@ -62,9 +62,9 @@
 
       <view class="func-item" @click="toMerchantList">
         <view class="icon-wrap">
-          <uni-icons type="location" size="40" color="#2f54eb"></uni-icons>
+          <uni-icons :type="role === 'merchant' ? 'shop' : 'location'" size="40" color="#2f54eb"></uni-icons>
         </view>
-        <text class="func-text">附近商家</text>
+        <text class="func-text">{{ role === 'merchant' ? '我的店铺' : '附近商家' }}</text>
       </view>
     </view>
 
@@ -165,7 +165,10 @@ export default {
       wx.switchTab({ url: "/pages/accessoryMall/index" });
     },
     toMerchantList() {
-      wx.navigateTo({ url: "/pages/merchantDetail/index" });
+      const url = this.role === 'merchant'
+        ? '/pages/merchantDetail/index?mode=merchant'
+        : '/pages/merchantDetail/index'
+      wx.navigateTo({ url });
     },
     toAccessoryDetail(item) {
       wx.navigateTo({

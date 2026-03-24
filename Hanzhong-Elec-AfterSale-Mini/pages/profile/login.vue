@@ -20,30 +20,39 @@
     </view>
 
     <view v-if="currentTab === 'login'" class="form-wrap">
-      <view class="input-item" :class="{ focused: loginFocus.username }">
-        <uni-icons type="person" size="24" color="#666"></uni-icons>
+      <view class="input-item" :class="{ focused: loginFocus.phone }">
+        <uni-icons type="phone" size="24" color="#666"></uni-icons>
         <input 
-          v-model="loginForm.username" 
-          placeholder="请输入用户名（2-16位）" 
+          v-model="loginForm.phone" 
+          placeholder="请输入手机号" 
           class="input"
-          @focus="loginFocus.username = true"
-          @blur="loginFocus.username = false; checkLoginForm()"
-          maxlength="16"
+          @focus="loginFocus.phone = true"
+          @blur="loginFocus.phone = false; checkLoginForm()"
+          type="number"
+          maxlength="11"
         />
       </view>
-      <view class="error-tip" v-if="loginErrors.username">{{ loginErrors.username }}</view>
+      <view class="error-tip" v-if="loginErrors.phone">{{ loginErrors.phone }}</view>
 
       <view class="input-item" :class="{ focused: loginFocus.password }">
         <uni-icons type="locked" size="24" color="#666"></uni-icons>
         <input 
+          :key="`login-password-${loginPasswordVisible ? 'plain' : 'secret'}`"
           v-model="loginForm.password" 
-          type="password" 
+          :password="loginPasswordVisible ? false : true"
           placeholder="请输入密码（6-16位，字母+数字）" 
           class="input"
           @focus="loginFocus.password = true"
           @blur="loginFocus.password = false; checkLoginForm()"
           maxlength="16"
         />
+        <uni-icons
+          :type="loginPasswordVisible ? 'eye-slash' : 'eye'"
+          size="22"
+          color="#999"
+          class="toggle-password"
+          @tap="toggleLoginPassword"
+        ></uni-icons>
       </view>
       <view class="error-tip" v-if="loginErrors.password">{{ loginErrors.password }}</view>
 
@@ -59,30 +68,38 @@
     </view>
 
     <view v-else class="form-wrap">
-      <view class="input-item" :class="{ focused: registerFocus.username }">
+      <view class="input-item" :class="{ focused: registerFocus.nickName }">
         <uni-icons type="person" size="24" color="#666"></uni-icons>
         <input 
-          v-model="registerForm.username" 
-          placeholder="请输入用户名（2-16位）" 
+          v-model="registerForm.nickName" 
+          placeholder="请输入昵称（2-16位）" 
           class="input"
-          @focus="registerFocus.username = true"
-          @blur="registerFocus.username = false; checkRegisterForm()"
+          @focus="registerFocus.nickName = true"
+          @blur="registerFocus.nickName = false; checkRegisterForm()"
           maxlength="16"
         />
       </view>
-      <view class="error-tip" v-if="registerErrors.username">{{ registerErrors.username }}</view>
+      <view class="error-tip" v-if="registerErrors.nickName">{{ registerErrors.nickName }}</view>
 
       <view class="input-item" :class="{ focused: registerFocus.password }">
         <uni-icons type="locked" size="24" color="#666"></uni-icons>
         <input 
+          :key="`register-password-${registerPasswordVisible ? 'plain' : 'secret'}`"
           v-model="registerForm.password" 
-          type="password" 
+          :password="registerPasswordVisible ? false : true"
           placeholder="请输入密码（6-16位，字母+数字）" 
           class="input"
           @focus="registerFocus.password = true"
           @blur="registerFocus.password = false; checkRegisterForm()"
           maxlength="16"
         />
+        <uni-icons
+          :type="registerPasswordVisible ? 'eye-slash' : 'eye'"
+          size="22"
+          color="#999"
+          class="toggle-password"
+          @tap="toggleRegisterPassword"
+        ></uni-icons>
       </view>
       <view class="error-tip" v-if="registerErrors.password">{{ registerErrors.password }}</view>
 
@@ -99,6 +116,87 @@
         />
       </view>
       <view class="error-tip" v-if="registerErrors.phone">{{ registerErrors.phone }}</view>
+
+      <view
+        class="input-item"
+        :class="{ focused: registerFocus.merchantName }"
+        v-if="registerForm.role === 'merchant'"
+      >
+        <uni-icons type="shop" size="24" color="#666"></uni-icons>
+        <input
+          v-model="registerForm.merchantName"
+          placeholder="请输入商家名称"
+          class="input"
+          @focus="registerFocus.merchantName = true"
+          @blur="registerFocus.merchantName = false; checkRegisterForm()"
+          maxlength="30"
+        />
+      </view>
+      <view class="error-tip" v-if="registerErrors.merchantName">{{ registerErrors.merchantName }}</view>
+
+      <view
+        class="input-item"
+        :class="{ focused: registerFocus.contactName }"
+        v-if="registerForm.role === 'merchant'"
+      >
+        <uni-icons type="person" size="24" color="#666"></uni-icons>
+        <input
+          v-model="registerForm.contactName"
+          placeholder="请输入联系人（选填）"
+          class="input"
+          @focus="registerFocus.contactName = true"
+          @blur="registerFocus.contactName = false"
+          maxlength="20"
+        />
+      </view>
+
+      <view
+        class="input-item"
+        :class="{ focused: registerFocus.address }"
+        v-if="registerForm.role === 'merchant'"
+      >
+        <uni-icons type="location" size="24" color="#666"></uni-icons>
+        <input
+          v-model="registerForm.address"
+          placeholder="请输入商家地址（选填）"
+          class="input"
+          @focus="registerFocus.address = true"
+          @blur="registerFocus.address = false"
+          maxlength="60"
+        />
+      </view>
+
+      <view
+        class="input-item"
+        :class="{ focused: registerFocus.serviceScope }"
+        v-if="registerForm.role === 'merchant'"
+      >
+        <uni-icons type="location" size="24" color="#666"></uni-icons>
+        <input
+          v-model="registerForm.serviceScope"
+          placeholder="请输入服务范围（选填）"
+          class="input"
+          @focus="registerFocus.serviceScope = true"
+          @blur="registerFocus.serviceScope = false"
+          maxlength="60"
+        />
+      </view>
+
+      <view class="input-item" :class="{ focused: registerFocus.code }">
+        <uni-icons type="compose" size="24" color="#666"></uni-icons>
+        <input
+          v-model="registerForm.code"
+          placeholder="请输入验证码"
+          class="input"
+          @focus="registerFocus.code = true"
+          @blur="registerFocus.code = false; checkRegisterForm()"
+          maxlength="6"
+        />
+        <button class="code-btn" @tap="handleSendCode" :disabled="isSendingCode">
+          {{ isSendingCode ? '发送中...' : '获取验证码' }}
+        </button>
+      </view>
+      <view class="error-tip" v-if="registerErrors.code">{{ registerErrors.code }}</view>
 
       <view class="role-wrap">
         <view 
@@ -133,31 +231,48 @@
 </template>
 
 <script>
+import { login, register, sendCode } from '@/api/login'
+import { setToken } from '@/utils/auth'
+import { syncRoleTabBar } from '@/utils/tabbar'
+
 export default {
   data() {
     return {
       currentTab: 'login',
       isLoading: false,
+      isSendingCode: false,
+      loginPasswordVisible: false,
+      registerPasswordVisible: false,
       loginForm: {
-        username: '',
+        phone: '',
         password: ''
       },
       loginFocus: {
-        username: false,
+        phone: false,
         password: false
       },
       loginErrors: {},
       isLoginFormValid: false,
       registerForm: {
-        username: '',
+        nickName: '',
         password: '',
         phone: '',
+        merchantName: '',
+        contactName: '',
+        address: '',
+        serviceScope: '',
+        code: '',
         role: 'user'
       },
       registerFocus: {
-        username: false,
+        nickName: false,
         password: false,
-        phone: false
+        phone: false,
+        merchantName: false,
+        contactName: false,
+        address: false,
+        serviceScope: false,
+        code: false
       },
       registerErrors: {},
       isRegisterFormValid: false
@@ -168,19 +283,44 @@ export default {
       this.currentTab = tab;
       this.loginErrors = {};
       this.registerErrors = {};
+      this.loginPasswordVisible = false;
+      this.registerPasswordVisible = false;
+    },
+    toggleLoginPassword() {
+      this.loginPasswordVisible = !this.loginPasswordVisible;
+    },
+    toggleRegisterPassword() {
+      this.registerPasswordVisible = !this.registerPasswordVisible;
     },
     changeRole(role) {
       this.registerForm.role = role;
+      if (role !== 'merchant') {
+        this.registerForm.merchantName = '';
+        this.registerForm.contactName = '';
+        this.registerForm.address = '';
+        this.registerForm.serviceScope = '';
+      }
+      this.checkRegisterForm();
       uni.showToast({
         title: `已选择${role === 'user' ? '普通用户' : '商家用户'}`,
         icon: 'none',
         duration: 1500
       });
     },
-    validateUsername(value) {
-      if (!value) return '请输入用户名';
-      if (value.length < 2 || value.length > 16) return '用户名长度需在2-16位之间';
-      if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]+$/.test(value)) return '用户名仅支持中文、字母、数字、下划线';
+    getRoleMeta(roleType) {
+      const normalizedRoleType = String(roleType || '1');
+      return {
+        roleType: normalizedRoleType,
+        role: normalizedRoleType === '2' ? 'merchant' : 'user',
+        roleLabel: normalizedRoleType === '2'
+          ? '商家用户'
+          : (normalizedRoleType === '0' ? '待审核商家' : '普通用户'),
+        isPendingMerchant: normalizedRoleType === '0'
+      };
+    },
+    validateNickName(value) {
+      if (!value) return '请输入昵称';
+      if (value.length < 2 || value.length > 16) return '昵称长度需在2-16位之间';
       return '';
     },
     validatePassword(value) {
@@ -194,31 +334,66 @@ export default {
       if (!/^1[3-9]\d{9}$/.test(value)) return '请输入正确的手机号';
       return '';
     },
+    validateCode(value) {
+      if (!value) return '请输入验证码';
+      if (!/^\d{6}$/.test(value)) return '验证码应为6位数字';
+      return '';
+    },
+    validateMerchantName(value) {
+      if (this.registerForm.role !== 'merchant') return '';
+      if (!value) return '请输入商家名称';
+      return '';
+    },
     checkLoginForm() {
-      const { username, password } = this.loginForm;
-      const usernameErr = this.validateUsername(username);
+      const { phone, password } = this.loginForm;
+      const phoneErr = this.validatePhone(phone);
       const passwordErr = this.validatePassword(password);
 
       this.loginErrors = {
-        username: usernameErr,
+        phone: phoneErr,
         password: passwordErr
       };
 
-      this.isLoginFormValid = !usernameErr && !passwordErr;
+      this.isLoginFormValid = !phoneErr && !passwordErr;
     },
     checkRegisterForm() {
-      const { username, password, phone } = this.registerForm;
-      const usernameErr = this.validateUsername(username);
+      const { nickName, password, phone, merchantName, code } = this.registerForm;
+      const nickNameErr = this.validateNickName(nickName);
       const passwordErr = this.validatePassword(password);
       const phoneErr = this.validatePhone(phone);
+      const merchantNameErr = this.validateMerchantName(merchantName);
+      const codeErr = this.validateCode(code);
 
       this.registerErrors = {
-        username: usernameErr,
+        nickName: nickNameErr,
         password: passwordErr,
-        phone: phoneErr
+        phone: phoneErr,
+        merchantName: merchantNameErr,
+        code: codeErr
       };
 
-      this.isRegisterFormValid = !usernameErr && !passwordErr && !phoneErr;
+      this.isRegisterFormValid = !nickNameErr && !passwordErr && !phoneErr && !merchantNameErr && !codeErr;
+    },
+    saveAuthState(data, fallbackPhone) {
+      const appUser = data.appUser || {};
+      const roleMeta = this.getRoleMeta(data.roleType || appUser.roleType || '1');
+      const nickName = appUser.nickName || appUser.phone || fallbackPhone;
+      const cachedUserInfo = uni.getStorageSync('userInfo') || {};
+
+      setToken(data.token);
+      uni.setStorageSync('userInfo', {
+        ...cachedUserInfo,
+        ...appUser,
+        nickName,
+        nickname: nickName,
+        roleType: roleMeta.roleType,
+        role: roleMeta.role,
+        roleLabel: roleMeta.roleLabel,
+        isPendingMerchant: roleMeta.isPendingMerchant,
+        merchant: data.merchant || cachedUserInfo.merchant || null,
+        avatar: cachedUserInfo.avatar || '/static/images/avatar.png'
+      });
+      syncRoleTabBar(uni.getStorageSync('userInfo') || {})
     },
     async handleLogin() {
       this.checkLoginForm();
@@ -228,35 +403,68 @@ export default {
       }
 
       this.isLoading = true;
-      setTimeout(() => {
-        this.mockLogin();
+
+      try {
+        const res = await login(this.loginForm.phone, this.loginForm.password);
+        const data = res.data || {};
+
+        if (!data.token) {
+          uni.showToast({ title: '登录返回缺少 token', icon: 'none' });
+          return;
+        }
+
+        this.saveAuthState(data, this.loginForm.phone);
+
+        uni.showToast({ title: '登录成功！', icon: 'success' });
+        setTimeout(() => {
+          uni.switchTab({ url: '/pages/profile/index' });
+        }, 1500);
+      } catch (err) {
+        uni.showToast({
+          title: (err && err.msg) || '登录失败',
+          icon: 'none'
+        });
+      } finally {
         this.isLoading = false;
-      }, 800);
+      }
     },
-    mockLogin() {
-      const { username, password } = this.loginForm;
-      const userList = JSON.parse(uni.getStorageSync('userList') || '[]');
-      const targetUser = userList.find(
-        u => u.username === username && u.password === password
-      );
-      
-      if (!targetUser) {
-        uni.showToast({ title: '账号或密码错误', icon: 'none' });
+    async handleSendCode() {
+      const phoneErr = this.validatePhone(this.registerForm.phone);
+      this.registerErrors = {
+        ...this.registerErrors,
+        phone: phoneErr
+      };
+      if (phoneErr) {
+        uni.showToast({ title: phoneErr, icon: 'none' });
         return;
       }
 
-      uni.setStorageSync('token', `mock_token_${Date.now()}`);
-      uni.setStorageSync('userInfo', {
-        nickname: targetUser.username,
-        role: targetUser.role,
-        userType: targetUser.userType,
-        avatar: '/static/images/avatar.png'
-      });
-
-      uni.showToast({ title: '登录成功！', icon: 'success' });
-      setTimeout(() => {
-        uni.switchTab({ url: '/pages/profile/index' });
-      }, 1500);
+      this.isSendingCode = true;
+      try {
+        const res = await sendCode(this.registerForm.phone);
+        const smsCode = res.smsCode || '';
+        if (smsCode) {
+          this.registerForm.code = smsCode;
+          this.checkRegisterForm();
+          uni.showToast({
+            title: `验证码：${smsCode}`,
+            icon: 'none',
+            duration: 2500
+          });
+        } else {
+          uni.showToast({
+            title: res.msg || '验证码已发送',
+            icon: 'none'
+          });
+        }
+      } catch (err) {
+        uni.showToast({
+          title: (err && err.msg) || '验证码发送失败',
+          icon: 'none'
+        });
+      } finally {
+        this.isSendingCode = false;
+      }
     },
     async handleRegister() {
       this.checkRegisterForm();
@@ -266,36 +474,61 @@ export default {
       }
 
       this.isLoading = true;
-      setTimeout(() => {
-        this.mockRegister();
+      try {
+        const payload = {
+          phone: this.registerForm.phone,
+          password: this.registerForm.password,
+          confirmPassword: this.registerForm.password,
+          nickName: this.registerForm.nickName,
+          code: this.registerForm.code,
+          roleType: this.registerForm.role === 'merchant' ? '2' : '1',
+          merchantName: this.registerForm.role === 'merchant' ? this.registerForm.merchantName : '',
+          contactName: this.registerForm.role === 'merchant' ? this.registerForm.contactName : '',
+          address: this.registerForm.role === 'merchant' ? this.registerForm.address : '',
+          serviceScope: this.registerForm.role === 'merchant' ? this.registerForm.serviceScope : ''
+        };
+
+        const res = await register(payload);
+        const data = res.data || {};
+
+        if (!data.token) {
+          this.loginForm.phone = this.registerForm.phone;
+          this.loginForm.password = this.registerForm.password;
+          this.currentTab = 'login';
+          this.loginErrors = {};
+          uni.showToast({ title: '注册成功，请使用新账号登录', icon: 'success' });
+          return;
+        }
+
+        this.saveAuthState(data, this.registerForm.phone);
+        const roleMeta = this.getRoleMeta(data.roleType || (data.appUser && data.appUser.roleType) || '1');
+        uni.showToast({
+          title: roleMeta.isPendingMerchant ? '入驻申请已提交，等待审核' : '注册成功！',
+          icon: 'success'
+        });
+        setTimeout(() => {
+          uni.switchTab({ url: '/pages/profile/index' });
+        }, 1500);
+      } catch (err) {
+        const errMsg = (err && err.msg) || ''
+        if (errMsg.includes('手机号或密码错误') || errMsg.includes('用户不存在')) {
+          this.loginForm.phone = this.registerForm.phone;
+          this.loginForm.password = this.registerForm.password;
+          this.currentTab = 'login';
+          this.loginErrors = {};
+          uni.showToast({
+            title: '注册成功，请使用新账号登录',
+            icon: 'success'
+          });
+          return;
+        }
+        uni.showToast({
+          title: errMsg || '注册失败',
+          icon: 'none'
+        });
+      } finally {
         this.isLoading = false;
-      }, 800);
-    },
-    mockRegister() {
-      const { username, password, phone, role } = this.registerForm;
-      const userList = JSON.parse(uni.getStorageSync('userList') || '[]');
-      
-      const isExist = userList.some(u => u.username === username);
-      if (isExist) {
-        uni.showToast({ title: '用户名已存在', icon: 'none' });
-        return;
       }
-
-      const newUser = {
-        id: Date.now(),
-        username,
-        password,
-        phone,
-        role,
-        userType: role === 'user' ? '01' : '02',
-        createTime: new Date().toLocaleString()
-      };
-      userList.push(newUser);
-      uni.setStorageSync('userList', JSON.stringify(userList));
-
-      uni.showToast({ title: '注册成功！请登录', icon: 'success' });
-      this.switchTab('login');
-      this.registerForm = { username: '', password: '', phone: '', role: 'user' };
     }
   }
 }
@@ -373,6 +606,29 @@ export default {
 }
 .input::placeholder {
   color: #999;
+}
+
+.toggle-password {
+  flex-shrink: 0;
+  padding-left: 12rpx;
+}
+
+.code-btn {
+  flex-shrink: 0;
+  margin-left: 20rpx;
+  padding: 0 20rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  border: none;
+  border-radius: 28rpx;
+  background: #2f54eb;
+  color: #fff;
+  font-size: 24rpx;
+}
+
+.code-btn[disabled] {
+  background: #ccc;
+  color: #fff;
 }
 
 .error-tip {
