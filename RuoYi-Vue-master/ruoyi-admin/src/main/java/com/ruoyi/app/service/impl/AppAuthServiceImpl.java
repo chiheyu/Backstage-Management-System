@@ -11,6 +11,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -56,6 +58,8 @@ import com.ruoyi.system.service.ISysUserService;
 @Service
 public class AppAuthServiceImpl implements IAppAuthService
 {
+    private static final Logger log = LoggerFactory.getLogger(AppAuthServiceImpl.class);
+
     private static final DateTimeFormatter SMS_CODE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
@@ -122,8 +126,9 @@ public class AppAuthServiceImpl implements IAppAuthService
         }
 
         String username = transactionTemplate.execute((status) -> {
+            String loginUsername = registerBody.getPhone();
             SysUser sysUser = new SysUser();
-            sysUser.setUserName(registerBody.getPhone());
+            sysUser.setUserName(loginUsername);
             sysUser.setNickName(StringUtils.defaultIfEmpty(registerBody.getNickName(), registerBody.getPhone()));
             sysUser.setPhonenumber(registerBody.getPhone());
             sysUser.setStatus(AppConstants.STATUS_NORMAL);
@@ -146,7 +151,7 @@ public class AppAuthServiceImpl implements IAppAuthService
             appUser.setNickName(StringUtils.defaultIfEmpty(registerBody.getNickName(), registerBody.getPhone()));
             appUser.setRoleType(roleType);
             appUser.setStatus(AppConstants.STATUS_NORMAL);
-            appUser.setCreateBy(savedUser.getUserName());
+            appUser.setCreateBy(loginUsername);
             appUserMapper.insertAppUser(appUser);
 
             if (AppConstants.ROLE_PENDING_MERCHANT.equals(roleType))
@@ -161,23 +166,31 @@ public class AppAuthServiceImpl implements IAppAuthService
                 merchant.setServiceScope(registerBody.getServiceScope());
                 merchant.setCityName("汉中市");
                 merchant.setAuditStatus(AppConstants.MERCHANT_AUDIT_PENDING);
-                merchant.setCreateBy(savedUser.getUserName());
+                merchant.setCreateBy(loginUsername);
                 merchantMapper.insertMerchant(merchant);
 
                 appUser.setMerchantId(merchant.getMerchantId());
-                appUser.setUpdateBy(savedUser.getUserName());
+                appUser.setUpdateBy(loginUsername);
                 appUserMapper.updateAppUser(appUser);
             }
 
             userService.insertUserAuth(savedUser.getUserId(), new Long[] { getRoleIdByKey("user") });
-            return savedUser.getUserName();
+            return loginUsername;
         });
 
         if (StringUtils.isEmpty(username))
         {
             throw new ServiceException("注册失败，请稍后重试");
         }
-        return loginByUsername(username, registerBody.getPassword());
+        try
+        {
+            return loginByUsername(username, registerBody.getPassword());
+        }
+        catch (Exception exception)
+        {
+            log.warn("App 注册成功，但自动登录失败，username={}", username, exception);
+            return null;
+        }
     }
 
     /**

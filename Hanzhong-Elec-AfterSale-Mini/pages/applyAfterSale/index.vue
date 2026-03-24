@@ -1,5 +1,7 @@
 <template>
-  <view class="aftersale-page">
+  <merchant-receipt-panel v-if="isMerchant" />
+
+  <view v-else class="aftersale-page">
     <view class="form-container">
       <view class="form-item">
         <view class="label-wrap">
@@ -101,6 +103,8 @@
 
 <script>
 import { createAfterSaleOrder, uploadAfterSaleImage } from '@/api/afterSale'
+import MerchantReceiptPanel from '@/components/MerchantReceiptPanel.vue'
+import { syncRoleTabBar } from '@/utils/tabbar'
 
 const EMPTY_FORM = {
   productName: '',
@@ -112,10 +116,15 @@ const EMPTY_FORM = {
   region: '',
   detail: ''
 }
+const AFTER_SALE_PREFILL_KEY = 'afterSalePrefill'
 
 export default {
+  components: {
+    MerchantReceiptPanel
+  },
   data() {
     return {
+      isMerchant: false,
       form: {
         ...EMPTY_FORM
       },
@@ -134,15 +143,51 @@ export default {
         this.form.faultDesc.trim().length > 0 &&
         this.form.name.trim().length > 0 &&
         /^1[3-9]\d{9}$/.test(this.form.phone.trim()) &&
-        this.form.region.trim().length > 0 &&
         this.form.detail.trim().length > 0
       )
     }
   },
   onShow() {
+    const userInfo = uni.getStorageSync('userInfo') || {}
+    this.isMerchant = userInfo.role === 'merchant' || userInfo.roleType === '2'
+    syncRoleTabBar(userInfo)
+
+    uni.setNavigationBarTitle({
+      title: this.isMerchant ? '售后回执' : '申请售后'
+    })
+
+    if (this.isMerchant) {
+      return
+    }
     this.loadDefaultAddress()
+    this.consumeAfterSalePrefill()
   },
   methods: {
+    consumeAfterSalePrefill() {
+      const prefill = uni.getStorageSync(AFTER_SALE_PREFILL_KEY)
+      if (!prefill || typeof prefill !== 'object') {
+        return
+      }
+
+      uni.removeStorageSync(AFTER_SALE_PREFILL_KEY)
+
+      this.form.productName = prefill.productName || this.form.productName
+      this.form.productModel = prefill.productModel || this.form.productModel
+
+      this.form.name = prefill.name || this.form.name
+      this.form.phone = prefill.phone || this.form.phone
+
+      if (prefill.receiverAddress) {
+        this.form.region = ''
+        this.form.detail = prefill.receiverAddress
+        this.addressInfo = {
+          name: this.form.name,
+          phone: this.form.phone,
+          region: '',
+          detail: prefill.receiverAddress
+        }
+      }
+    },
     ensureLogin(shouldRedirect = false) {
       const token = uni.getStorageSync('token')
       const userInfo = uni.getStorageSync('userInfo')
@@ -251,6 +296,7 @@ export default {
       const productModel = this.form.productModel.trim()
       const region = this.form.region.trim()
       const detail = this.form.detail.trim()
+      const address = [region, detail].filter(Boolean).join(' ')
 
       return {
         productType: `${productName} / ${productModel}`,
@@ -258,7 +304,7 @@ export default {
         faultImages: imageUrls.join(','),
         contactName: this.form.name.trim(),
         contactPhone: this.form.phone.trim(),
-        address: `${region} ${detail}`.trim()
+        address
       }
     },
     resetForm() {

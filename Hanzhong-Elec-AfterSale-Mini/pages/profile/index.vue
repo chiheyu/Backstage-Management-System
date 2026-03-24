@@ -42,17 +42,18 @@
             </view>
             <text class="order-text">已完成</text>
           </view>
-          <view class="order-item" @click="goAfterSaleApply" hover-class="order-item-hover">
+          <view class="order-item" @click="goAfterSaleHistory" hover-class="order-item-hover">
             <view class="order-icon-wrapper">
               <uni-icons type="refresh" size="28" color="#fa8c16" class="order-icon"></uni-icons>
             </view>
-            <text class="order-text">售后</text>
+            <text class="order-text">售后历史</text>
           </view>
         </view>
       </view>
 
       <view class="section order-section" v-if="showMerchantModules">
         <view class="section-header">
+          <text class="section-title">售后订单</text>
           <text class="more" @click="goAudit('all')">全部 ></text>
         </view>
         <view class="order-grid">
@@ -60,19 +61,46 @@
             <view class="order-icon-wrapper">
               <uni-icons type="flag" size="28" color="#fa8c16" class="order-icon"></uni-icons>
             </view>
-            <text class="order-text">待处理订单</text>
+            <text class="order-text">售后待处理</text>
           </view>
           <view class="order-item" @click="goAudit('finished')" hover-class="order-item-hover">
             <view class="order-icon-wrapper">
               <uni-icons type="checkmarkempty" size="28" color="#52c41a" class="order-icon"></uni-icons>
             </view>
-            <text class="order-text">已处理订单</text>
+            <text class="order-text">售后已处理</text>
           </view>
           <view class="order-item" @click="goMerchantStat" hover-class="order-item-hover">
             <view class="order-icon-wrapper">
               <uni-icons type="search" size="28" color="#2f54eb" class="order-icon"></uni-icons>
             </view>
             <text class="order-text">数据统计</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="section order-section" v-if="showMerchantModules">
+        <view class="section-header">
+          <text class="section-title">配件订单</text>
+          <text class="more" @click="goAccessoryOrder('all')">全部 ></text>
+        </view>
+        <view class="order-grid">
+          <view class="order-item" @click="goAccessoryOrder('pending')" hover-class="order-item-hover">
+            <view class="order-icon-wrapper">
+              <uni-icons type="cart" size="28" color="#0f766e" class="order-icon"></uni-icons>
+            </view>
+            <text class="order-text">配件待处理</text>
+          </view>
+          <view class="order-item" @click="goAccessoryOrder('finished')" hover-class="order-item-hover">
+            <view class="order-icon-wrapper">
+              <uni-icons type="checkmarkempty" size="28" color="#18a058" class="order-icon"></uni-icons>
+            </view>
+            <text class="order-text">配件已处理</text>
+          </view>
+          <view class="order-item" @click="goAccessoryOrder('all')" hover-class="order-item-hover">
+            <view class="order-icon-wrapper">
+              <uni-icons type="list" size="28" color="#2f54eb" class="order-icon"></uni-icons>
+            </view>
+            <text class="order-text">全部配件订单</text>
           </view>
         </view>
       </view>
@@ -123,14 +151,8 @@
       </view>
     </view>
 
-    <uni-popup
-      v-if="showMerchantModules"
-      ref="statPopup"
-      type="center"
-      :mask-click="false"
-      background-color="transparent"
-    >
-      <view class="stat-popup">
+    <view v-if="showMerchantModules && showStatModal" class="modal-mask" @tap="closeStatPopup">
+      <view class="stat-popup" @tap.stop>
         <view class="stat-header">
           <text class="stat-title">售后数据统计</text>
           <uni-icons type="close" size="26" color="#333" class="stat-close" @click="closeStatPopup"></uni-icons>
@@ -177,27 +199,27 @@
         </view>
         <button class="stat-close-btn" @click="closeStatPopup">关闭</button>
       </view>
-    </uni-popup>
+    </view>
 
-    <uni-popup
-      v-if="showMerchantModules"
-      ref="merchantAdminPopup"
-      type="center"
-      :mask-click="false"
-      background-color="transparent"
-    >
-      <view class="merchant-admin-popup">
+    <view v-if="showMerchantModules && showMerchantAdminModal" class="modal-mask" @tap="closeMerchantAdmin">
+      <view class="merchant-admin-popup" @tap.stop>
         <view class="merchant-admin-header">
           <text class="merchant-admin-title">商家管理后台</text>
           <uni-icons type="close" size="26" color="#333" class="merchant-admin-close" @click="closeMerchantAdmin"></uni-icons>
         </view>
         <view class="merchant-admin-content">
           <view class="merchant-admin-grid">
-            <view class="merchant-admin-item" hover-class="merchant-admin-item-hover" @click="gotoOrderManage">
+            <view class="merchant-admin-item" hover-class="merchant-admin-item-hover" @click="gotoAfterSaleManage">
               <view class="merchant-admin-icon-wrapper">
                 <uni-icons type="list" size="32" color="#2f54eb"></uni-icons>
               </view>
-              <text class="merchant-admin-item-text">订单管理</text>
+              <text class="merchant-admin-item-text">售后订单</text>
+            </view>
+            <view class="merchant-admin-item" hover-class="merchant-admin-item-hover" @click="gotoAccessoryOrderManage">
+              <view class="merchant-admin-icon-wrapper">
+                <uni-icons type="cart" size="32" color="#0f766e"></uni-icons>
+              </view>
+              <text class="merchant-admin-item-text">配件订单</text>
             </view>
             <view class="merchant-admin-item" hover-class="merchant-admin-item-hover" @click="gotoGoodsManage">
               <view class="merchant-admin-icon-wrapper">
@@ -215,7 +237,7 @@
         </view>
         <button class="merchant-admin-close-btn" @click="closeMerchantAdmin">关闭</button>
       </view>
-    </uni-popup>
+    </view>
   </view>
 </template>
 
@@ -223,6 +245,7 @@
 import { getInfo, logout as appLogout } from '@/api/login'
 import { getCurrentMerchantInfo } from '@/api/merchant'
 import { getToken, removeToken } from '@/utils/auth'
+import { resetDefaultTabBar, syncRoleTabBar } from '@/utils/tabbar'
 
 export default {
   data() {
@@ -236,6 +259,8 @@ export default {
       roleLabel: '普通用户',
       isPendingMerchant: false,
       merchantInfo: null,
+      showStatModal: false,
+      showMerchantAdminModal: false,
       pendingCount: 0,
       auditCount: 0,
       statData: {
@@ -259,12 +284,15 @@ export default {
       },
       PAGE_PATH: {
         INDEX: '/pages/index/index',
+        ACCESSORY_ORDER: '/pages/accessoryOrder/index',
+        MERCHANT_ACCESSORY_ORDER: '/pages/merchantAccessoryOrder/index',
         AFTER_SALE_ORDER: '/pages/afterSaleOrder/index',
         AFTER_SALE_APPLY: '/pages/applyAfterSale/index',
         PROFILE: '/pages/profile/index',
         LOGIN: '/pages/profile/login',
         ADDRESS: '/pages/address/index',
         MERCHANT_PENDING_ORDER: '/pages/afterSaleOrder/index?type=pending&audit=1&role=merchant',
+        MERCHANT_AFTER_SALE_ORDER: '/pages/afterSaleOrder/index?type=all&audit=1&role=merchant',
         ACCESSORY_MALL: '/pages/accessoryMall/index',
         SHOP_SETTING: '/pages/merchant/shopSetting/index'
       },
@@ -290,6 +318,17 @@ export default {
     this.loading = false;
   },
   methods: {
+    navigateToPage(url) {
+      wx.navigateTo({
+        url,
+        fail: () => {
+          wx.showToast({
+            title: '页面跳转失败',
+            icon: 'none'
+          })
+        }
+      })
+    },
     async syncUserState() {
       const token = getToken();
       const localUserInfo = wx.getStorageSync('userInfo');
@@ -313,6 +352,7 @@ export default {
         }
         const mergedUserInfo = this.mergeUserInfo(localUserInfo, remoteUser, merchantInfo);
         wx.setStorageSync('userInfo', mergedUserInfo);
+        syncRoleTabBar(mergedUserInfo)
         this.applyUserState(mergedUserInfo);
       } catch (err) {
         if (!wx.getStorageSync('token')) {
@@ -363,6 +403,7 @@ export default {
       this.isPendingMerchant = typeof userInfo.isPendingMerchant === 'boolean' ? userInfo.isPendingMerchant : roleMeta.isPendingMerchant;
       this.merchantInfo = userInfo.merchant || null;
       this.avatar = userInfo.avatar || '/static/images/avatar.png';
+      syncRoleTabBar(userInfo)
     },
     updateUserInfo(patch) {
       const userInfo = wx.getStorageSync('userInfo') || {};
@@ -388,21 +429,16 @@ export default {
       this.roleLabel = '普通用户';
       this.isPendingMerchant = false;
       this.merchantInfo = null;
-      if (this.$refs.statPopup) {
-        this.$refs.statPopup.close();
-      }
-      if (this.$refs.merchantAdminPopup) {
-        this.$refs.merchantAdminPopup.close();
-      }
+      this.showStatModal = false;
+      this.showMerchantAdminModal = false;
+      resetDefaultTabBar()
     },
     loadDefaultAddress() {
       const addressList = wx.getStorageSync('addressList') || [];
       this.defaultAddress = addressList.find(item => item.isDefault) || null;
     },
     goLoginPage() {
-      wx.navigateTo({
-        url: this.PAGE_PATH.LOGIN
-      });
+      this.navigateToPage(this.PAGE_PATH.LOGIN)
     },
     logout() {
       wx.showModal({
@@ -482,77 +518,58 @@ export default {
       });
     },
     goOrder(type) {
-      const titleMap = { pending: '待处理', finished: '已完成', all: '全部' };
-      wx.showToast({
-        title: `进入${titleMap[type]}订单`,
-        icon: 'none',
-        duration: 1000
-      });
-      const url = `${this.PAGE_PATH.AFTER_SALE_ORDER}?type=${type}&role=user`;
-      wx.navigateTo({
-        url
-      });
+      const url = `${this.PAGE_PATH.ACCESSORY_ORDER}?type=${type}`;
+      this.navigateToPage(url)
     },
     goAudit(type) {
-      const titleMap = { pending: '待处理', finished: '已完成', all: '全部' };
-      wx.showToast({
-        title: `进入${titleMap[type]}审核订单`,
-        icon: 'none',
-        duration: 1000
-      });
       const url = `${this.PAGE_PATH.AFTER_SALE_ORDER}?type=${type}&audit=1&role=merchant`;
-      wx.navigateTo({
-        url
-      });
+      this.navigateToPage(url)
     },
-    goAfterSaleApply() {
-      wx.switchTab({
-        url: this.PAGE_PATH.AFTER_SALE_APPLY
-      });
+    goAccessoryOrder(type) {
+      const url = `${this.PAGE_PATH.MERCHANT_ACCESSORY_ORDER}?type=${type}`
+      this.navigateToPage(url)
+    },
+    goAfterSaleHistory() {
+      this.navigateToPage(`${this.PAGE_PATH.AFTER_SALE_ORDER}?type=all&role=user`)
     },
     goMerchantStat() {
       if (!this.showMerchantModules) {
         return;
       }
-      this.isLoading = true;
-      setTimeout(() => {
-        this.isLoading = false;
-        this.$refs.statPopup.open();
-      }, 300);
+      this.showStatModal = true;
     },
     closeStatPopup() {
-      this.$refs.statPopup.close();
+      this.showStatModal = false;
     },
     openMerchantAdmin() {
       if (!this.showMerchantModules) {
         return;
       }
-      this.$refs.merchantAdminPopup.open();
+      this.showMerchantAdminModal = true;
     },
     closeMerchantAdmin() {
-      this.$refs.merchantAdminPopup.close();
+      this.showMerchantAdminModal = false;
     },
-    gotoOrderManage() {
-      wx.showToast({ title: '进入待处理订单', icon: 'none' });
-      wx.navigateTo({ url: this.PAGE_PATH.MERCHANT_PENDING_ORDER });
+    gotoAfterSaleManage() {
       this.closeMerchantAdmin();
+      this.navigateToPage(this.PAGE_PATH.MERCHANT_AFTER_SALE_ORDER)
+    },
+    gotoAccessoryOrderManage() {
+      this.closeMerchantAdmin();
+      this.navigateToPage(`${this.PAGE_PATH.MERCHANT_ACCESSORY_ORDER}?type=pending`)
     },
     gotoGoodsManage() {
-      wx.showToast({ title: '进入配件商城', icon: 'none' });
       this.closeMerchantAdmin();
       setTimeout(() => {
         wx.switchTab({ url: this.PAGE_PATH.ACCESSORY_MALL });
       }, 100);
     },
     gotoShopSetting() {
-      wx.showToast({ title: '进入店铺设置', icon: 'none' });
-      wx.navigateTo({ url: this.PAGE_PATH.SHOP_SETTING });
       this.closeMerchantAdmin();
+      this.navigateToPage(this.PAGE_PATH.SHOP_SETTING)
     },
     goAddress() {
-      wx.navigateTo({
-        url: this.PAGE_PATH.ADDRESS
-      });
+      this.navigateToPage(this.PAGE_PATH.ADDRESS)
     },
     goService() {
       wx.showModal({
@@ -591,6 +608,7 @@ export default {
   background-color: var(--bg-color);
   padding: 0;
   box-sizing: border-box;
+  position: relative;
 }
 
 .loading {
@@ -673,10 +691,18 @@ export default {
 
 .section-header {
   display: flex;
+  gap: 16rpx;
   justify-content: flex-end;
   align-items: center;
   padding: 30rpx;
   border-bottom: 1px solid var(--border-color);
+}
+
+.section-title {
+  margin-right: auto;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-color);
 }
 
 .pending-merchant-section {
@@ -1001,6 +1027,18 @@ export default {
   border-radius: 20rpx;
   overflow: hidden;
   box-shadow: 0 10rpx 40rpx rgba(0, 0, 0, 0.15);
+}
+
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+  z-index: 999;
+  box-sizing: border-box;
 }
 
 .stat-header {

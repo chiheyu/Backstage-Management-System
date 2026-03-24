@@ -76,6 +76,22 @@
       }
     },
     {
+      "path": "pages/accessoryOrder/index",
+      "style": {
+        "navigationBarTitleText": "配件订单",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/merchantAccessoryOrder/index",
+      "style": {
+        "navigationBarTitleText": "商家配件订单",
+        "navigationBarBackgroundColor": "#2f54eb",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
       "path": "pages/profile/index",
       "style": {
         "navigationBarTitleText": "我的",

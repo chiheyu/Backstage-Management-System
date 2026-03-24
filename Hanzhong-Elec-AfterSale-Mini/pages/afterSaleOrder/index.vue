@@ -58,7 +58,7 @@
             <text class="value">{{ displayCounterpart(item) }}</text>
           </view>
           <view v-if="item.serviceRemark" class="info-row">
-            <text class="label">处理备注</text>
+            <text class="label">回执内容</text>
             <text class="value">{{ item.serviceRemark }}</text>
           </view>
           <view v-if="item.imageList.length" class="info-row">
@@ -108,13 +108,12 @@
               {{ actioningOrderId === item.orderId ? '处理中...' : '开始维修' }}
             </button>
             <button
-              v-if="canComplete(item)"
+              v-if="canOpenReceipt(item)"
               class="btn success-btn"
               size="mini"
-              :disabled="actioningOrderId === item.orderId"
-              @tap="updateOrderStatus(item, STATUS.COMPLETED, '维修完成', '订单已完成')"
+              @tap="openReceiptPanel(item)"
             >
-              {{ actioningOrderId === item.orderId ? '处理中...' : '完成订单' }}
+              售后回执
             </button>
             <button
               v-if="canMerchantCancel(item)"
@@ -161,6 +160,7 @@ const STATUS = {
 }
 
 const DEFAULT_PAGE_SIZE = 20
+const RECEIPT_ORDER_KEY = 'merchantReceiptOrderId'
 
 export default {
   data() {
@@ -439,13 +439,22 @@ export default {
       return this.isMerchantMode && item.status === STATUS.ACCEPTED
     },
     canComplete(item) {
-      return this.isMerchantMode && item.status === STATUS.REPAIRING
+      return false
     },
     canMerchantCancel(item) {
       return this.isMerchantMode && [STATUS.ACCEPTED, STATUS.REPAIRING].includes(item.status)
     },
+    canOpenReceipt(item) {
+      return this.isMerchantMode && item.status === STATUS.REPAIRING
+    },
     merchantCancelRemark(item) {
       return item.status === STATUS.REPAIRING ? '维修终止，订单取消' : '商家取消接单'
+    },
+    openReceiptPanel(item) {
+      uni.setStorageSync(RECEIPT_ORDER_KEY, item.orderId)
+      uni.switchTab({
+        url: '/pages/applyAfterSale/index'
+      })
     },
     toApplyAfterSale() {
       uni.switchTab({

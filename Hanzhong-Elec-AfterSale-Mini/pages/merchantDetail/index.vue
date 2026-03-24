@@ -51,7 +51,7 @@
     </view>
 
     <!-- 快速操作按钮 -->
-    <view class="action-bar">
+    <view class="action-bar" v-if="!isMerchantMode">
       <button class="action-btn call-btn" @click="callMerchant">
         <uni-icons type="phone" size="28" color="#fff"></uni-icons>
         <text>电话联系</text>
@@ -106,9 +106,12 @@
 </template>
 
 <script>
+import { getCurrentMerchantInfo } from '@/api/merchant'
+
 export default {
   data() {
     return {
+      isMerchantMode: false,
       merchantInfo: {
         name: "汉中电子售后旗舰店",
         avatar: "/static/images/merchant/avatar.png",
@@ -137,16 +140,39 @@ export default {
       noMore: false
     };
   },
-  onLoad() {
-    wx.setNavigationBarTitle({ title: '商家详情' });
+  onLoad(options = {}) {
+    this.isMerchantMode = options.mode === 'merchant';
+    wx.setNavigationBarTitle({ title: this.isMerchantMode ? '我的店铺' : '商家详情' });
     this.totalCount = this.allCommentList.length;
     this.loadInitComments();
+    if (this.isMerchantMode) {
+      this.loadCurrentMerchantInfo();
+    }
   },
   onReachBottom() {
     if (this.noMore || this.loadingMore) return;
     this.loadMoreComments();
   },
   methods: {
+    async loadCurrentMerchantInfo() {
+      try {
+        const res = await getCurrentMerchantInfo();
+        const data = res.data || {};
+        this.merchantInfo = {
+          name: data.merchantName || '我的店铺',
+          avatar: "/static/images/merchant/avatar.png",
+          tag: (data.auditStatus === '1' ? '官方认证' : '待审核') + ' | 售后无忧',
+          rating: 4.8,
+          phone: data.contactPhone || '未填写',
+          address: data.address || '未填写',
+          businessHours: '09:00 - 21:00 (全年无休)',
+          businessScope: data.serviceScope || '未填写',
+          desc: data.merchantDesc || '暂无店铺简介'
+        };
+      } catch (error) {
+        wx.showToast({ title: '加载店铺信息失败', icon: 'none' });
+      }
+    },
     loadInitComments() {
       this.commentList = this.allCommentList.slice(0, this.pageSize);
     },

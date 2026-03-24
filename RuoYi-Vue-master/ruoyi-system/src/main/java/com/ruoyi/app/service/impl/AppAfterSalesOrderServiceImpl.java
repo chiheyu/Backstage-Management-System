@@ -109,6 +109,7 @@ public class AppAfterSalesOrderServiceImpl implements IAppAfterSalesOrderService
         }
         validateOrderOperator(order);
         validateStatusTransition(order.getStatus(), actionBody.getStatus());
+        validateServiceRemark(actionBody);
 
         order.setStatus(actionBody.getStatus());
         order.setServiceRemark(actionBody.getServiceRemark());
@@ -201,6 +202,18 @@ public class AppAfterSalesOrderServiceImpl implements IAppAfterSalesOrderService
             && !AppConstants.AFTER_SALES_CANCELED.equals(newStatus))
         {
             throw new ServiceException("维修中状态只能变更为已完成或已取消");
+        }
+    }
+
+    /**
+     * 完成订单前必须填写回执说明。
+     */
+    private void validateServiceRemark(AppOrderActionBody actionBody)
+    {
+        if (AppConstants.AFTER_SALES_COMPLETED.equals(actionBody.getStatus())
+            && StringUtils.isEmpty(StringUtils.trim(actionBody.getServiceRemark())))
+        {
+            throw new ServiceException("请先填写售后回执说明后再完成订单");
         }
     }
 }

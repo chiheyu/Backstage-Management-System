@@ -53,6 +53,7 @@ export function normalizeAccessory(accessory = {}) {
     image: resolveAccessoryImage(accessory.coverImage),
     price: toNumber(accessory.price, 0),
     stock: toNumber(accessory.stock, 0),
+    salesCount: toNumber(accessory.salesCount, 0),
     status: accessory.status || ''
   }
 }

@@ -37,14 +37,22 @@
       <view class="input-item" :class="{ focused: loginFocus.password }">
         <uni-icons type="locked" size="24" color="#666"></uni-icons>
         <input 
+          :key="`login-password-${loginPasswordVisible ? 'plain' : 'secret'}`"
           v-model="loginForm.password" 
-          type="password" 
+          :password="loginPasswordVisible ? false : true"
           placeholder="请输入密码（6-16位，字母+数字）" 
           class="input"
           @focus="loginFocus.password = true"
           @blur="loginFocus.password = false; checkLoginForm()"
           maxlength="16"
         />
+        <uni-icons
+          :type="loginPasswordVisible ? 'eye-slash' : 'eye'"
+          size="22"
+          color="#999"
+          class="toggle-password"
+          @tap="toggleLoginPassword"
+        ></uni-icons>
       </view>
       <view class="error-tip" v-if="loginErrors.password">{{ loginErrors.password }}</view>
 
@@ -76,9 +84,9 @@
       <view class="input-item" :class="{ focused: registerFocus.password }">
         <uni-icons type="locked" size="24" color="#666"></uni-icons>
         <input 
+          :key="`register-password-${registerPasswordVisible ? 'plain' : 'secret'}`"
           v-model="registerForm.password" 
-          type="text"
-          :password="!registerPasswordVisible"
+          :password="registerPasswordVisible ? false : true"
           placeholder="请输入密码（6-16位，字母+数字）" 
           class="input"
           @focus="registerFocus.password = true"
@@ -225,6 +233,7 @@
 <script>
 import { login, register, sendCode } from '@/api/login'
 import { setToken } from '@/utils/auth'
+import { syncRoleTabBar } from '@/utils/tabbar'
 
 export default {
   data() {
@@ -232,6 +241,7 @@ export default {
       currentTab: 'login',
       isLoading: false,
       isSendingCode: false,
+      loginPasswordVisible: false,
       registerPasswordVisible: false,
       loginForm: {
         phone: '',
@@ -273,7 +283,11 @@ export default {
       this.currentTab = tab;
       this.loginErrors = {};
       this.registerErrors = {};
+      this.loginPasswordVisible = false;
       this.registerPasswordVisible = false;
+    },
+    toggleLoginPassword() {
+      this.loginPasswordVisible = !this.loginPasswordVisible;
     },
     toggleRegisterPassword() {
       this.registerPasswordVisible = !this.registerPasswordVisible;
@@ -379,6 +393,7 @@ export default {
         merchant: data.merchant || cachedUserInfo.merchant || null,
         avatar: cachedUserInfo.avatar || '/static/images/avatar.png'
       });
+      syncRoleTabBar(uni.getStorageSync('userInfo') || {})
     },
     async handleLogin() {
       this.checkLoginForm();
@@ -495,8 +510,20 @@ export default {
           uni.switchTab({ url: '/pages/profile/index' });
         }, 1500);
       } catch (err) {
+        const errMsg = (err && err.msg) || ''
+        if (errMsg.includes('手机号或密码错误') || errMsg.includes('用户不存在')) {
+          this.loginForm.phone = this.registerForm.phone;
+          this.loginForm.password = this.registerForm.password;
+          this.currentTab = 'login';
+          this.loginErrors = {};
+          uni.showToast({
+            title: '注册成功，请使用新账号登录',
+            icon: 'success'
+          });
+          return;
+        }
         uni.showToast({
-          title: (err && err.msg) || '注册失败',
+          title: errMsg || '注册失败',
           icon: 'none'
         });
       } finally {
