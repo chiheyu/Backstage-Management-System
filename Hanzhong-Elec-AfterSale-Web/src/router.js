@@ -10,6 +10,9 @@ import AfterSaleOrdersView from '@/views/AfterSaleOrdersView.vue'
 import OrdersView from '@/views/OrdersView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import MerchantSettingsView from '@/views/MerchantSettingsView.vue'
+import CartView from '@/views/CartView.vue'
+import AddressView from '@/views/AddressView.vue'
+import MerchantAccessoryOrdersView from '@/views/MerchantAccessoryOrdersView.vue'
 import { bootstrapSession } from '@/lib/session'
 
 const router = createRouter({
@@ -24,8 +27,11 @@ const router = createRouter({
     { path: '/after-sales/apply', name: 'after-sales-apply', component: AfterSaleApplyView },
     { path: '/after-sales/orders', name: 'after-sales-orders', component: AfterSaleOrdersView },
     { path: '/orders', name: 'orders', component: OrdersView },
+    { path: '/cart', name: 'cart', component: CartView },
+    { path: '/addresses', name: 'addresses', component: AddressView },
     { path: '/profile', name: 'profile', component: ProfileView },
-    { path: '/merchant/settings', name: 'merchant-settings', component: MerchantSettingsView }
+    { path: '/merchant/settings', name: 'merchant-settings', component: MerchantSettingsView },
+    { path: '/merchant/accessory-orders', name: 'merchant-accessory-orders', component: MerchantAccessoryOrdersView }
   ],
   scrollBehavior() {
     return { top: 0 }

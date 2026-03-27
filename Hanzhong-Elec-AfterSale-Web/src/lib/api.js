@@ -3,6 +3,12 @@ import { clearStoredSession, getStoredToken } from './storage'
 
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || API_FALLBACK_BASE_URL
 
+function buildApiError(message, extra = {}) {
+  const error = new Error(message)
+  Object.assign(error, extra)
+  return error
+}
+
 function buildUrl(path, params) {
   const url = new URL(path, apiBaseUrl)
   if (params && typeof params === 'object') {
@@ -63,7 +69,11 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(payload?.msg || `请求失败：HTTP ${response.status}`)
+    throw buildApiError(payload?.msg || `请求失败：HTTP ${response.status}`, {
+      status: response.status,
+      path,
+      payload
+    })
   }
 
   if (raw) {
@@ -71,7 +81,11 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (!payload || typeof payload !== 'object') {
-    throw new Error('后端返回格式异常')
+    throw buildApiError('后端返回格式异常', {
+      status: response.status,
+      path,
+      payload
+    })
   }
 
   const code = normalizeCode(payload.code)
@@ -89,7 +103,66 @@ export async function apiRequest(path, options = {}) {
     window.dispatchEvent(new Event('after-sale-auth-cleared'))
   }
 
-  throw new Error(payload.msg || '接口调用失败')
+  throw buildApiError(payload.msg || '接口调用失败', {
+    status: response.status,
+    path,
+    payload
+  })
+}
+
+export async function apiUpload(path, file, options = {}) {
+  const {
+    auth = true,
+    fieldName = 'file'
+  } = options
+
+  const headers = {}
+  if (auth && getStoredToken()) {
+    headers.Authorization = `Bearer ${getStoredToken()}`
+  }
+
+  const formData = new FormData()
+  formData.append(fieldName, file)
+
+  const response = await fetch(buildUrl(path), {
+    method: 'POST',
+    headers,
+    body: formData
+  })
+
+  let payload = null
+  try {
+    payload = await response.json()
+  } catch {
+    payload = null
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      clearStoredSession()
+      window.dispatchEvent(new Event('after-sale-auth-cleared'))
+    }
+    throw buildApiError(payload?.msg || `请求失败：HTTP ${response.status}`, {
+      status: response.status,
+      path,
+      payload
+    })
+  }
+
+  const code = normalizeCode(payload?.code)
+  if (code === 200) {
+    return payload
+  }
+
+  throw buildApiError(payload?.msg || '上传失败', {
+    status: response.status,
+    path,
+    payload
+  })
+}
+
+export function isApiNotFoundError(error) {
+  return Number(error?.status) === 404
 }
 
 export const authApi = {
@@ -119,7 +192,7 @@ export const authApi = {
     return apiRequest('/app/auth/profile')
   },
   logout() {
-    return apiRequest('/logout', {
+    return apiRequest('/app/auth/logout', {
       method: 'POST'
     })
   }
@@ -149,6 +222,9 @@ export const commonApi = {
     return apiRequest(`/app/common/merchant/${id}`, {
       method: 'GET'
     })
+  },
+  uploadFile(file) {
+    return apiUpload('/common/upload', file)
   }
 }
 

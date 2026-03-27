@@ -5,6 +5,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { apiBaseUrl, commonApi, userApi } from '@/lib/api'
 import { formatMoney, getRoleState, resolveImage, safeRows, shortText } from '@/lib/domain'
+import { addCartItem, formatAddress, getDefaultAddress, loadAddressList } from '@/lib/localData'
 import { pushNotice } from '@/lib/notice'
 import { session } from '@/lib/session'
 
@@ -21,6 +22,8 @@ const loading = ref(true)
 const submitting = ref(false)
 const accessory = ref(null)
 const relatedList = ref([])
+const addressList = ref(loadAddressList())
+const selectedAddressId = ref('')
 
 const orderForm = reactive({
   quantity: 1,
@@ -31,7 +34,30 @@ const orderForm = reactive({
 })
 
 const roleState = computed(() => getRoleState(session.roleType))
-const canOrder = computed(() => session.token && roleState.value.isUser)
+const isMerchantMode = computed(() => roleState.value.isMerchant)
+const canOrder = computed(() => session.token && roleState.value.isUser && !roleState.value.isMerchant)
+const resolvedImage = computed(() => resolveImage(accessory.value?.coverImage, apiBaseUrl))
+
+function syncAddressOptions() {
+  addressList.value = loadAddressList()
+}
+
+function applyAddress(address) {
+  if (!address) {
+    return
+  }
+  selectedAddressId.value = address.id
+  orderForm.receiverName = address.name || ''
+  orderForm.receiverPhone = address.phone || ''
+  orderForm.receiverAddress = formatAddress(address)
+}
+
+function applyDefaultAddress() {
+  const defaultAddress = getDefaultAddress()
+  if (defaultAddress) {
+    applyAddress(defaultAddress)
+  }
+}
 
 async function loadDetail() {
   loading.value = true
@@ -41,6 +67,7 @@ async function loadDetail() {
 
     orderForm.receiverName = session.appUser?.nickName || ''
     orderForm.receiverPhone = session.appUser?.phone || ''
+    applyDefaultAddress()
 
     const relatedPayload = await commonApi.listAccessories({
       categoryName: detail.categoryName,
@@ -65,8 +92,8 @@ async function toggleCollection() {
     router.push({ name: 'auth' })
     return
   }
-  if (!roleState.value.isUser) {
-    pushNotice('只有普通用户可以使用收藏功能', 'danger')
+  if (!roleState.value.isUser || isMerchantMode.value) {
+    pushNotice('当前账号不能使用收藏功能', 'danger')
     return
   }
   if (!accessory.value) {
@@ -91,12 +118,39 @@ async function toggleCollection() {
   }
 }
 
+function addToCart() {
+  if (!accessory.value) {
+    return
+  }
+  if (isMerchantMode.value) {
+    pushNotice('当前账号不能加入购物车', 'danger')
+    return
+  }
+  if (Number(accessory.value.stock || 0) <= 0) {
+    pushNotice('当前商品库存不足', 'danger')
+    return
+  }
+
+  addCartItem({
+    id: accessory.value.accessoryId,
+    accessoryId: accessory.value.accessoryId,
+    name: accessory.value.accessoryName,
+    spec: accessory.value.categoryName,
+    desc: accessory.value.accessoryDesc,
+    image: resolveImage(accessory.value.coverImage, apiBaseUrl),
+    price: accessory.value.price,
+    stock: accessory.value.stock,
+    count: 1
+  })
+  pushNotice('已加入购物车', 'success')
+}
+
 function validateOrder() {
   if (!accessory.value) {
     return false
   }
   if (!canOrder.value) {
-    pushNotice('请使用普通用户账号下单', 'danger')
+    pushNotice('请使用普通用户或待审核商家账号下单', 'danger')
     return false
   }
   if (!orderForm.receiverName.trim()) {
@@ -149,11 +203,13 @@ async function submitOrder() {
 watch(
   () => props.id,
   () => {
+    syncAddressOptions()
     loadDetail()
   }
 )
 
 onMounted(() => {
+  syncAddressOptions()
   loadDetail()
 })
 </script>
@@ -176,13 +232,16 @@ onMounted(() => {
     <template v-else>
       <section class="glass-card accessory-hero">
         <div class="accessory-media">
-          <img :src="resolveImage(accessory.coverImage, apiBaseUrl)" :alt="accessory.accessoryName" />
+          <img :src="resolvedImage" :alt="accessory.accessoryName" />
         </div>
 
         <div class="surface-card accessory-main">
           <div class="between-row accessory-main__top">
             <span class="eyebrow">{{ accessory.categoryName || '通用配件' }}</span>
-            <StatusBadge :label="accessory.collected ? '已收藏' : '可购买'" :tone="accessory.collected ? 'warm' : 'brand'" />
+            <StatusBadge
+              :label="isMerchantMode ? '只读浏览' : accessory.collected ? '已收藏' : '可购买'"
+              :tone="isMerchantMode ? 'muted' : accessory.collected ? 'warm' : 'brand'"
+            />
           </div>
 
           <h1>{{ accessory.accessoryName }}</h1>
@@ -195,103 +254,157 @@ onMounted(() => {
 
           <div class="accessory-points">
             <article>
-              <strong>库存透明</strong>
-              <span>下单前即可查看当前库存和销量。</span>
+              <strong>{{ isMerchantMode ? '当前模式' : '库存透明' }}</strong>
+              <span>{{ isMerchantMode ? '商家网页端当前只接入商品只读浏览能力。' : '下单前即可查看当前库存和销量。' }}</span>
             </article>
             <article>
-              <strong>收藏便捷</strong>
-              <span>常用配件可随时加入或取消收藏。</span>
+              <strong>{{ isMerchantMode ? '接口适配' : '收藏便捷' }}</strong>
+              <span>{{ isMerchantMode ? '后端未开放商品管理接口，已自动关闭编辑和上传操作。' : '常用配件可随时加入或取消收藏。' }}</span>
             </article>
             <article>
-              <strong>售后衔接</strong>
-              <span>购买后如需维修，可继续提交相关售后申请。</span>
+              <strong>{{ isMerchantMode ? '售后衔接' : '售后衔接' }}</strong>
+              <span>{{ isMerchantMode ? '商家如需处理售后，请前往售后工单和回执页面。' : '购买后如需维修，可继续提交相关售后申请。' }}</span>
             </article>
           </div>
 
           <div class="action-row">
-            <button class="btn btn--ghost" :disabled="submitting" @click="toggleCollection">
-              {{ accessory.collected ? '取消收藏' : '加入收藏' }}
-            </button>
-            <RouterLink class="btn btn--secondary" :to="{ name: 'after-sales-apply', query: { productType: accessory.accessoryName } }">
-              配件相关售后
-            </RouterLink>
+            <template v-if="!isMerchantMode">
+              <button class="btn btn--ghost" :disabled="submitting" @click="toggleCollection">
+                {{ accessory.collected ? '取消收藏' : '加入收藏' }}
+              </button>
+              <button class="btn btn--primary" @click="addToCart">加入购物车</button>
+              <RouterLink class="btn btn--secondary" :to="{ name: 'after-sales-apply' }">
+                配件相关售后
+              </RouterLink>
+            </template>
+            <template v-else>
+              <RouterLink class="btn btn--ghost" :to="{ name: 'after-sales-orders', query: { mode: 'pending' } }">售后工单</RouterLink>
+              <RouterLink class="btn btn--primary" :to="{ name: 'merchant-settings' }">店铺设置</RouterLink>
+            </template>
           </div>
         </div>
       </section>
 
       <section class="accessory-grid">
         <section class="surface-card section-card">
-          <div class="section-head">
-            <div>
-              <span class="eyebrow">在线下单</span>
-              <h2>立即下单</h2>
-              <p v-if="canOrder">填写收货信息后即可提交订单。</p>
-              <p v-else-if="!session.token">登录后可下单，也可先收藏商品。</p>
-              <p v-else>当前账号为商家/待审核商家，只可浏览，不可直接下单。</p>
-            </div>
-          </div>
-
-          <form class="order-form" @submit.prevent="submitOrder">
-            <div class="field-row">
-              <label>
-                <span>购买数量</span>
-                <input v-model.number="orderForm.quantity" class="field" type="number" min="1" />
-              </label>
-              <label>
-                <span>收货人</span>
-                <input v-model.trim="orderForm.receiverName" class="field" placeholder="填写收货姓名" />
-              </label>
+          <template v-if="isMerchantMode">
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">能力说明</span>
+                <h2>商家网页端当前为只读商品页</h2>
+                <p>当前后端没有开放商家商品查询/编辑接口，因此网页端只保留详情浏览，不再请求商品管理相关地址。</p>
+              </div>
             </div>
 
-            <div class="field-row">
-              <label>
-                <span>联系电话</span>
-                <input v-model.trim="orderForm.receiverPhone" class="field" placeholder="收货手机号" />
-              </label>
+            <div class="related-list">
+              <article class="related-card">
+                <div>
+                  <strong>已保留</strong>
+                  <p>公共配件详情浏览、库存查看、商品说明查看。</p>
+                </div>
+              </article>
+              <article class="related-card">
+                <div>
+                  <strong>已关闭</strong>
+                  <p>商品编辑、图片上传、上架下架、商家商品管理列表。</p>
+                </div>
+              </article>
+              <article class="related-card">
+                <div>
+                  <strong>建议入口</strong>
+                  <p>如需处理商家业务，请使用售后工单、售后回执和店铺设置页面。</p>
+                </div>
+              </article>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="section-head">
+              <div>
+                <span class="eyebrow">在线下单</span>
+                <h2>立即下单</h2>
+                <p v-if="canOrder">填写收货信息后即可直接提交订单，也可先加入购物车。</p>
+                <p v-else-if="!session.token">登录后可下单，也可先加入购物车。</p>
+                <p v-else>当前账号为商家，只可浏览商品，不可直接下单。</p>
+              </div>
+            </div>
+
+            <form class="order-form" @submit.prevent="submitOrder">
+              <div class="field-row">
+                <label>
+                  <span>购买数量</span>
+                  <input v-model.number="orderForm.quantity" class="field" type="number" min="1" />
+                </label>
+                <label>
+                  <span>收货人</span>
+                  <input v-model.trim="orderForm.receiverName" class="field" placeholder="填写收货姓名" />
+                </label>
+              </div>
+
+              <div class="field-row">
+                <label>
+                  <span>联系电话</span>
+                  <input v-model.trim="orderForm.receiverPhone" class="field" placeholder="收货手机号" />
+                </label>
+                <label>
+                  <span>已保存地址</span>
+                  <select class="field" :value="selectedAddressId" @change="applyAddress(addressList.find(item => item.id === $event.target.value))">
+                    <option value="">请选择地址</option>
+                    <option v-for="item in addressList" :key="item.id" :value="item.id">
+                      {{ item.name }} / {{ item.phone }} / {{ item.region }} {{ item.detail }}
+                    </option>
+                  </select>
+                </label>
+              </div>
+
               <label>
                 <span>收货地址</span>
-                <input v-model.trim="orderForm.receiverAddress" class="field" placeholder="详细到门牌号" />
+                <div class="field-row">
+                  <input v-model.trim="orderForm.receiverAddress" class="field" placeholder="详细到门牌号" />
+                  <RouterLink class="btn btn--ghost btn--small" :to="{ name: 'addresses' }">管理地址</RouterLink>
+                </div>
               </label>
-            </div>
 
-            <label>
-              <span>订单备注</span>
-              <textarea
-                v-model.trim="orderForm.orderRemark"
-                class="textarea"
-                placeholder="可填写颜色、型号、到货提醒等备注"
-              ></textarea>
-            </label>
+              <label>
+                <span>订单备注</span>
+                <textarea
+                  v-model.trim="orderForm.orderRemark"
+                  class="textarea"
+                  placeholder="可填写颜色、型号、到货提醒等备注"
+                ></textarea>
+              </label>
 
-            <div class="surface-card order-summary">
-              <div>
-                <strong>预计总额</strong>
-                <span>￥{{ formatMoney(Number(accessory.price || 0) * Number(orderForm.quantity || 0)) }}</span>
+              <div class="surface-card order-summary">
+                <div>
+                  <strong>预计总额</strong>
+                  <span>￥{{ formatMoney(Number(accessory.price || 0) * Number(orderForm.quantity || 0)) }}</span>
+                </div>
+                <button
+                  v-if="canOrder"
+                  class="btn btn--primary"
+                  :disabled="submitting || Number(accessory.stock || 0) <= 0"
+                >
+                  {{ submitting ? '提交中...' : Number(accessory.stock || 0) <= 0 ? '库存不足' : '提交订单' }}
+                </button>
+                <RouterLink v-else class="btn btn--primary" :to="{ name: session.token ? 'profile' : 'auth' }">
+                  {{ session.token ? '查看账号权限' : '先去登录' }}
+                </RouterLink>
               </div>
-              <button
-                v-if="canOrder"
-                class="btn btn--primary"
-                :disabled="submitting || Number(accessory.stock || 0) <= 0"
-              >
-                {{ submitting ? '提交中...' : Number(accessory.stock || 0) <= 0 ? '库存不足' : '提交订单' }}
-              </button>
-              <RouterLink v-else class="btn btn--primary" :to="{ name: session.token ? 'profile' : 'auth' }">
-                {{ session.token ? '查看账号权限' : '先去登录' }}
-              </RouterLink>
-            </div>
-          </form>
+            </form>
+          </template>
         </section>
 
         <section class="surface-card section-card">
           <div class="section-head">
             <div>
-              <span class="eyebrow">同类推荐</span>
-              <h2>同类推荐</h2>
-              <p>继续浏览同类配件，方便一次完成选购。</p>
+              <span class="eyebrow">{{ isMerchantMode ? '只读提示' : '同类推荐' }}</span>
+              <h2>{{ isMerchantMode ? '商家端说明' : '同类推荐' }}</h2>
+              <p v-if="isMerchantMode">当前商品详情页不会再发起商家商品管理请求，因此不会触发右上角失败弹窗。</p>
+              <p v-else>继续浏览同类配件，方便一次完成选购。</p>
             </div>
           </div>
 
-          <div v-if="relatedList.length" class="related-list">
+          <div v-if="!isMerchantMode && relatedList.length" class="related-list">
             <RouterLink
               v-for="item in relatedList"
               :key="item.accessoryId"
@@ -306,10 +419,24 @@ onMounted(() => {
               </div>
             </RouterLink>
           </div>
+          <div v-else-if="isMerchantMode" class="related-list">
+            <article class="related-card">
+              <div>
+                <strong>售后工单</strong>
+                <p>进入售后工单页处理接单、维修中和已完成的工单。</p>
+              </div>
+            </article>
+            <article class="related-card">
+              <div>
+                <strong>售后回执</strong>
+                <p>进入回执页填写检测结果和完工说明，推动工单流转。</p>
+              </div>
+            </article>
+          </div>
           <EmptyState
             v-else
-            title="暂无推荐"
-            description="同分类下暂时没有更多可展示的配件。"
+            :title="isMerchantMode ? '暂无更多提示' : '暂无推荐'"
+            :description="isMerchantMode ? '当前商品页已调整为只读浏览，无需额外处理。' : '同分类下暂时没有更多可展示的配件。'"
           />
         </section>
       </section>
@@ -474,7 +601,8 @@ onMounted(() => {
 
 @media (max-width: 720px) {
   .order-summary,
-  .field-row {
+  .field-row,
+  .related-card {
     display: grid;
   }
 

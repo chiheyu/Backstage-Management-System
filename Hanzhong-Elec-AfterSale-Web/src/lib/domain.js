@@ -47,10 +47,11 @@ export const ROLE_LABEL_MAP = {
 }
 
 export function getRoleState(roleType) {
+  const normalizedRoleType = String(roleType)
   return {
-    isPendingMerchant: String(roleType) === ROLE_TYPES.pendingMerchant,
-    isUser: String(roleType) === ROLE_TYPES.user,
-    isMerchant: String(roleType) === ROLE_TYPES.merchant
+    isPendingMerchant: normalizedRoleType === ROLE_TYPES.pendingMerchant,
+    isUser: normalizedRoleType === ROLE_TYPES.user || normalizedRoleType === ROLE_TYPES.pendingMerchant,
+    isMerchant: normalizedRoleType === ROLE_TYPES.merchant
   }
 }
 

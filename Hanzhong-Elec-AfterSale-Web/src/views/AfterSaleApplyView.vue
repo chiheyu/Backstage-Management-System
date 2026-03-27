@@ -1,32 +1,115 @@
 <script setup>
-import { computed, reactive } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
+import MerchantReceiptPanel from '@/components/MerchantReceiptPanel.vue'
+import { commonApi, userApi } from '@/lib/api'
 import { getRoleState } from '@/lib/domain'
+import { consumeAfterSalePrefill, formatAddress, getDefaultAddress, loadAddressList } from '@/lib/localData'
 import { pushNotice } from '@/lib/notice'
 import { session } from '@/lib/session'
-import { userApi } from '@/lib/api'
 
 const router = useRouter()
-const route = useRoute()
 
-const productHints = ['手机', '平板', '笔记本电脑', '显示器', '路由器', '配件相关']
-const saving = reactive({ value: false })
+const productHints = ['手机', '平板', '笔记本电脑', '显示器', '路由器', '电池配件']
+const saving = ref(false)
+const uploading = ref(false)
+const addressList = ref([])
+const selectedAddressId = ref('')
+const imageInput = ref(null)
+const imageList = ref([])
 
 const form = reactive({
-  productType: String(route.query.productType || ''),
+  productName: '',
+  productModel: '',
   faultDesc: '',
-  faultImages: '',
-  contactName: session.appUser?.nickName || '',
-  contactPhone: session.appUser?.phone || '',
+  contactName: '',
+  contactPhone: '',
   address: ''
 })
 
 const roleState = computed(() => getRoleState(session.roleType))
-const targetMerchantName = computed(() => String(route.query.merchantName || ''))
+
+function syncAddressList() {
+  addressList.value = loadAddressList()
+}
+
+function applyAddress(address) {
+  if (!address) {
+    return
+  }
+  selectedAddressId.value = address.id
+  form.contactName = address.name || form.contactName
+  form.contactPhone = address.phone || form.contactPhone
+  form.address = formatAddress(address) || form.address
+}
+
+function applyDefaultAddress() {
+  const defaultAddress = getDefaultAddress()
+  if (defaultAddress) {
+    applyAddress(defaultAddress)
+  }
+}
+
+function consumePrefill() {
+  const prefill = consumeAfterSalePrefill()
+  if (!prefill) {
+    return
+  }
+
+  form.productName = prefill.productName || form.productName
+  form.productModel = prefill.productModel || form.productModel
+  form.contactName = prefill.name || form.contactName
+  form.contactPhone = prefill.phone || form.contactPhone
+  form.address = prefill.receiverAddress || form.address
+}
 
 function fillHint(name) {
-  form.productType = name
+  form.productName = name
+}
+
+function openImagePicker() {
+  imageInput.value?.click()
+}
+
+function handleImageChange(event) {
+  const files = Array.from(event.target.files || [])
+  if (!files.length) {
+    return
+  }
+
+  const remainCount = 3 - imageList.value.length
+  const selectedFiles = files.slice(0, remainCount).map(file => ({
+    id: `${Date.now()}_${Math.random().toString(16).slice(2, 8)}`,
+    file,
+    preview: URL.createObjectURL(file)
+  }))
+  imageList.value = imageList.value.concat(selectedFiles).slice(0, 3)
+  event.target.value = ''
+}
+
+function removeImage(id) {
+  const target = imageList.value.find(item => item.id === id)
+  if (target?.preview) {
+    URL.revokeObjectURL(target.preview)
+  }
+  imageList.value = imageList.value.filter(item => item.id !== id)
+}
+
+async function uploadImages() {
+  if (!imageList.value.length) {
+    return []
+  }
+
+  uploading.value = true
+  try {
+    const uploadResults = await Promise.all(imageList.value.map(item => commonApi.uploadFile(item.file)))
+    return uploadResults
+      .map(item => item?.url)
+      .filter(url => typeof url === 'string' && url.trim())
+  } finally {
+    uploading.value = false
+  }
 }
 
 function validateForm() {
@@ -34,12 +117,16 @@ function validateForm() {
     pushNotice('请先登录普通用户账号', 'danger')
     return false
   }
-  if (!roleState.value.isUser) {
-    pushNotice('只有普通用户可以提交售后申请', 'danger')
+  if (!roleState.value.isUser || roleState.value.isMerchant) {
+    pushNotice('当前账号不能提交售后申请', 'danger')
     return false
   }
-  if (!form.productType.trim()) {
-    pushNotice('请填写产品类型', 'danger')
+  if (!form.productName.trim()) {
+    pushNotice('请填写产品名称', 'danger')
+    return false
+  }
+  if (!form.productModel.trim()) {
+    pushNotice('请填写产品型号', 'danger')
     return false
   }
   if (!form.faultDesc.trim()) {
@@ -68,13 +155,14 @@ async function submitForm() {
 
   saving.value = true
   try {
+    const imageUrls = await uploadImages()
     await userApi.createAfterSalesOrder({
-      productType: form.productType,
-      faultDesc: form.faultDesc,
-      faultImages: form.faultImages,
-      contactName: form.contactName,
-      contactPhone: form.contactPhone,
-      address: form.address
+      productType: `${form.productName.trim()} / ${form.productModel.trim()}`,
+      faultDesc: form.faultDesc.trim(),
+      faultImages: imageUrls.join(','),
+      contactName: form.contactName.trim(),
+      contactPhone: form.contactPhone.trim(),
+      address: form.address.trim()
     })
     pushNotice('售后申请已提交，等待商家接单', 'success')
     router.push({ name: 'after-sales-orders' })
@@ -84,6 +172,14 @@ async function submitForm() {
     saving.value = false
   }
 }
+
+onMounted(() => {
+  syncAddressList()
+  form.contactName = session.appUser?.nickName || ''
+  form.contactPhone = session.appUser?.phone || ''
+  applyDefaultAddress()
+  consumePrefill()
+})
 </script>
 
 <template>
@@ -91,28 +187,19 @@ async function submitForm() {
     <EmptyState
       v-if="!session.token"
       title="提交售后前需要登录"
-      description="售后申请会绑定当前用户账号，请先登录再继续。"
+      description="售后申请会绑定当前登录账号，请先登录后继续。"
       action-label="前往登录"
       @action="router.push({ name: 'auth' })"
     />
 
-    <EmptyState
-      v-else-if="!roleState.isUser"
-      title="当前账号不能提交售后申请"
-      description="商家账号用于接单和处理维修工单，请切换普通用户账号后再提交。"
-      action-label="查看个人中心"
-      @action="router.push({ name: 'profile' })"
-    />
+    <MerchantReceiptPanel v-else-if="roleState.isMerchant" />
 
     <template v-else>
       <section class="glass-card apply-hero">
         <div>
           <span class="eyebrow">售后申请</span>
           <h1>提交设备报修与售后需求</h1>
-          <p>
-            填写设备类型、故障情况和联系信息后，
-            门店会尽快接单并持续更新处理进度。
-          </p>
+          <p>补充产品、故障、地址和图片信息后，商家可更快判断处理方式并更新进度。</p>
         </div>
 
         <div class="surface-card apply-side-card">
@@ -130,21 +217,21 @@ async function submitForm() {
             <div>
               <span class="eyebrow">填写信息</span>
               <h2>售后申请表</h2>
-              <p>尽量完整描述故障情况，方便门店尽快判断处理方式。</p>
+              <p>与小程序一致，产品名称与型号分开填写，最终会自动合并成后端所需字段。</p>
             </div>
           </div>
 
           <form class="apply-form" @submit.prevent="submitForm">
-            <label v-if="targetMerchantName" class="apply-form__hint">
-              <span>意向门店</span>
-              <strong>{{ targetMerchantName }}</strong>
-              <small>当前记录为意向门店，提交后可在售后单中继续跟进。</small>
-            </label>
-
-            <label>
-              <span>产品类型</span>
-              <input v-model.trim="form.productType" class="field" placeholder="例如 手机、笔记本、路由器、电池配件" />
-            </label>
+            <div class="field-row">
+              <label>
+                <span>产品名称</span>
+                <input v-model.trim="form.productName" class="field" placeholder="例如 手机、显示器、路由器" />
+              </label>
+              <label>
+                <span>产品型号</span>
+                <input v-model.trim="form.productModel" class="field" placeholder="例如 Mate 60、ThinkPad X1" />
+              </label>
+            </div>
 
             <div class="chip-row">
               <button v-for="item in productHints" :key="item" type="button" class="chip" @click="fillHint(item)">
@@ -157,17 +244,22 @@ async function submitForm() {
               <textarea
                 v-model.trim="form.faultDesc"
                 class="textarea"
-                placeholder="尽量描述故障表现、出现时间、是否摔落进水、是否已自行拆机等"
+                placeholder="尽量描述故障表现、出现时间、是否进水/摔落、是否已自行拆机等"
               ></textarea>
             </label>
 
             <label>
-              <span>故障图片地址</span>
-              <textarea
-                v-model.trim="form.faultImages"
-                class="textarea"
-                placeholder="可选。如已有图片链接，可使用逗号分隔填写多张。"
-              ></textarea>
+              <span>故障图片</span>
+              <div class="image-panel">
+                <article v-for="item in imageList" :key="item.id" class="image-card">
+                  <img :src="item.preview" alt="故障图片" />
+                  <button type="button" class="image-card__remove" @click="removeImage(item.id)">删除</button>
+                </article>
+                <button v-if="imageList.length < 3" type="button" class="image-picker" @click="openImagePicker">
+                  上传图片
+                </button>
+              </div>
+              <input ref="imageInput" class="file-input" type="file" accept="image/*" multiple @change="handleImageChange" />
             </label>
 
             <div class="field-row">
@@ -182,14 +274,27 @@ async function submitForm() {
             </div>
 
             <label>
+              <span>已保存地址</span>
+              <div class="field-row">
+                <select class="field" :value="selectedAddressId" @change="applyAddress(addressList.find(item => item.id === $event.target.value))">
+                  <option value="">请选择地址</option>
+                  <option v-for="item in addressList" :key="item.id" :value="item.id">
+                    {{ item.name }} / {{ item.phone }} / {{ item.region }} {{ item.detail }}
+                  </option>
+                </select>
+                <RouterLink class="btn btn--ghost btn--small" :to="{ name: 'addresses' }">管理地址</RouterLink>
+              </div>
+            </label>
+
+            <label>
               <span>服务地址</span>
               <input v-model.trim="form.address" class="field" placeholder="上门地址或设备送修地址" />
             </label>
 
             <div class="between-row apply-form__footer">
-              <p>提交后可在“售后订单”页面查看状态变化，并在未完成前随时跟进。</p>
-              <button class="btn btn--primary" :disabled="saving.value">
-                {{ saving.value ? '提交中...' : '提交售后申请' }}
+              <p>提交后可在“售后工单”页跟踪接单、维修与回执状态。</p>
+              <button class="btn btn--primary" :disabled="saving || uploading">
+                {{ saving ? '提交中...' : uploading ? '上传图片中...' : '提交售后申请' }}
               </button>
             </div>
           </form>
@@ -200,7 +305,7 @@ async function submitForm() {
             <div>
               <span class="eyebrow">常用入口</span>
               <h2>相关入口</h2>
-              <p>申请前后最常用的几个操作集中在这里。</p>
+              <p>申请前后常用的几个操作集中在这里。</p>
             </div>
           </div>
 
@@ -215,7 +320,7 @@ async function submitForm() {
             </RouterLink>
             <RouterLink class="apply-link-card" :to="{ name: 'mall' }">
               <strong>进入配件商城</strong>
-              <span>如果问题只需要更换配件，也可以直接在线下单。</span>
+              <span>如果只是更换配件，也可以先购买商品再申请售后。</span>
             </RouterLink>
           </div>
         </section>
@@ -289,19 +394,50 @@ async function submitForm() {
   color: var(--primary-deep);
 }
 
-.apply-form__hint {
-  padding: 16px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(241, 247, 249, 0.9), rgba(255, 248, 235, 0.92));
+.image-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
-.apply-form__hint strong {
-  font-size: 20px;
+.image-card,
+.image-picker {
+  width: 124px;
+  height: 124px;
+  border-radius: 20px;
 }
 
-.apply-form__hint small {
+.image-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.image-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-card__remove {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(17, 61, 77, 0.78);
+  color: #fff;
+}
+
+.image-picker {
+  border: 1px dashed rgba(24, 48, 43, 0.18);
+  background: rgba(255, 255, 255, 0.78);
   color: var(--muted);
-  line-height: 1.7;
+  font-weight: 700;
+}
+
+.file-input {
+  display: none;
 }
 
 .apply-form__footer p {
@@ -334,13 +470,14 @@ async function submitForm() {
 }
 
 @media (max-width: 720px) {
-  .apply-hero {
-    padding: 18px;
+  .apply-hero,
+  .field-row,
+  .apply-form__footer {
+    display: grid;
   }
 
-  .apply-form__footer,
-  .field-row {
-    display: grid;
+  .apply-hero {
+    padding: 18px;
   }
 }
 </style>

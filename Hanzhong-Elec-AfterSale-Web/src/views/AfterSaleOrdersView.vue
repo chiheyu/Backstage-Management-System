@@ -3,12 +3,13 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
-import { merchantApi, userApi } from '@/lib/api'
+import { apiBaseUrl, merchantApi, userApi } from '@/lib/api'
 import {
   AFTER_SALES_STATUS,
   formatDateTime,
   getRoleState,
   getStatusMeta,
+  resolveImage,
   safeRows,
   shortText
 } from '@/lib/domain'
@@ -23,7 +24,6 @@ const merchantTab = ref(route.query.mode === 'mine' ? 'mine' : 'pending')
 const userOrders = ref([])
 const pendingOrders = ref([])
 const merchantOrders = ref([])
-const remarkDraft = reactive({})
 
 const filters = reactive({
   orderNo: '',
@@ -40,7 +40,7 @@ const roleState = computed(() => getRoleState(session.roleType))
 
 const pageTitle = computed(() => {
   if (roleState.value.isMerchant) {
-    return merchantTab.value === 'pending' ? '待接单工单' : '我的处理工单'
+    return merchantTab.value === 'pending' ? '待接单售后工单' : '我的售后工单'
   }
   return '我的售后订单'
 })
@@ -51,6 +51,31 @@ const activeList = computed(() => {
   }
   return userOrders.value
 })
+
+const summaryCards = computed(() => {
+  if (roleState.value.isMerchant) {
+    const completedCount = merchantOrders.value.filter(item => String(item.status) === '3').length
+    return [
+      { label: '待接单', value: pendingOrders.value.length, desc: '等待当前商家接单处理' },
+      { label: '处理中', value: merchantOrders.value.filter(item => ['1', '2'].includes(String(item.status))).length, desc: '已接单或维修中的工单' },
+      { label: '已完成', value: completedCount, desc: '已提交完工回执的工单' }
+    ]
+  }
+
+  return [
+    { label: '全部订单', value: userOrders.value.length, desc: '当前账号提交过的售后申请' },
+    { label: '处理中', value: userOrders.value.filter(item => ['0', '1', '2'].includes(String(item.status))).length, desc: '待接单、已接单或维修中的订单' },
+    { label: '已结束', value: userOrders.value.filter(item => ['3', '4'].includes(String(item.status))).length, desc: '已完成或已取消的售后订单' }
+  ]
+})
+
+function parseImages(value) {
+  return String(value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .map(item => resolveImage(item, apiBaseUrl))
+}
 
 async function loadOrders() {
   if (!session.token) {
@@ -77,7 +102,10 @@ async function loadOrders() {
       ])
       pendingOrders.value = safeRows(pendingPayload)
       merchantOrders.value = safeRows(minePayload)
-    } else if (roleState.value.isUser) {
+      return
+    }
+
+    if (roleState.value.isUser) {
       const payload = await userApi.listAfterSalesOrders({
         orderNo: filters.orderNo,
         productType: filters.productType,
@@ -98,21 +126,18 @@ function canUserCancel(order) {
   return !['3', '4'].includes(String(order.status))
 }
 
-function nextMerchantActions(order) {
-  const status = String(order.status)
-  if (status === '1') {
-    return [{ label: '标记维修中', value: '2', tone: 'primary' }, { label: '取消工单', value: '4', tone: 'ghost' }]
-  }
-  if (status === '2') {
-    return [{ label: '标记已完成', value: '3', tone: 'primary' }, { label: '取消工单', value: '4', tone: 'ghost' }]
-  }
-  return []
+function canOpenReceipt(order) {
+  return ['1', '2'].includes(String(order.status))
+}
+
+function canMerchantCancel(order) {
+  return ['1', '2'].includes(String(order.status))
 }
 
 async function handleTakeOrder(orderId) {
   try {
     await merchantApi.takeOrder(orderId)
-    pushNotice('接单成功，已进入我的处理工单', 'success')
+    pushNotice('接单成功，已进入我的售后工单', 'success')
     merchantTab.value = 'mine'
     await loadOrders()
   } catch (error) {
@@ -120,17 +145,24 @@ async function handleTakeOrder(orderId) {
   }
 }
 
-async function handleMerchantStatus(order, status) {
+function openReceipt(order) {
+  router.push({
+    name: 'after-sales-apply',
+    query: { orderId: order.orderId }
+  })
+}
+
+async function handleMerchantCancel(order) {
   try {
     await merchantApi.updateOrderStatus({
       orderId: order.orderId,
-      status,
-      serviceRemark: remarkDraft[order.orderId] || order.serviceRemark || ''
+      status: '4',
+      serviceRemark: order.serviceRemark || '商家取消接单'
     })
-    pushNotice('工单状态已更新', 'success')
+    pushNotice('工单已取消', 'success')
     await loadOrders()
   } catch (error) {
-    pushNotice(error.message || '状态更新失败', 'danger')
+    pushNotice(error.message || '工单取消失败', 'danger')
   }
 }
 
@@ -175,20 +207,12 @@ onMounted(() => {
       @action="router.push({ name: 'auth' })"
     />
 
-    <EmptyState
-      v-else-if="roleState.isPendingMerchant"
-      title="商家账号正在审核中"
-      description="审核通过后，网页端会自动开放接单与工单流转能力。"
-      action-label="查看店铺信息"
-      @action="router.push({ name: 'merchant-settings' })"
-    />
-
     <template v-else>
       <section class="glass-card order-hero">
         <div>
           <span class="eyebrow">售后工单</span>
           <h1>{{ pageTitle }}</h1>
-          <p v-if="roleState.isMerchant">查看待接单与处理中工单，及时更新维修进度和处理备注。</p>
+          <p v-if="roleState.isMerchant">商家模式下拆分为待接单和我的工单，回执统一进入独立的售后回执页处理。</p>
           <p v-else>跟踪售后申请状态，必要时可在未完成前取消订单。</p>
         </div>
 
@@ -208,6 +232,14 @@ onMounted(() => {
             我的工单
           </button>
         </div>
+      </section>
+
+      <section class="summary-grid">
+        <article v-for="item in summaryCards" :key="item.label" class="surface-card summary-card">
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+          <p>{{ item.desc }}</p>
+        </article>
       </section>
 
       <section class="surface-card section-card">
@@ -250,6 +282,15 @@ onMounted(() => {
 
           <p>{{ shortText(order.faultDesc, 120) }}</p>
 
+          <div v-if="parseImages(order.faultImages).length" class="order-image-list">
+            <img
+              v-for="image in parseImages(order.faultImages)"
+              :key="image"
+              :src="image"
+              alt="故障图片"
+            />
+          </div>
+
           <div class="order-meta-grid">
             <article>
               <strong>联系人</strong>
@@ -269,15 +310,7 @@ onMounted(() => {
             </article>
           </div>
 
-          <label v-if="roleState.isMerchant && merchantTab === 'mine'" class="order-remark">
-            <span>处理备注</span>
-            <textarea
-              v-model.trim="remarkDraft[order.orderId]"
-              class="textarea"
-              :placeholder="order.serviceRemark || '可填写维修说明、检测结果、交付备注等'"
-            ></textarea>
-          </label>
-          <p v-else-if="order.serviceRemark" class="order-service-remark">
+          <p v-if="order.serviceRemark" class="order-service-remark">
             <strong>处理备注：</strong>{{ order.serviceRemark }}
           </p>
 
@@ -292,13 +325,18 @@ onMounted(() => {
 
             <template v-if="roleState.isMerchant && merchantTab === 'mine'">
               <button
-                v-for="action in nextMerchantActions(order)"
-                :key="action.value"
-                class="btn btn--small"
-                :class="action.tone === 'primary' ? 'btn--primary' : 'btn--ghost'"
-                @click="handleMerchantStatus(order, action.value)"
+                v-if="canOpenReceipt(order)"
+                class="btn btn--primary btn--small"
+                @click="openReceipt(order)"
               >
-                {{ action.label }}
+                售后回执
+              </button>
+              <button
+                v-if="canMerchantCancel(order)"
+                class="btn btn--ghost btn--small"
+                @click="handleMerchantCancel(order)"
+              >
+                取消工单
               </button>
             </template>
 
@@ -344,6 +382,31 @@ onMounted(() => {
   line-height: 1.08;
 }
 
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.summary-card {
+  padding: 20px;
+}
+
+.summary-card span {
+  color: var(--muted);
+}
+
+.summary-card strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 28px;
+  color: var(--primary-deep);
+}
+
+.summary-card p {
+  margin-top: 10px;
+}
+
 .order-list {
   display: grid;
   gap: 18px;
@@ -386,30 +449,38 @@ onMounted(() => {
   border: 1px solid rgba(17, 61, 77, 0.08);
 }
 
-.order-meta-grid strong,
-.order-remark span {
+.order-meta-grid strong {
   display: block;
   margin-bottom: 6px;
-}
-
-.order-remark {
-  display: grid;
-  gap: 8px;
-}
-
-.order-remark span {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--primary-deep);
 }
 
 .order-service-remark {
   margin: 0 0 14px;
 }
 
+.order-image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+
+.order-image-list img {
+  width: 108px;
+  height: 108px;
+  object-fit: cover;
+  border-radius: 18px;
+}
+
 @keyframes order-pulse {
   to {
     background-position: -200% 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
   }
 }
 

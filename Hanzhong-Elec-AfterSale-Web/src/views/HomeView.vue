@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import StatusBadge from '@/components/StatusBadge.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { apiBaseUrl, commonApi, merchantApi } from '@/lib/api'
 import {
   AFTER_SALES_STATUS,
@@ -16,107 +16,91 @@ import {
   safeRows,
   shortText
 } from '@/lib/domain'
+import { fetchMerchantDashboardSummary, merchantFeatureSupport } from '@/lib/merchantDashboard'
 import { pushNotice } from '@/lib/notice'
 import { session } from '@/lib/session'
 
 const loading = ref(true)
 const accessoryList = ref([])
 const merchantList = ref([])
+const merchantDashboard = ref(null)
 const merchantPendingOrders = ref([])
 
 const roleState = computed(() => getRoleState(session.roleType))
 
-const summaryCards = computed(() => {
-  const cards = [
+const userSummaryCards = computed(() => [
+  {
+    title: '售后流程',
+    value: '4 个阶段',
+    desc: '申请、接单、维修、完成一体化跟踪。'
+  },
+  {
+    title: '在售配件',
+    value: `${accessoryList.value.length} 件`,
+    desc: '常用维修更换配件可直接浏览和下单。'
+  },
+  {
+    title: roleState.value.isPendingMerchant ? '入驻状态' : '服务范围',
+    value: roleState.value.isPendingMerchant ? '审核中' : '汉中市',
+    desc: roleState.value.isPendingMerchant
+      ? '审核通过前继续按普通用户模式使用网页端。'
+      : '本地售后服务与配件供应集中展示。'
+  },
+  {
+    title: '服务商家',
+    value: `${merchantList.value.length} 家`,
+    desc: '先查看门店资料，再决定下单或提交售后。'
+  }
+])
+
+const merchantSummaryCards = computed(() => {
+  const counts = merchantDashboard.value?.counts || {}
+  return [
+    { title: '待接售后', value: counts.pendingAfterSales || 0, desc: '等待当前商家接单的新售后工单' },
+    { title: '处理中售后', value: counts.activeAfterSales || 0, desc: '已接单或维修中的售后工单' },
+    { title: '已完成工单', value: counts.completedAfterSales || 0, desc: '已经提交回执并完成的售后工单' },
     {
-      title: '售后流程',
-      value: '4 个阶段',
-      desc: '申请、接单、维修、完成一体化跟踪。'
-    },
-    {
-      title: '在售配件',
-      value: `${accessoryList.value.length} 件`,
-      desc: '常用维修更换配件可在线浏览与下单。'
-    },
-    {
-      title: roleState.value.isMerchant ? '当前角色' : '服务范围',
-      value: roleState.value.isMerchant ? '商家账号' : '汉中市',
-      desc: roleState.value.isMerchant ? '可处理售后工单并维护门店资料。' : '本地维修服务与配件供应集中展示。'
+      title: '店铺状态',
+      value: getStatusMeta(MERCHANT_AUDIT_STATUS, merchantDashboard.value?.merchant?.auditStatus).label,
+      desc: '网页端当前只接入后端已开放的商家售后能力'
     }
   ]
-
-  if (roleState.value.isMerchant) {
-    cards.push({
-      title: '待接工单',
-      value: `${merchantPendingOrders.value.length} 条`,
-      desc: '及时接单并推进维修处理进度。'
-    })
-  } else {
-    cards.push({
-      title: '服务门店',
-      value: `${merchantList.value.length} 家`,
-      desc: '查看门店信息后再选择报修与送修方式。'
-    })
-  }
-
-  return cards
 })
 
-const serviceSteps = computed(() => {
-  if (roleState.value.isMerchant) {
-    return [
-      {
-        index: '01',
-        title: '接收工单',
-        desc: '查看待接单售后需求并快速响应。',
-        actionLabel: '进入工单列表',
-        to: { name: 'after-sales-orders' }
-      },
-      {
-        index: '02',
-        title: '维修跟进',
-        desc: '记录检测结果、维修进度和处理备注。',
-        actionLabel: '查看处理中工单',
-        to: { name: 'after-sales-orders', query: { mode: 'mine' } }
-      },
-      {
-        index: '03',
-        title: '维护门店',
-        desc: '持续更新电话、地址和服务范围。',
-        actionLabel: '编辑门店资料',
-        to: { name: 'merchant-settings' }
-      }
-    ]
-  }
-
+const merchantQuickLinks = computed(() => {
+  const merchantId = merchantDashboard.value?.merchant?.merchantId || session.merchant?.merchantId
   return [
+    { label: '待接售后工单', desc: '优先处理新提交的售后需求', to: { name: 'after-sales-orders', query: { mode: 'pending' } } },
+    { label: '我的售后工单', desc: '查看已接单和处理中工单', to: { name: 'after-sales-orders', query: { mode: 'mine' } } },
+    { label: '售后回执', desc: '填写检测结果、维修进度和完工说明', to: { name: 'after-sales-apply' } },
+    { label: '店铺设置', desc: '维护联系人、地址和服务范围', to: { name: 'merchant-settings' } },
     {
-      index: '01',
-      title: '选购配件',
-      desc: '浏览常用维修配件，按分类和价格筛选。',
-      actionLabel: '进入配件商城',
-      to: { name: 'mall' }
+      label: '我的店铺',
+      desc: '查看当前门店对外展示信息',
+      to: merchantId ? { name: 'merchant-detail', params: { id: merchantId } } : { name: 'merchant-settings' }
     },
-    {
-      index: '02',
-      title: '提交售后',
-      desc: '填写设备类型、故障情况和联系信息。',
-      actionLabel: '立即申请售后',
-      to: { name: 'after-sales-apply' }
-    },
-    {
-      index: '03',
-      title: '查看进度',
-      desc: '在订单中心跟踪维修状态和处理结果。',
-      actionLabel: '查看售后进度',
-      to: { name: 'after-sales-orders' }
-    }
+    { label: '配件商城', desc: '浏览用户侧公开可见的配件信息', to: { name: 'mall' } }
   ]
 })
 
 async function loadHomeData() {
   loading.value = true
   try {
+    if (roleState.value.isMerchant) {
+      const [dashboard, pendingPayload] = await Promise.all([
+        fetchMerchantDashboardSummary(),
+        merchantApi.listPendingOrders({
+          pageNum: 1,
+          pageSize: 4
+        })
+      ])
+
+      merchantDashboard.value = dashboard
+      session.merchant = dashboard.merchant || session.merchant
+      merchantPendingOrders.value = safeRows(pendingPayload)
+      return
+    }
+
     const [accessoryPayload, merchantPayload] = await Promise.all([
       commonApi.listAccessories({
         status: '0',
@@ -135,14 +119,6 @@ async function loadHomeData() {
 
     accessoryList.value = safeRows(accessoryPayload)
     merchantList.value = safeRows(merchantPayload)
-
-    if (roleState.value.isMerchant) {
-      const pendingPayload = await merchantApi.listPendingOrders({
-        pageNum: 1,
-        pageSize: 3
-      })
-      merchantPendingOrders.value = safeRows(pendingPayload)
-    }
   } catch (error) {
     pushNotice(error.message || '首页数据加载失败', 'danger')
   } finally {
@@ -157,174 +133,273 @@ onMounted(() => {
 
 <template>
   <section class="page-shell home-page">
-    <section class="glass-card hero-card">
-      <div class="hero-copy">
-        <span class="eyebrow">售后服务平台</span>
-        <h1>汉中电子产品售后与配件服务中心</h1>
-        <p>
-          集中处理电子产品报修、配件购买、门店查询和工单跟踪。
-          无论是用户下单、提交售后，还是商家接单与维护资料，都可以在这里完成。
-        </p>
+    <section v-if="loading" class="surface-card section-card home-loading">
+      <span class="eyebrow">首页加载中</span>
+      <h1>正在同步首页数据</h1>
+      <p>系统正在根据当前账号身份装配首页内容。</p>
+    </section>
 
-        <div class="hero-actions">
-          <RouterLink class="btn btn--primary" :to="{ name: 'mall' }">进入配件商城</RouterLink>
-          <RouterLink class="btn btn--secondary" :to="{ name: 'after-sales-apply' }">提交售后申请</RouterLink>
+    <template v-else-if="roleState.isMerchant">
+      <section class="glass-card merchant-hero">
+        <div>
+          <span class="eyebrow">商家首页</span>
+          <h1>{{ merchantDashboard?.merchant?.merchantName || '商家工作台' }}</h1>
+          <p>网页端商家页现在只使用后端已经开放的售后接口，配件订单和商品管理入口已自动隐藏，不再反复请求不存在的地址。</p>
+
+          <div class="hero-actions">
+            <RouterLink class="btn btn--primary" :to="{ name: 'after-sales-orders', query: { mode: 'pending' } }">查看待接工单</RouterLink>
+            <RouterLink class="btn btn--secondary" :to="{ name: 'after-sales-apply' }">填写售后回执</RouterLink>
+          </div>
         </div>
 
-        <div class="hero-stats">
-          <article class="hero-stat">
-            <span>当前身份</span>
+        <div class="surface-card merchant-hero__side">
+          <div class="between-row merchant-hero__badge">
             <strong>{{ getRoleLabel(session.roleType) }}</strong>
-            <p>{{ session.appUser?.nickName || '未登录用户' }}</p>
-          </article>
-          <article class="hero-stat">
-            <span>{{ roleState.isMerchant ? '我的门店' : '服务区域' }}</span>
-            <strong>{{ roleState.isMerchant ? (session.merchant?.merchantName || '待完善门店信息') : '汉中市' }}</strong>
-            <p>{{ roleState.isMerchant ? '门店资料完整后更方便接单。' : '支持本地售后报修与门店查询。' }}</p>
-          </article>
-        </div>
-      </div>
-
-      <div class="hero-panel surface-card">
-        <div class="hero-panel__head">
-          <span class="eyebrow">核心流程</span>
-          <h2>把常用业务放到一个清晰入口里</h2>
-          <p>根据当前账号身份展示最常用的业务路径。</p>
-        </div>
-
-        <div class="hero-process">
-          <RouterLink
-            v-for="step in serviceSteps"
-            :key="step.title"
-            class="hero-process__item"
-            :to="step.to"
-          >
-            <span>{{ step.index }}</span>
-            <div class="hero-process__content">
-              <strong>{{ step.title }}</strong>
-              <p>{{ step.desc }}</p>
-              <em>{{ step.actionLabel }}</em>
-            </div>
-          </RouterLink>
-        </div>
-      </div>
-    </section>
-
-    <section class="summary-grid">
-      <article v-for="card in summaryCards" :key="card.title" class="surface-card summary-card">
-        <p>{{ card.title }}</p>
-        <strong>{{ card.value }}</strong>
-        <span>{{ card.desc }}</span>
-      </article>
-    </section>
-
-    <section class="content-grid">
-      <section class="surface-card section-card">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">热门配件</span>
-            <h2>热门配件</h2>
-            <p>优先展示常见维修更换配件，方便快速选购。</p>
+            <StatusBadge v-bind="getStatusMeta(MERCHANT_AUDIT_STATUS, merchantDashboard?.merchant?.auditStatus)" />
           </div>
-          <RouterLink class="btn btn--ghost btn--small" :to="{ name: 'mall' }">查看全部</RouterLink>
+          <span>{{ merchantDashboard?.merchant?.contactName || '门店联系人' }} / {{ merchantDashboard?.merchant?.contactPhone || '--' }}</span>
+          <span>{{ merchantDashboard?.merchant?.address || '请先完善门店地址' }}</span>
+          <p>{{ shortText(merchantDashboard?.merchant?.serviceScope || merchantDashboard?.merchant?.merchantDesc || '可在店铺设置中补充服务范围和门店简介。', 84) }}</p>
         </div>
-
-        <div v-if="loading" class="card-grid">
-          <article v-for="item in 3" :key="item" class="accessory-card accessory-card--ghost"></article>
-        </div>
-        <div v-else-if="accessoryList.length" class="card-grid">
-          <RouterLink
-            v-for="item in accessoryList"
-            :key="item.accessoryId"
-            class="accessory-card"
-            :to="{ name: 'accessory-detail', params: { id: item.accessoryId } }"
-          >
-            <div class="accessory-card__cover">
-              <img :src="resolveImage(item.coverImage, apiBaseUrl)" :alt="item.accessoryName" />
-            </div>
-            <div class="accessory-card__content">
-              <span>{{ item.categoryName || '通用配件' }}</span>
-              <h3>{{ item.accessoryName }}</h3>
-              <p>{{ shortText(item.accessoryDesc || '适用于常见电子产品维修、更换和保养场景。', 52) }}</p>
-              <div class="between-row accessory-card__meta">
-                <strong>￥{{ formatMoney(item.price) }}</strong>
-                <small>销量 {{ item.salesCount || 0 }}</small>
-              </div>
-            </div>
-          </RouterLink>
-        </div>
-        <EmptyState
-          v-else
-          title="暂无配件"
-          description="当前没有查询到已上架配件。"
-          action-label="刷新首页"
-          @action="loadHomeData"
-        />
       </section>
 
-      <section class="surface-card section-card">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">{{ roleState.isMerchant ? '待接工单' : '服务门店' }}</span>
-            <h2>{{ roleState.isMerchant ? '待处理售后需求' : '可选维修门店' }}</h2>
-            <p v-if="roleState.isMerchant">优先查看待接单需求，及时进入维修处理。</p>
-            <p v-else>查看门店资料、服务范围和联系方式，选择合适的维修服务。</p>
+      <section class="merchant-link-grid">
+        <RouterLink v-for="item in merchantQuickLinks" :key="item.label" class="surface-card merchant-link-card" :to="item.to">
+          <strong>{{ item.label }}</strong>
+          <span>{{ item.desc }}</span>
+        </RouterLink>
+      </section>
+
+      <section class="summary-grid">
+        <article v-for="card in merchantSummaryCards" :key="card.title" class="surface-card summary-card">
+          <span>{{ card.title }}</span>
+          <strong>{{ card.value }}</strong>
+          <p>{{ card.desc }}</p>
+        </article>
+      </section>
+
+      <section class="merchant-grid">
+        <section class="surface-card section-card">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">待接售后</span>
+              <h2>最新待接工单</h2>
+              <p>优先展示等待当前商家接单的售后需求。</p>
+            </div>
+            <RouterLink class="btn btn--ghost btn--small" :to="{ name: 'after-sales-orders', query: { mode: 'pending' } }">查看全部</RouterLink>
           </div>
-          <RouterLink
-            class="btn btn--ghost btn--small"
-            :to="roleState.isMerchant ? { name: 'after-sales-orders' } : { name: 'merchants' }"
-          >
-            {{ roleState.isMerchant ? '查看全部工单' : '查看全部门店' }}
-          </RouterLink>
+
+          <div v-if="merchantPendingOrders.length" class="merchant-stack">
+            <article v-for="order in merchantPendingOrders" :key="order.orderId" class="merchant-card">
+              <div class="merchant-card__head">
+                <div>
+                  <h3>{{ order.productType }}</h3>
+                  <p>{{ order.orderNo }}</p>
+                </div>
+                <StatusBadge v-bind="getStatusMeta(AFTER_SALES_STATUS, order.status)" />
+              </div>
+              <p>{{ shortText(order.faultDesc, 88) }}</p>
+              <div class="merchant-card__meta">
+                <span>{{ order.contactName }} / {{ order.contactPhone }}</span>
+                <span>{{ formatDateTime(order.createTime) }}</span>
+              </div>
+            </article>
+          </div>
+          <EmptyState
+            v-else
+            title="暂无待接工单"
+            description="当前没有新的售后工单需要当前商家接单。"
+          />
+        </section>
+
+        <section class="surface-card section-card merchant-note-card">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">接口适配</span>
+              <h2>当前网页端已静默降级</h2>
+              <p>根据现有后端控制器，网页商家端只保留真实可用的能力，避免右上角连续弹出请求失败。</p>
+            </div>
+          </div>
+
+          <div class="merchant-stack">
+            <article class="merchant-card">
+              <div class="merchant-card__head">
+                <div>
+                  <h3>已保留</h3>
+                  <p>后端真实存在</p>
+                </div>
+              </div>
+              <p>商家信息、待接售后、我的工单、售后状态更新、售后回执。</p>
+            </article>
+
+            <article class="merchant-card">
+              <div class="merchant-card__head">
+                <div>
+                  <h3>已隐藏</h3>
+                  <p>后端当前未开放</p>
+                </div>
+              </div>
+              <p v-if="!merchantFeatureSupport.accessoryOrders">商家配件订单接口未开放，相关入口已移除。</p>
+              <p v-if="!merchantFeatureSupport.accessoryCatalog">商家商品管理接口未开放，网页端已改为只读浏览公共配件数据。</p>
+            </article>
+          </div>
+        </section>
+      </section>
+    </template>
+
+    <template v-else>
+      <section class="glass-card hero-card">
+        <div class="hero-copy">
+          <span class="eyebrow">售后服务平台</span>
+          <h1>汉中电子产品售后与配件服务中心</h1>
+          <p>
+            集中处理电子产品报修、配件购买、门店查询和工单跟踪。
+            无论是普通用户下单与提交售后，还是待审核商家继续以用户身份使用，都可以在这里完成。
+          </p>
+
+          <div class="hero-actions">
+            <RouterLink class="btn btn--primary" :to="{ name: 'mall' }">进入配件商城</RouterLink>
+            <RouterLink class="btn btn--secondary" :to="{ name: 'after-sales-apply' }">提交售后申请</RouterLink>
+          </div>
+
+          <div class="hero-stats">
+            <article class="hero-stat">
+              <span>当前身份</span>
+              <strong>{{ getRoleLabel(session.roleType) }}</strong>
+              <p>{{ session.appUser?.nickName || '未登录用户' }}</p>
+            </article>
+            <article class="hero-stat">
+              <span>{{ roleState.isPendingMerchant ? '入驻审核' : '服务区域' }}</span>
+              <strong>{{ roleState.isPendingMerchant ? '审核中' : '汉中市' }}</strong>
+              <p>{{ roleState.isPendingMerchant ? '审核通过前仍可按普通用户模式下单与申请售后。' : '支持本地售后报修与门店服务查询。' }}</p>
+            </article>
+          </div>
         </div>
 
-        <div v-if="loading" class="merchant-stack">
-          <article v-for="item in 3" :key="item" class="merchant-card merchant-card--ghost"></article>
-        </div>
-        <div v-else-if="roleState.isMerchant && merchantPendingOrders.length" class="merchant-stack">
-          <article v-for="order in merchantPendingOrders" :key="order.orderId" class="merchant-card">
-            <div class="merchant-card__head">
-              <div>
-                <h3>{{ order.productType }}</h3>
-                <p>{{ order.orderNo }}</p>
+        <div class="hero-panel surface-card">
+          <div class="hero-panel__head">
+            <span class="eyebrow">核心流程</span>
+            <h2>把常用业务放到一个清晰入口里</h2>
+            <p>根据当前账号身份展示最常用的业务路径。</p>
+          </div>
+
+          <div class="hero-process">
+            <RouterLink class="hero-process__item" :to="{ name: 'mall' }">
+              <span>01</span>
+              <div class="hero-process__content">
+                <strong>选购配件</strong>
+                <p>浏览常用维修配件，按分类和价格筛选。</p>
+                <em>进入配件商城</em>
               </div>
-              <StatusBadge v-bind="getStatusMeta(AFTER_SALES_STATUS, order.status)" />
-            </div>
-            <p>{{ shortText(order.faultDesc, 58) }}</p>
-            <div class="merchant-card__meta">
-              <span>{{ order.contactName }} / {{ order.contactPhone }}</span>
-              <span>{{ formatDateTime(order.createTime) }}</span>
-            </div>
-          </article>
-        </div>
-        <div v-else-if="!roleState.isMerchant && merchantList.length" class="merchant-stack">
-          <RouterLink
-            v-for="item in merchantList"
-            :key="item.merchantId"
-            class="merchant-card"
-            :to="{ name: 'merchant-detail', params: { id: item.merchantId } }"
-          >
-            <div class="merchant-card__head">
-              <div>
-                <h3>{{ item.merchantName }}</h3>
-                <p>{{ item.cityName || '汉中市' }}</p>
+            </RouterLink>
+            <RouterLink class="hero-process__item" :to="{ name: 'after-sales-apply' }">
+              <span>02</span>
+              <div class="hero-process__content">
+                <strong>提交售后</strong>
+                <p>填写产品、故障和联系信息，等待商家接单。</p>
+                <em>立即提交售后</em>
               </div>
-              <StatusBadge v-bind="getStatusMeta(MERCHANT_AUDIT_STATUS, item.auditStatus)" />
-            </div>
-            <p>{{ shortText(item.serviceScope || item.merchantDesc || '电子产品检修、保养、配件更换。', 60) }}</p>
-            <div class="merchant-card__meta">
-              <span>{{ item.contactName || '商家客服' }}</span>
-              <span>{{ item.contactPhone || '--' }}</span>
-            </div>
-          </RouterLink>
+            </RouterLink>
+            <RouterLink class="hero-process__item" :to="{ name: 'after-sales-orders' }">
+              <span>03</span>
+              <div class="hero-process__content">
+                <strong>跟踪进度</strong>
+                <p>在工单页查看接单、维修和回执状态。</p>
+                <em>查看售后订单</em>
+              </div>
+            </RouterLink>
+          </div>
         </div>
-        <EmptyState
-          v-else
-          :title="roleState.isMerchant ? '暂时没有待接工单' : '暂无商家'"
-          :description="roleState.isMerchant ? '待用户提交新的售后申请后即可在这里接单。' : '当前没有查到符合条件的服务门店。'"
-        />
       </section>
-    </section>
+
+      <section class="summary-grid">
+        <article v-for="card in userSummaryCards" :key="card.title" class="surface-card summary-card">
+          <span>{{ card.title }}</span>
+          <strong>{{ card.value }}</strong>
+          <p>{{ card.desc }}</p>
+        </article>
+      </section>
+
+      <section class="content-grid">
+        <section class="surface-card section-card">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">热门配件</span>
+              <h2>热门配件</h2>
+              <p>优先展示常见维修更换配件，方便快速选购。</p>
+            </div>
+            <RouterLink class="btn btn--ghost btn--small" :to="{ name: 'mall' }">查看全部</RouterLink>
+          </div>
+
+          <div v-if="accessoryList.length" class="card-grid">
+            <RouterLink
+              v-for="item in accessoryList"
+              :key="item.accessoryId"
+              class="accessory-card"
+              :to="{ name: 'accessory-detail', params: { id: item.accessoryId } }"
+            >
+              <div class="accessory-card__cover">
+                <img :src="resolveImage(item.coverImage, apiBaseUrl)" :alt="item.accessoryName" />
+              </div>
+              <div class="accessory-card__content">
+                <span>{{ item.categoryName || '通用配件' }}</span>
+                <h3>{{ item.accessoryName }}</h3>
+                <p>{{ shortText(item.accessoryDesc || '适用于常见电子产品维修、更换和保养场景。', 52) }}</p>
+                <div class="between-row accessory-card__meta">
+                  <strong>￥{{ formatMoney(item.price) }}</strong>
+                  <small>销量 {{ item.salesCount || 0 }}</small>
+                </div>
+              </div>
+            </RouterLink>
+          </div>
+          <EmptyState
+            v-else
+            title="暂无配件"
+            description="当前没有查询到已上架配件。"
+            action-label="刷新首页"
+            @action="loadHomeData"
+          />
+        </section>
+
+        <section class="surface-card section-card">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow">服务门店</span>
+              <h2>可选维修门店</h2>
+              <p>查看门店资料、服务范围和联系方式，再选择合适的维修服务。</p>
+            </div>
+            <RouterLink class="btn btn--ghost btn--small" :to="{ name: 'merchants' }">查看全部门店</RouterLink>
+          </div>
+
+          <div v-if="merchantList.length" class="merchant-stack">
+            <RouterLink
+              v-for="item in merchantList"
+              :key="item.merchantId"
+              class="merchant-card"
+              :to="{ name: 'merchant-detail', params: { id: item.merchantId } }"
+            >
+              <div class="merchant-card__head">
+                <div>
+                  <h3>{{ item.merchantName }}</h3>
+                  <p>{{ item.cityName || '汉中市' }}</p>
+                </div>
+                <StatusBadge v-bind="getStatusMeta(MERCHANT_AUDIT_STATUS, item.auditStatus)" />
+              </div>
+              <p>{{ shortText(item.serviceScope || item.merchantDesc || '电子产品检修、保养和配件更换服务。', 60) }}</p>
+              <div class="merchant-card__meta">
+                <span>{{ item.contactName || '商家客服' }}</span>
+                <span>{{ item.contactPhone || '--' }}</span>
+              </div>
+            </RouterLink>
+          </div>
+          <EmptyState
+            v-else
+            title="暂无商家"
+            description="当前没有查询到符合条件的服务门店。"
+          />
+        </section>
+      </section>
+    </template>
   </section>
 </template>
 
@@ -334,6 +409,10 @@ onMounted(() => {
   gap: 24px;
 }
 
+.home-loading {
+  text-align: center;
+}
+
 .hero-card {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.85fr);
@@ -341,7 +420,8 @@ onMounted(() => {
   padding: 30px;
 }
 
-.hero-copy h1 {
+.hero-copy h1,
+.merchant-hero h1 {
   margin: 18px 0 14px;
   font-size: clamp(34px, 5vw, 58px);
   line-height: 1.03;
@@ -373,33 +453,29 @@ onMounted(() => {
   border: 1px solid rgba(24, 48, 43, 0.08);
 }
 
-.hero-stat span {
-  display: block;
-  margin-bottom: 8px;
+.hero-stat span,
+.summary-card span,
+.merchant-link-card span,
+.merchant-card__meta span,
+.merchant-hero__side span {
   color: var(--muted);
-  font-size: 13px;
 }
 
 .hero-stat strong,
-.summary-card strong {
+.summary-card strong,
+.merchant-hero__side strong {
   display: block;
   font-size: 20px;
   color: var(--primary-deep);
 }
 
 .hero-stat p,
-.summary-card span {
-  margin: 8px 0 0;
-  color: var(--muted);
-  line-height: 1.7;
+.summary-card p {
+  margin-top: 8px;
 }
 
 .hero-panel {
   padding: 26px;
-}
-
-.hero-panel__head h2 {
-  margin-bottom: 6px;
 }
 
 .hero-process {
@@ -420,7 +496,10 @@ onMounted(() => {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.hero-process__item:hover {
+.hero-process__item:hover,
+.merchant-link-card:hover,
+.accessory-card:hover,
+.merchant-card:hover {
   transform: translateY(-3px);
   border-color: rgba(18, 105, 93, 0.24);
   box-shadow: 0 20px 38px rgba(10, 66, 58, 0.1);
@@ -443,35 +522,67 @@ onMounted(() => {
   gap: 8px;
 }
 
-.hero-process__item strong {
-  display: block;
-}
-
-.hero-process__item p {
+.hero-process__content p {
   margin: 0;
 }
 
-.hero-process__item em {
+.hero-process__content em {
   font-style: normal;
   color: var(--primary);
   font-weight: 700;
 }
 
+.merchant-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  padding: 30px;
+}
+
+.merchant-hero__side {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 22px;
+}
+
+.merchant-hero__badge {
+  align-items: flex-start;
+}
+
+.merchant-hero__side p {
+  margin: 0;
+}
+
+.merchant-link-grid,
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
 }
 
+.merchant-link-card,
 .summary-card {
   padding: 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(24, 48, 43, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.summary-card p {
-  margin: 0 0 14px;
-  font-size: 13px;
-  color: var(--muted);
-  letter-spacing: 0.08em;
+.merchant-link-card strong {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--primary-deep);
+}
+
+.merchant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.merchant-note-card {
+  align-content: start;
 }
 
 .content-grid {
@@ -494,20 +605,6 @@ onMounted(() => {
   border: 1px solid rgba(24, 48, 43, 0.08);
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.accessory-card:hover,
-.merchant-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 26px 48px rgba(17, 61, 77, 0.12);
-}
-
-.accessory-card--ghost,
-.merchant-card--ghost {
-  min-height: 220px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.65), rgba(237, 245, 247, 0.8), rgba(255, 255, 255, 0.65));
-  background-size: 200% 100%;
-  animation: pulse 1.8s linear infinite;
 }
 
 .accessory-card__cover {
@@ -567,18 +664,20 @@ onMounted(() => {
   justify-content: space-between;
   gap: 10px;
   padding-top: 12px;
-  color: var(--muted);
   font-size: 14px;
 }
 
-@keyframes pulse {
-  to {
-    background-position: -200% 0;
+@media (max-width: 1080px) {
+  .merchant-link-grid,
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 980px) {
   .hero-card,
+  .merchant-hero,
+  .merchant-grid,
   .content-grid,
   .summary-grid {
     grid-template-columns: 1fr;
@@ -587,11 +686,13 @@ onMounted(() => {
 
 @media (max-width: 720px) {
   .hero-stats,
+  .merchant-link-grid,
   .card-grid {
     grid-template-columns: 1fr;
   }
 
-  .hero-card {
+  .hero-card,
+  .merchant-hero {
     padding: 18px;
   }
 }

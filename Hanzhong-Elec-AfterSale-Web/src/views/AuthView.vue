@@ -8,7 +8,7 @@ import { applyLogin, session } from '@/lib/session'
 
 const router = useRouter()
 
-const activeTab = ref(session.token ? 'login' : 'register')
+const activeTab = ref('login')
 const sendingCode = ref(false)
 const authLoading = ref(false)
 
@@ -81,7 +81,7 @@ async function handleSendCode() {
   sendingCode.value = true
   try {
     const payload = await authApi.sendCode(registerForm.phone)
-    pushNotice(`验证码：${payload.code}`, 'brand', 5000)
+    pushNotice(`验证码：${payload.smsCode || payload.code}`, 'brand', 5000)
   } catch (error) {
     pushNotice(error.message || '验证码发送失败', 'danger')
   } finally {

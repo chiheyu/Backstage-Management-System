@@ -1,16 +1,20 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, reactive, watch } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { apiBaseUrl, commonApi } from '@/lib/api'
-import { formatMoney, resolveImage, safeRows, shortText } from '@/lib/domain'
+import { formatMoney, getRoleState, resolveImage, safeRows, shortText } from '@/lib/domain'
+import { addCartItem } from '@/lib/localData'
 import { pushNotice } from '@/lib/notice'
 import { session } from '@/lib/session'
 
-const loading = ref(false)
-const accessoryList = ref([])
-const total = ref(0)
+const router = useRouter()
+const accessoryList = reactive([])
+const state = reactive({
+  loading: false,
+  total: 0
+})
 
 const filters = reactive({
   accessoryName: '',
@@ -21,9 +25,11 @@ const filters = reactive({
   pageSize: 9
 })
 
+const roleState = computed(() => getRoleState(session.roleType))
+
 const categoryOptions = computed(() => {
   const all = ['全部']
-  accessoryList.value.forEach(item => {
+  accessoryList.forEach(item => {
     if (item.categoryName && !all.includes(item.categoryName)) {
       all.push(item.categoryName)
     }
@@ -33,11 +39,11 @@ const categoryOptions = computed(() => {
 
 const paginationSummary = computed(() => {
   const start = (filters.pageNum - 1) * filters.pageSize + 1
-  const end = Math.min(filters.pageNum * filters.pageSize, total.value)
-  if (!total.value) {
+  const end = Math.min(filters.pageNum * filters.pageSize, state.total)
+  if (!state.total) {
     return '暂无结果'
   }
-  return `${start}-${end} / ${total.value}`
+  return `${start}-${end} / ${state.total}`
 })
 
 function buildParams() {
@@ -56,15 +62,15 @@ function buildParams() {
 }
 
 async function loadAccessories() {
-  loading.value = true
+  state.loading = true
   try {
     const payload = await commonApi.listAccessories(buildParams())
-    accessoryList.value = safeRows(payload)
-    total.value = Number(payload?.total || 0)
+    accessoryList.splice(0, accessoryList.length, ...safeRows(payload))
+    state.total = Number(payload?.total || 0)
   } catch (error) {
     pushNotice(error.message || '配件列表加载失败', 'danger')
   } finally {
-    loading.value = false
+    state.loading = false
   }
 }
 
@@ -85,7 +91,7 @@ function applyCategory(name) {
 
 function changePage(offset) {
   const nextPage = filters.pageNum + offset
-  const maxPage = Math.max(1, Math.ceil(total.value / filters.pageSize))
+  const maxPage = Math.max(1, Math.ceil(state.total / filters.pageSize))
   if (nextPage < 1 || nextPage > maxPage) {
     return
   }
@@ -93,9 +99,35 @@ function changePage(offset) {
   loadAccessories()
 }
 
+function handleAddCart(item) {
+  if (roleState.value.isMerchant) {
+    router.push({ name: 'accessory-detail', params: { id: item.accessoryId } })
+    return
+  }
+
+  if (Number(item.stock || 0) <= 0) {
+    pushNotice('当前商品库存不足', 'danger')
+    return
+  }
+
+  addCartItem({
+    id: item.accessoryId,
+    accessoryId: item.accessoryId,
+    name: item.accessoryName,
+    spec: item.categoryName,
+    desc: item.accessoryDesc,
+    image: resolveImage(item.coverImage, apiBaseUrl),
+    price: item.price,
+    stock: item.stock,
+    count: 1
+  })
+  pushNotice('已加入购物车', 'success')
+}
+
 watch(
-  () => session.appUser?.appUserId,
+  () => session.roleType,
   () => {
+    filters.pageNum = 1
     loadAccessories()
   }
 )
@@ -107,21 +139,38 @@ onMounted(() => {
 
 <template>
   <section class="page-shell mall-page">
-    <section class="surface-card section-card mall-filter-card">
-      <div class="section-head">
-        <div>
-          <span class="eyebrow">配件商城</span>
-          <h1>筛选在售配件</h1>
-          <p>按名称、分类和价格区间筛选，快速找到合适的维修配件。</p>
-        </div>
-        <StatusBadge :label="paginationSummary" tone="brand" />
+    <section class="glass-card merchant-mall-hero">
+      <div>
+        <span class="eyebrow">{{ roleState.isMerchant ? '配件浏览' : '配件商城' }}</span>
+        <h1>{{ roleState.isMerchant ? '商家浏览公共配件数据' : '筛选在售配件' }}</h1>
+        <p>
+          {{ roleState.isMerchant
+            ? '后端当前未开放网页商家商品管理接口，这里只保留公共配件浏览和详情查看，不再进入管理模式。'
+            : '按名称、分类和价格区间筛选，快速找到合适的维修配件。' }}
+        </p>
       </div>
+      <div class="merchant-mall-stats">
+        <article class="surface-card merchant-mall-stat">
+          <span>当前结果</span>
+          <strong>{{ state.total }}</strong>
+        </article>
+        <article class="surface-card merchant-mall-stat">
+          <span>库存充足</span>
+          <strong>{{ accessoryList.filter(item => Number(item.stock || 0) > 0).length }}</strong>
+        </article>
+        <article class="surface-card merchant-mall-stat">
+          <span>分页</span>
+          <strong>{{ paginationSummary }}</strong>
+        </article>
+      </div>
+    </section>
 
+    <section class="surface-card section-card mall-filter-card">
       <div class="mall-toolbar">
         <input
           v-model.trim="filters.accessoryName"
           class="field"
-          placeholder="搜索配件名称，例如 屏幕、电池、数据线"
+          placeholder="搜索配件名称，例如：屏幕、电池、数据线"
           @keyup.enter="filters.pageNum = 1; loadAccessories()"
         />
         <input
@@ -153,58 +202,73 @@ onMounted(() => {
       </div>
     </section>
 
-    <section v-if="loading" class="mall-grid">
+    <section v-if="state.loading" class="mall-grid">
       <article v-for="item in 6" :key="item" class="mall-card mall-card--ghost"></article>
     </section>
 
     <section v-else-if="accessoryList.length" class="mall-grid">
-      <RouterLink
-        v-for="item in accessoryList"
-        :key="item.accessoryId"
-        class="mall-card"
-        :to="{ name: 'accessory-detail', params: { id: item.accessoryId } }"
-      >
-        <div class="mall-card__cover">
+      <article v-for="item in accessoryList" :key="item.accessoryId" class="mall-card">
+        <RouterLink class="mall-card__cover" :to="{ name: 'accessory-detail', params: { id: item.accessoryId } }">
           <img :src="resolveImage(item.coverImage, apiBaseUrl)" :alt="item.accessoryName" />
-        </div>
+        </RouterLink>
 
-          <div class="mall-card__content">
-            <div class="between-row">
-              <span class="mall-card__tag">{{ item.categoryName || '通用配件' }}</span>
-              <StatusBadge :label="item.collected ? '已收藏' : '可下单'" :tone="item.collected ? 'warm' : 'brand'" />
-            </div>
+        <div class="mall-card__content">
+          <div class="between-row">
+            <span class="mall-card__tag">{{ item.categoryName || '通用配件' }}</span>
+            <StatusBadge
+              :label="roleState.isMerchant ? '只读浏览' : item.collected ? '已收藏' : '可加购'"
+              :tone="roleState.isMerchant ? 'muted' : item.collected ? 'warm' : 'brand'"
+            />
+          </div>
+
+          <RouterLink :to="{ name: 'accessory-detail', params: { id: item.accessoryId } }">
             <h3>{{ item.accessoryName }}</h3>
-            <p>{{ shortText(item.accessoryDesc || '适用于常见电子产品维修、更换和保养场景。', 60) }}</p>
+          </RouterLink>
+
+          <p>{{ shortText(item.accessoryDesc || '适用于常见电子产品维修、更换和保养场景。', 60) }}</p>
+
+          <div class="merchant-meta">
+            <span>库存 {{ item.stock || 0 }}</span>
+            <span>销量 {{ item.salesCount || 0 }}</span>
+          </div>
 
           <div class="mall-card__stats">
             <div>
               <strong>￥{{ formatMoney(item.price) }}</strong>
               <span>库存 {{ item.stock || 0 }}</span>
             </div>
-            <small>销量 {{ item.salesCount || 0 }}</small>
+            <button
+              class="btn"
+              :class="roleState.isMerchant ? 'btn--ghost btn--small' : 'btn--primary btn--small'"
+              :disabled="!roleState.isMerchant && Number(item.stock || 0) <= 0"
+              @click="handleAddCart(item)"
+            >
+              {{ roleState.isMerchant ? '查看详情' : Number(item.stock || 0) <= 0 ? '已售罄' : '加入购物车' }}
+            </button>
           </div>
         </div>
-      </RouterLink>
+      </article>
     </section>
 
     <EmptyState
       v-else
       title="没有找到匹配配件"
-      description="可以尝试切换分类、降低价格筛选条件，或清空关键词。"
+      description="可以尝试切换分类、放宽价格筛选条件，或清空关键词。"
       action-label="重置筛选"
       @action="resetFilters"
     />
 
     <section class="surface-card section-card mall-footer-card">
       <div>
-        <h2>下单提示</h2>
-        <p>普通用户可直接下单和收藏商品，商家账号主要用于处理售后工单。</p>
+        <h2>{{ roleState.isMerchant ? '商家说明' : '下单提示' }}</h2>
+        <p v-if="roleState.isMerchant">商家当前只能浏览配件公开信息和详情页，网页端不会再请求不存在的商品管理接口。</p>
+        <p v-else>普通用户可先加入购物车再统一结算，也可以直接在详情页下单和收藏。</p>
       </div>
       <div class="action-row">
         <button class="btn btn--ghost btn--small" :disabled="filters.pageNum <= 1" @click="changePage(-1)">上一页</button>
         <button
           class="btn btn--primary btn--small"
-          :disabled="filters.pageNum >= Math.max(1, Math.ceil(total / filters.pageSize))"
+          :disabled="filters.pageNum >= Math.max(1, Math.ceil(state.total / filters.pageSize))"
           @click="changePage(1)"
         >
           下一页
@@ -220,8 +284,38 @@ onMounted(() => {
   gap: 22px;
 }
 
+.merchant-mall-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  gap: 22px;
+  padding: 28px;
+}
+
+.merchant-mall-hero h1,
 .mall-filter-card h1 {
   margin-bottom: 8px;
+}
+
+.merchant-mall-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.merchant-mall-stat {
+  padding: 18px;
+}
+
+.merchant-mall-stat span,
+.merchant-meta span {
+  color: var(--muted);
+}
+
+.merchant-mall-stat strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 26px;
+  color: var(--primary-deep);
 }
 
 .mall-toolbar {
@@ -262,6 +356,7 @@ onMounted(() => {
 }
 
 .mall-card__cover {
+  display: block;
   aspect-ratio: 5 / 4;
   background: linear-gradient(135deg, rgba(14, 116, 144, 0.14), rgba(245, 158, 11, 0.16));
 }
@@ -302,9 +397,14 @@ onMounted(() => {
   color: var(--primary-deep);
 }
 
-.mall-card__stats span,
-.mall-card__stats small {
+.mall-card__stats span {
   color: var(--muted);
+}
+
+.merchant-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .mall-footer-card {
@@ -321,6 +421,7 @@ onMounted(() => {
 }
 
 @media (max-width: 1080px) {
+  .merchant-mall-hero,
   .mall-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -331,6 +432,8 @@ onMounted(() => {
 }
 
 @media (max-width: 720px) {
+  .merchant-mall-hero,
+  .merchant-mall-stats,
   .mall-grid,
   .mall-toolbar {
     grid-template-columns: 1fr;

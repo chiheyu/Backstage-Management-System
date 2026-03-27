@@ -14,6 +14,7 @@ import {
   safeRows,
   shortText
 } from '@/lib/domain'
+import { saveAfterSalePrefill } from '@/lib/localData'
 import { pushNotice } from '@/lib/notice'
 import { session } from '@/lib/session'
 
@@ -77,6 +78,23 @@ async function toggleCollection(accessoryId, collected) {
   } catch (error) {
     pushNotice(error.message || '收藏操作失败', 'danger')
   }
+}
+
+function canApplyAfterSale(order) {
+  return String(order.status) === '2'
+}
+
+function goAfterSale(order) {
+  saveAfterSalePrefill({
+    sourceType: 'accessoryOrder',
+    sourceOrderId: order.accessoryOrderId,
+    productName: order.accessoryName || '',
+    productModel: order.orderNo || '',
+    name: order.receiverName || '',
+    phone: order.receiverPhone || '',
+    receiverAddress: order.receiverAddress || ''
+  })
+  router.push({ name: 'after-sales-apply' })
 }
 
 function resetFilters() {
@@ -170,6 +188,9 @@ onMounted(() => {
                     <span>{{ order.receiverName }} / {{ order.receiverPhone }}</span>
                     <span>{{ order.receiverAddress || '未填写地址' }}</span>
                     <span>{{ formatDateTime(order.createTime) }}</span>
+                  </div>
+                  <div v-if="canApplyAfterSale(order)" class="action-row order-card__actions">
+                    <button class="btn btn--ghost btn--small" @click="goAfterSale(order)">申请售后</button>
                   </div>
                 </div>
               </div>
@@ -301,6 +322,10 @@ onMounted(() => {
   gap: 12px;
   margin-top: 12px;
   color: var(--muted);
+}
+
+.order-card__actions {
+  margin-top: 12px;
 }
 
 .order-card__stats strong {
