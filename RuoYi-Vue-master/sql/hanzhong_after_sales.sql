@@ -86,6 +86,7 @@ CREATE TABLE app_after_sales_order (
 
 CREATE TABLE app_accessory (
   accessory_id bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
+  merchant_id bigint(20) DEFAULT NULL COMMENT '归属商家 ID',
   category_name varchar(50) NOT NULL COMMENT '分类名称',
   accessory_name varchar(100) NOT NULL COMMENT '配件名称',
   accessory_desc varchar(500) DEFAULT NULL COMMENT '配件描述',
@@ -100,6 +101,7 @@ CREATE TABLE app_accessory (
   update_time datetime DEFAULT NULL COMMENT '更新时间',
   remark varchar(500) DEFAULT NULL COMMENT '备注',
   PRIMARY KEY (accessory_id),
+  KEY idx_app_accessory_merchant_id (merchant_id),
   KEY idx_app_accessory_category (category_name),
   KEY idx_app_accessory_status (status),
   KEY idx_app_accessory_price (price)
@@ -110,6 +112,7 @@ CREATE TABLE app_accessory_order (
   order_no varchar(32) NOT NULL COMMENT '订单号',
   accessory_id bigint(20) NOT NULL COMMENT '配件 ID',
   app_user_id bigint(20) NOT NULL COMMENT '下单用户',
+  merchant_id bigint(20) DEFAULT NULL COMMENT '归属商家 ID',
   quantity bigint(20) NOT NULL COMMENT '数量',
   price decimal(10,2) NOT NULL COMMENT '单价',
   total_amount decimal(10,2) NOT NULL COMMENT '总金额',
@@ -126,6 +129,7 @@ CREATE TABLE app_accessory_order (
   PRIMARY KEY (accessory_order_id),
   UNIQUE KEY uk_app_accessory_order_no (order_no),
   KEY idx_app_accessory_order_user_id (app_user_id),
+  KEY idx_app_accessory_order_merchant_id (merchant_id),
   KEY idx_app_accessory_order_accessory_id (accessory_id),
   KEY idx_app_accessory_order_status (status),
   KEY idx_app_accessory_order_create_time (create_time)
@@ -197,19 +201,19 @@ INSERT INTO app_merchant (merchant_id, app_user_id, sys_user_id, merchant_name, 
 VALUES
 (1, 2, 2001, '汉中诚信数码维修中心', '张师傅', '13800002222', '陕西省汉中市汉台区前进路 88 号', '手机、平板、笔记本、数码配件', '主营手机换屏、换电池、主板检测与数码产品售后。', '汉中市', '0', 'admin', NOW(), '待审核商家');
 
-INSERT INTO app_accessory (accessory_id, category_name, accessory_name, accessory_desc, cover_image, price, stock, sales_count, status, create_by, create_time, remark)
+INSERT INTO app_accessory (accessory_id, merchant_id, category_name, accessory_name, accessory_desc, cover_image, price, stock, sales_count, status, create_by, create_time, remark)
 VALUES
-(1, '手机配件', '手机电池', '适配主流安卓机型的高容量电池，支持门店安装。', '/profile/upload/2026/03/07/battery.png', 129.00, 50, 5, '0', 'admin', NOW(), '测试配件'),
-(2, '手机配件', '手机屏幕', '适配常见机型的原装品质屏幕总成，可提供安装服务。', '/profile/upload/2026/03/07/screen.png', 399.00, 20, 2, '0', 'admin', NOW(), '测试配件'),
-(3, '电脑配件', '笔记本风扇', '适用于多型号笔记本的散热风扇组件。', '/profile/upload/2026/03/07/fan.png', 89.00, 30, 1, '1', 'admin', NOW(), '下架测试配件');
+(1, 1, '手机配件', '手机电池', '适配主流安卓机型的高容量电池，支持门店安装。', '/profile/upload/2026/03/07/battery.png', 129.00, 50, 5, '0', 'admin', NOW(), '测试配件'),
+(2, 1, '手机配件', '手机屏幕', '适配常见机型的原装品质屏幕总成，可提供安装服务。', '/profile/upload/2026/03/07/screen.png', 399.00, 20, 2, '0', 'admin', NOW(), '测试配件'),
+(3, 1, '电脑配件', '笔记本风扇', '适用于多型号笔记本的散热风扇组件。', '/profile/upload/2026/03/07/fan.png', 89.00, 30, 1, '1', 'admin', NOW(), '下架测试配件');
 
 INSERT INTO app_after_sales_order (order_id, order_no, app_user_id, merchant_id, product_type, fault_desc, fault_images, status, service_remark, contact_name, contact_phone, address, create_by, create_time, remark)
 VALUES
 (1, 'AS202603070001', 1, NULL, '手机', '开机后黑屏，偶发重启。', '/profile/upload/2026/03/07/after-sales-1.png', '0', NULL, '李先生', '13800001111', '陕西省汉中市汉台区中山街 18 号', 'user1', NOW(), '初始待接单订单');
 
-INSERT INTO app_accessory_order (accessory_order_id, order_no, accessory_id, app_user_id, quantity, price, total_amount, status, receiver_name, receiver_phone, receiver_address, order_remark, create_by, create_time, remark)
+INSERT INTO app_accessory_order (accessory_order_id, order_no, accessory_id, app_user_id, merchant_id, quantity, price, total_amount, status, receiver_name, receiver_phone, receiver_address, order_remark, create_by, create_time, remark)
 VALUES
-(1, 'AO202603070001', 1, 1, 1, 129.00, 129.00, '0', '李先生', '13800001111', '陕西省汉中市汉台区中山街 18 号', '测试订单', 'user1', NOW(), '初始配件订单');
+(1, 'AO202603070001', 1, 1, 1, 1, 129.00, 129.00, '0', '李先生', '13800001111', '陕西省汉中市汉台区中山街 18 号', '测试订单', 'user1', NOW(), '初始配件订单');
 
 INSERT INTO app_accessory_collection (collection_id, app_user_id, accessory_id, create_by, create_time, remark)
 VALUES

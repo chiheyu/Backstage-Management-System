@@ -103,7 +103,7 @@
         this.$tab.navigateTo('/pages/mine/setting/index')
       },
       handleToLogin() {
-        this.$tab.reLaunch('/pages/login')
+        this.$tab.reLaunch('/pages/profile/login')
       },
       handleToAvatar() {
         this.$tab.navigateTo('/pages/mine/avatar/index')

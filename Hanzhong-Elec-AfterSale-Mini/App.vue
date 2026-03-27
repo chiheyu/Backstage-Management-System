@@ -1,17 +1,20 @@
 <script>
 import config from './config'
 import store from '@/store'
+import { syncRoleTabBar } from '@/utils/tabbar'
 
 export default {
   // 生命周期：小程序初始化完成时触发
   onLaunch() {
     console.log('App Launch')
     this.initApp()
+    syncRoleTabBar()
   },
 
   // 小程序显示时触发
   onShow() {
     console.log('App Show')
+    syncRoleTabBar()
   },
 
   // 小程序隐藏时触发

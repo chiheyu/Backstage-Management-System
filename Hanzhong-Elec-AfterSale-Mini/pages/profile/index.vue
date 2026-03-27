@@ -10,9 +10,19 @@
         <image :src="avatar" mode="aspectFill" class="avatar"></image>
         <view class="info">
           <text class="nickname">{{ nickname }}</text>
-          <text class="desc">{{ role === 'user' ? '普通用户' : '商家用户' }}</text>
+          <text class="desc">{{ roleLabel }}</text>
         </view>
         <uni-icons type="arrowright" size="24" color="#fff" class="edit-icon"></uni-icons>
+      </view>
+
+      <view class="section pending-merchant-section" v-if="isPendingMerchant">
+        <view class="pending-merchant-head">
+          <uni-icons type="info" size="22" color="#fa8c16"></uni-icons>
+          <text class="pending-merchant-title">商家入驻审核中</text>
+        </view>
+        <text class="pending-merchant-desc">
+          {{ pendingMerchantMessage }}
+        </text>
       </view>
 
       <view class="section order-section" v-if="role === 'user'">
@@ -32,17 +42,18 @@
             </view>
             <text class="order-text">已完成</text>
           </view>
-          <view class="order-item" @click="goAfterSaleApply" hover-class="order-item-hover">
+          <view class="order-item" @click="goAfterSaleHistory" hover-class="order-item-hover">
             <view class="order-icon-wrapper">
               <uni-icons type="refresh" size="28" color="#fa8c16" class="order-icon"></uni-icons>
             </view>
-            <text class="order-text">售后</text>
+            <text class="order-text">售后历史</text>
           </view>
         </view>
       </view>
 
-      <view class="section order-section" v-if="role === 'merchant'">
+      <view class="section order-section" v-if="showMerchantModules">
         <view class="section-header">
+          <text class="section-title">售后订单</text>
           <text class="more" @click="goAudit('all')">全部 ></text>
         </view>
         <view class="order-grid">
@@ -50,19 +61,46 @@
             <view class="order-icon-wrapper">
               <uni-icons type="flag" size="28" color="#fa8c16" class="order-icon"></uni-icons>
             </view>
-            <text class="order-text">待处理订单</text>
+            <text class="order-text">售后待处理</text>
           </view>
           <view class="order-item" @click="goAudit('finished')" hover-class="order-item-hover">
             <view class="order-icon-wrapper">
               <uni-icons type="checkmarkempty" size="28" color="#52c41a" class="order-icon"></uni-icons>
             </view>
-            <text class="order-text">已处理订单</text>
+            <text class="order-text">售后已处理</text>
           </view>
           <view class="order-item" @click="goMerchantStat" hover-class="order-item-hover">
             <view class="order-icon-wrapper">
               <uni-icons type="search" size="28" color="#2f54eb" class="order-icon"></uni-icons>
             </view>
             <text class="order-text">数据统计</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="section order-section" v-if="showMerchantModules">
+        <view class="section-header">
+          <text class="section-title">配件订单</text>
+          <text class="more" @click="goAccessoryOrder('all')">全部 ></text>
+        </view>
+        <view class="order-grid">
+          <view class="order-item" @click="goAccessoryOrder('pending')" hover-class="order-item-hover">
+            <view class="order-icon-wrapper">
+              <uni-icons type="cart" size="28" color="#0f766e" class="order-icon"></uni-icons>
+            </view>
+            <text class="order-text">配件待处理</text>
+          </view>
+          <view class="order-item" @click="goAccessoryOrder('finished')" hover-class="order-item-hover">
+            <view class="order-icon-wrapper">
+              <uni-icons type="checkmarkempty" size="28" color="#18a058" class="order-icon"></uni-icons>
+            </view>
+            <text class="order-text">配件已处理</text>
+          </view>
+          <view class="order-item" @click="goAccessoryOrder('all')" hover-class="order-item-hover">
+            <view class="order-icon-wrapper">
+              <uni-icons type="list" size="28" color="#2f54eb" class="order-icon"></uni-icons>
+            </view>
+            <text class="order-text">全部配件订单</text>
           </view>
         </view>
       </view>
@@ -86,7 +124,7 @@
             <text class="menu-text">{{ role === 'user' ? '联系客服' : '商家客服' }}</text>
             <uni-icons type="arrowright" size="24" color="#ccc" class="menu-arrow"></uni-icons>
           </view>
-          <view class="menu-item" @click="openMerchantAdmin" v-if="role === 'merchant'" hover-class="menu-item-hover">
+          <view class="menu-item" @click="openMerchantAdmin" v-if="showMerchantModules" hover-class="menu-item-hover">
             <view class="menu-icon-wrapper">
               <uni-icons type="shop" size="28" color="#666" class="menu-icon"></uni-icons>
             </view>
@@ -105,92 +143,16 @@
     </view>
 
     <view v-else class="login-register-wrap">
-      <view class="tab-wrap">
-        <view class="tab-item" :class="{ active: currentTab === 'login' }" @click="switchTab('login')" hover-class="tab-item-hover">
-          登录
-        </view>
-        <view class="tab-item" :class="{ active: currentTab === 'register' }" @click="switchTab('register')" hover-class="tab-item-hover">
-          注册
-        </view>
-      </view>
-
-      <view v-if="currentTab === 'login'" class="form-wrap">
-        <view class="input-item" :class="{ focused: loginFocus.username }">
-          <view class="input-icon-wrapper">
-            <uni-icons type="person" size="28" color="#666"></uni-icons>
-          </view>
-          <input v-model="loginForm.username" placeholder="请输入用户名（2-16位）" class="input" 
-                 @focus="loginFocus.username = true" @blur="loginFocus.username = false; checkLoginForm()" maxlength="16" />
-        </view>
-        <view class="error-tip" v-if="loginErrors.username">{{ loginErrors.username }}</view>
-
-        <view class="input-item" :class="{ focused: loginFocus.password }">
-          <view class="input-icon-wrapper">
-            <uni-icons type="locked" size="28" color="#666"></uni-icons>
-          </view>
-          <input v-model="loginForm.password" type="password" placeholder="请输入密码（6-16位）" class="input" 
-                 @focus="loginFocus.password = true" @blur="loginFocus.password = false; checkLoginForm()" maxlength="16" />
-        </view>
-        <view class="error-tip" v-if="loginErrors.password">{{ loginErrors.password }}</view>
-
-        <button @click="handleLogin" class="submit-btn" :disabled="!isLoginFormValid || isLoading" :class="{ disabled: !isLoginFormValid || isLoading }">
-          <uni-icons v-if="isLoading" type="spinner-cycle" size="24" color="#fff" class="loading-icon"></uni-icons>
-          {{ isLoading ? '登录中...' : '登录' }}
-        </button>
-      </view>
-
-      <view v-else class="form-wrap">
-        <view class="input-item" :class="{ focused: registerFocus.username }">
-          <view class="input-icon-wrapper">
-            <uni-icons type="person" size="28" color="#666"></uni-icons>
-          </view>
-          <input v-model="registerForm.username" placeholder="请输入用户名（2-16位）" class="input" 
-                 @focus="registerFocus.username = true" @blur="registerFocus.username = false; checkRegisterForm()" maxlength="16" />
-        </view>
-        <view class="error-tip" v-if="registerErrors.username">{{ registerErrors.username }}</view>
-
-        <view class="input-item" :class="{ focused: registerFocus.password }">
-          <view class="input-icon-wrapper">
-            <uni-icons type="locked" size="28" color="#666"></uni-icons>
-          </view>
-          <input v-model="registerForm.password" type="password" placeholder="请输入密码（6-16位）" class="input" 
-                 @focus="registerFocus.password = true" @blur="registerFocus.password = false; checkRegisterForm()" maxlength="16" />
-        </view>
-        <view class="error-tip" v-if="registerErrors.password">{{ registerErrors.password }}</view>
-
-        <view class="input-item" :class="{ focused: registerFocus.phone }">
-          <view class="input-icon-wrapper">
-            <uni-icons type="phone" size="28" color="#666"></uni-icons>
-          </view>
-          <input v-model="registerForm.phone" placeholder="请输入手机号" class="input" 
-                 @focus="registerFocus.phone = true" @blur="registerFocus.phone = false; checkRegisterForm()" type="number" maxlength="11" />
-        </view>
-        <view class="error-tip" v-if="registerErrors.phone">{{ registerErrors.phone }}</view>
-
-        <view class="role-wrap">
-          <view class="role-item" :class="{ active: registerForm.role === 'user' }" @click="changeRole('user')" hover-class="role-item-hover">
-            <view class="role-icon-wrapper">
-              <uni-icons type="user" size="20" v-if="registerForm.role === 'user'"></uni-icons>
-            </view>
-            普通用户
-          </view>
-          <view class="role-item" :class="{ active: registerForm.role === 'merchant' }" @click="changeRole('merchant')" hover-class="role-item-hover">
-            <view class="role-icon-wrapper">
-              <uni-icons type="shop" size="20" v-if="registerForm.role === 'merchant'"></uni-icons>
-            </view>
-            商家用户
-          </view>
-        </view>
-
-        <button @click="handleRegister" class="submit-btn" :disabled="!isRegisterFormValid || isLoading" :class="{ disabled: !isRegisterFormValid || isLoading }">
-          <uni-icons v-if="isLoading" type="spinner-cycle" size="24" color="#fff" class="loading-icon"></uni-icons>
-          {{ isLoading ? '注册中...' : '注册' }}
-        </button>
+      <view class="guest-card">
+        <image src="/static/images/avatar.png" mode="aspectFill" class="guest-avatar"></image>
+        <text class="guest-title">尚未登录</text>
+        <text class="guest-desc">登录后可查看售后订单、管理收货地址和个人信息</text>
+        <button class="submit-btn" @click="goLoginPage">去登录 / 注册</button>
       </view>
     </view>
 
-    <uni-popup ref="statPopup" type="center" :mask-click="false" background-color="transparent">
-      <view class="stat-popup">
+    <view v-if="showMerchantModules && showStatModal" class="modal-mask" @tap="closeStatPopup">
+      <view class="stat-popup" @tap.stop>
         <view class="stat-header">
           <text class="stat-title">售后数据统计</text>
           <uni-icons type="close" size="26" color="#333" class="stat-close" @click="closeStatPopup"></uni-icons>
@@ -237,21 +199,27 @@
         </view>
         <button class="stat-close-btn" @click="closeStatPopup">关闭</button>
       </view>
-    </uni-popup>
+    </view>
 
-    <uni-popup ref="merchantAdminPopup" type="center" :mask-click="false" background-color="transparent">
-      <view class="merchant-admin-popup">
+    <view v-if="showMerchantModules && showMerchantAdminModal" class="modal-mask" @tap="closeMerchantAdmin">
+      <view class="merchant-admin-popup" @tap.stop>
         <view class="merchant-admin-header">
           <text class="merchant-admin-title">商家管理后台</text>
           <uni-icons type="close" size="26" color="#333" class="merchant-admin-close" @click="closeMerchantAdmin"></uni-icons>
         </view>
         <view class="merchant-admin-content">
           <view class="merchant-admin-grid">
-            <view class="merchant-admin-item" hover-class="merchant-admin-item-hover" @click="gotoOrderManage">
+            <view class="merchant-admin-item" hover-class="merchant-admin-item-hover" @click="gotoAfterSaleManage">
               <view class="merchant-admin-icon-wrapper">
                 <uni-icons type="list" size="32" color="#2f54eb"></uni-icons>
               </view>
-              <text class="merchant-admin-item-text">订单管理</text>
+              <text class="merchant-admin-item-text">售后订单</text>
+            </view>
+            <view class="merchant-admin-item" hover-class="merchant-admin-item-hover" @click="gotoAccessoryOrderManage">
+              <view class="merchant-admin-icon-wrapper">
+                <uni-icons type="cart" size="32" color="#0f766e"></uni-icons>
+              </view>
+              <text class="merchant-admin-item-text">配件订单</text>
             </view>
             <view class="merchant-admin-item" hover-class="merchant-admin-item-hover" @click="gotoGoodsManage">
               <view class="merchant-admin-icon-wrapper">
@@ -269,11 +237,16 @@
         </view>
         <button class="merchant-admin-close-btn" @click="closeMerchantAdmin">关闭</button>
       </view>
-    </uni-popup>
+    </view>
   </view>
 </template>
 
 <script>
+import { getInfo, logout as appLogout } from '@/api/login'
+import { getCurrentMerchantInfo } from '@/api/merchant'
+import { getToken, removeToken } from '@/utils/auth'
+import { resetDefaultTabBar, syncRoleTabBar } from '@/utils/tabbar'
+
 export default {
   data() {
     return {
@@ -283,17 +256,13 @@ export default {
       avatar: '/static/images/avatar.png',
       nickname: '游客用户',
       role: 'user',
+      roleLabel: '普通用户',
+      isPendingMerchant: false,
+      merchantInfo: null,
+      showStatModal: false,
+      showMerchantAdminModal: false,
       pendingCount: 0,
       auditCount: 0,
-      currentTab: 'login',
-      loginForm: { username: '', password: '' },
-      loginFocus: { username: false, password: false },
-      loginErrors: {},
-      isLoginFormValid: false,
-      registerForm: { username: '', password: '', phone: '', role: 'user' },
-      registerFocus: { username: false, password: false, phone: false },
-      registerErrors: {},
-      isRegisterFormValid: false,
       statData: {
         todayPending: 8,
         todayFinished: 24,
@@ -315,166 +284,183 @@ export default {
       },
       PAGE_PATH: {
         INDEX: '/pages/index/index',
+        ACCESSORY_ORDER: '/pages/accessoryOrder/index',
+        MERCHANT_ACCESSORY_ORDER: '/pages/merchantAccessoryOrder/index',
         AFTER_SALE_ORDER: '/pages/afterSaleOrder/index',
         AFTER_SALE_APPLY: '/pages/applyAfterSale/index',
         PROFILE: '/pages/profile/index',
+        LOGIN: '/pages/profile/login',
         ADDRESS: '/pages/address/index',
         MERCHANT_PENDING_ORDER: '/pages/afterSaleOrder/index?type=pending&audit=1&role=merchant',
+        MERCHANT_AFTER_SALE_ORDER: '/pages/afterSaleOrder/index?type=all&audit=1&role=merchant',
         ACCESSORY_MALL: '/pages/accessoryMall/index',
         SHOP_SETTING: '/pages/merchant/shopSetting/index'
       },
       defaultAddress: null
     }
   },
-  onShow() {
-    this.loading = true;
-    const userInfo = wx.getStorageSync('userInfo');
-    if (userInfo && userInfo.username) {
-      this.isLogin = true;
-      this.nickname = userInfo.nickname || userInfo.username || '未知用户';
-      this.role = userInfo.role || 'user';
-      this.avatar = userInfo.avatar || this.avatar;
-    } else {
-      this.isLogin = false;
+  computed: {
+    showMerchantModules() {
+      return this.isLogin && this.role === 'merchant' && !this.isPendingMerchant
+    },
+    pendingMerchantMessage() {
+      const merchantName = this.merchantInfo && this.merchantInfo.merchantName
+      if (merchantName) {
+        return `已提交 ${merchantName} 的入驻资料，审核通过前可继续按普通用户模式使用小程序。`
+      }
+      return '已提交商家入驻资料，审核通过前可继续按普通用户模式使用小程序。'
     }
+  },
+  async onShow() {
+    this.loading = true;
+    await this.syncUserState();
     this.loadDefaultAddress();
-    setTimeout(() => {
-      this.loading = false;
-    }, 500);
+    this.loading = false;
   },
   methods: {
+    navigateToPage(url) {
+      wx.navigateTo({
+        url,
+        fail: () => {
+          wx.showToast({
+            title: '页面跳转失败',
+            icon: 'none'
+          })
+        }
+      })
+    },
+    async syncUserState() {
+      const token = getToken();
+      const localUserInfo = wx.getStorageSync('userInfo');
+      if (!token || !localUserInfo) {
+        this.resetGuestState();
+        return;
+      }
+
+      try {
+        const res = await getInfo();
+        const remoteUser = res.data || {};
+        const latestRoleType = String(remoteUser.roleType || localUserInfo.roleType || '1');
+        let merchantInfo = localUserInfo.merchant || null;
+        if (latestRoleType === '2') {
+          try {
+            const merchantRes = await getCurrentMerchantInfo();
+            merchantInfo = merchantRes.data || merchantInfo;
+          } catch (merchantErr) {
+            merchantInfo = localUserInfo.merchant || null;
+          }
+        }
+        const mergedUserInfo = this.mergeUserInfo(localUserInfo, remoteUser, merchantInfo);
+        wx.setStorageSync('userInfo', mergedUserInfo);
+        syncRoleTabBar(mergedUserInfo)
+        this.applyUserState(mergedUserInfo);
+      } catch (err) {
+        if (!wx.getStorageSync('token')) {
+          this.resetGuestState();
+          return;
+        }
+        this.applyUserState(localUserInfo);
+      }
+    },
+    getRoleMeta(roleType) {
+      const normalizedRoleType = String(roleType || '1');
+      return {
+        roleType: normalizedRoleType,
+        role: normalizedRoleType === '2' ? 'merchant' : 'user',
+        roleLabel: normalizedRoleType === '2'
+          ? '商家用户'
+          : (normalizedRoleType === '0' ? '待审核商家' : '普通用户'),
+        isPendingMerchant: normalizedRoleType === '0'
+      };
+    },
+    mergeUserInfo(localUserInfo, remoteUser, merchantInfo) {
+      const roleMeta = this.getRoleMeta(remoteUser.roleType || localUserInfo.roleType || '1');
+      const nickname = remoteUser.nickName || remoteUser.nickname || localUserInfo.nickname || localUserInfo.nickName || remoteUser.phone || localUserInfo.phone || '未知用户';
+
+      return {
+        ...localUserInfo,
+        ...remoteUser,
+        roleType: roleMeta.roleType,
+        role: roleMeta.role,
+        roleLabel: roleMeta.roleLabel,
+        isPendingMerchant: roleMeta.isPendingMerchant,
+        merchant: typeof merchantInfo === 'undefined' ? (localUserInfo.merchant || null) : merchantInfo,
+        nickName: nickname,
+        nickname,
+        avatar: localUserInfo.avatar || '/static/images/avatar.png'
+      };
+    },
+    applyUserState(userInfo) {
+      if (!getToken() || !userInfo) {
+        this.resetGuestState();
+        return;
+      }
+      const roleMeta = this.getRoleMeta(userInfo.roleType || '1');
+      this.isLogin = true;
+      this.nickname = userInfo.nickname || userInfo.nickName || userInfo.phone || '未知用户';
+      this.role = roleMeta.role;
+      this.roleLabel = userInfo.roleLabel || roleMeta.roleLabel;
+      this.isPendingMerchant = typeof userInfo.isPendingMerchant === 'boolean' ? userInfo.isPendingMerchant : roleMeta.isPendingMerchant;
+      this.merchantInfo = userInfo.merchant || null;
+      this.avatar = userInfo.avatar || '/static/images/avatar.png';
+      syncRoleTabBar(userInfo)
+    },
+    updateUserInfo(patch) {
+      const userInfo = wx.getStorageSync('userInfo') || {};
+      const nextUserInfo = {
+        ...userInfo,
+        ...patch
+      };
+
+      if (patch.nickname || patch.nickName) {
+        const nickname = patch.nickname || patch.nickName;
+        nextUserInfo.nickname = nickname;
+        nextUserInfo.nickName = nickname;
+      }
+
+      wx.setStorageSync('userInfo', nextUserInfo);
+      this.applyUserState(nextUserInfo);
+    },
+    resetGuestState() {
+      this.isLogin = false;
+      this.avatar = '/static/images/avatar.png';
+      this.nickname = '游客用户';
+      this.role = 'user';
+      this.roleLabel = '普通用户';
+      this.isPendingMerchant = false;
+      this.merchantInfo = null;
+      this.showStatModal = false;
+      this.showMerchantAdminModal = false;
+      resetDefaultTabBar()
+    },
     loadDefaultAddress() {
       const addressList = wx.getStorageSync('addressList') || [];
       this.defaultAddress = addressList.find(item => item.isDefault) || null;
     },
-    switchTab(tab) {
-      this.currentTab = tab;
-      this.loginErrors = {};
-      this.registerErrors = {};
-    },
-    changeRole(role) {
-      this.registerForm.role = role;
-      wx.showToast({
-        title: `已选择${role === 'user' ? '普通用户' : '商家用户'}`,
-        icon: 'none',
-        duration: 1500
-      });
-    },
-    validateUsername(value) {
-      if (!value) return '请输入用户名';
-      if (value.length < 2 || value.length > 16) return '用户名长度需在2-16位之间';
-      return '';
-    },
-    validatePassword(value) {
-      if (!value) return '请输入密码';
-      if (value.length < 6 || value.length > 16) return '密码长度需在6-16位之间';
-      return '';
-    },
-    validatePhone(value) {
-      if (!value) return '请输入手机号';
-      if (!/^1[3-9]\d{9}$/.test(value)) return '请输入正确的手机号';
-      return '';
-    },
-    checkLoginForm() {
-      const { username, password } = this.loginForm;
-      const usernameErr = this.validateUsername(username);
-      const passwordErr = this.validatePassword(password);
-      this.loginErrors.username = usernameErr;
-      this.loginErrors.password = passwordErr;
-      this.isLoginFormValid = !usernameErr && !passwordErr;
-    },
-    checkRegisterForm() {
-      const { username, password, phone } = this.registerForm;
-      const usernameErr = this.validateUsername(username);
-      const passwordErr = this.validatePassword(password);
-      const phoneErr = this.validatePhone(phone);
-      this.registerErrors.username = usernameErr;
-      this.registerErrors.password = passwordErr;
-      this.registerErrors.phone = phoneErr;
-      this.isRegisterFormValid = !usernameErr && !passwordErr && !phoneErr;
-    },
-    handleLogin() {
-      this.checkLoginForm();
-      if (!this.isLoginFormValid) {
-        wx.showToast({ title: '请完善表单信息', icon: 'none' });
-        return;
-      }
-      this.isLoading = true;
-      setTimeout(() => {
-        const { username, password } = this.loginForm;
-        const userList = JSON.parse(wx.getStorageSync('userList') || '[]');
-        const targetUser = userList.find(u => u.username === username && u.password === password);
-        
-        if (!targetUser) {
-          wx.showToast({ title: '账号或密码错误', icon: 'none' });
-          this.isLoading = false;
-          return;
-        }
-        wx.setStorageSync('token', `mock_token_${Date.now()}`);
-        wx.setStorageSync('userInfo', {
-          nickname: targetUser.username,
-          username: targetUser.username,
-          role: targetUser.role,
-          userType: targetUser.userType,
-          avatar: this.avatar
-        });
-        this.isLoading = false;
-        this.isLogin = true;
-        this.nickname = targetUser.username;
-        this.role = targetUser.role;
-        wx.showToast({ title: '登录成功！', icon: 'success' });
-      }, 800);
-    },
-    handleRegister() {
-      this.checkRegisterForm();
-      if (!this.isRegisterFormValid) {
-        wx.showToast({ title: '请完善表单信息', icon: 'none' });
-        return;
-      }
-      this.isLoading = true;
-      setTimeout(() => {
-        const { username, password, phone, role } = this.registerForm;
-        const userList = JSON.parse(wx.getStorageSync('userList') || '[]');
-        const isExist = userList.some(u => u.username === username);
-        if (isExist) {
-          wx.showToast({ title: '用户名已存在', icon: 'none' });
-          this.isLoading = false;
-          return;
-        }
-        const newUser = {
-          id: Date.now(),
-          username,
-          password,
-          phone,
-          role,
-          userType: role === 'user' ? '01' : '02',
-          createTime: new Date().toLocaleString()
-        };
-        userList.push(newUser);
-        wx.setStorageSync('userList', JSON.stringify(userList));
-        this.isLoading = false;
-        wx.showToast({ title: '注册成功！请登录', icon: 'success' });
-        this.switchTab('login');
-        this.registerForm = { username: '', password: '', phone: '', role: 'user' };
-      }, 800);
+    goLoginPage() {
+      this.navigateToPage(this.PAGE_PATH.LOGIN)
     },
     logout() {
       wx.showModal({
         title: '确认退出',
         content: '是否退出当前账号？',
-        success: (res) => {
+        success: async (res) => {
           if (res.confirm) {
-            wx.removeStorageSync('token');
-            wx.removeStorageSync('userInfo');
-            this.isLogin = false;
-            this.role = 'user';
-            this.nickname = '游客用户';
-            wx.showToast({ title: '退出成功', icon: 'success' });
-            setTimeout(() => {
-              wx.switchTab({ 
-                url: this.PAGE_PATH.INDEX
-              });
-            }, 500);
+            try {
+              await appLogout();
+            } catch (err) {
+              // Even if server logout fails, we still clear the local session.
+            } finally {
+              removeToken();
+              wx.removeStorageSync('userInfo');
+              this.resetGuestState();
+              wx.showToast({ title: '退出成功', icon: 'success' });
+              setTimeout(() => {
+                wx.switchTab({
+                  url: this.PAGE_PATH.INDEX
+                });
+              }, 500);
+            }
           }
         }
       });
@@ -493,17 +479,16 @@ export default {
                 content: '',
                 editable: true,
                 placeholderText: '请输入新昵称',
-                success: (res) => {
-                  if (res.confirm) {
-                    const newNickname = res.content?.trim();
+                success: (modalRes) => {
+                  if (modalRes.confirm) {
+                    const newNickname = modalRes.content?.trim();
                     if (!newNickname) {
                       wx.showToast({ title: '昵称不能为空', icon: 'none' });
                       return;
                     }
-                    this.nickname = newNickname;
-                    const userInfo = wx.getStorageSync('userInfo');
-                    userInfo.nickname = newNickname;
-                    wx.setStorageSync('userInfo', userInfo);
+                    this.updateUserInfo({
+                      nickname: newNickname
+                    });
                     wx.showToast({ title: '昵称修改成功', icon: 'success' });
                   }
                 }
@@ -522,10 +507,9 @@ export default {
         sizeType: ['original', 'compressed'],
         sourceType: ['album', 'camera'],
         success: (res) => {
-          this.avatar = res.tempFilePaths[0];
-          const userInfo = wx.getStorageSync('userInfo');
-          userInfo.avatar = res.tempFilePaths[0];
-          wx.setStorageSync('userInfo', userInfo);
+          this.updateUserInfo({
+            avatar: res.tempFilePaths[0]
+          });
           wx.showToast({ title: '头像更换成功', icon: 'success' });
         },
         fail: () => {
@@ -534,71 +518,58 @@ export default {
       });
     },
     goOrder(type) {
-      const titleMap = { pending: '待处理', finished: '已完成', all: '全部' };
-      wx.showToast({
-        title: `进入${titleMap[type]}订单`,
-        icon: 'none',
-        duration: 1000
-      });
-      const url = `${this.PAGE_PATH.AFTER_SALE_ORDER}?type=${type}&role=user`;
-      wx.navigateTo({
-        url
-      });
+      const url = `${this.PAGE_PATH.ACCESSORY_ORDER}?type=${type}`;
+      this.navigateToPage(url)
     },
     goAudit(type) {
-      const titleMap = { pending: '待处理', finished: '已完成', all: '全部' };
-      wx.showToast({
-        title: `进入${titleMap[type]}审核订单`,
-        icon: 'none',
-        duration: 1000
-      });
       const url = `${this.PAGE_PATH.AFTER_SALE_ORDER}?type=${type}&audit=1&role=merchant`;
-      wx.navigateTo({
-        url
-      });
+      this.navigateToPage(url)
     },
-    goAfterSaleApply() {
-      wx.switchTab({
-        url: this.PAGE_PATH.AFTER_SALE_APPLY
-      });
+    goAccessoryOrder(type) {
+      const url = `${this.PAGE_PATH.MERCHANT_ACCESSORY_ORDER}?type=${type}`
+      this.navigateToPage(url)
+    },
+    goAfterSaleHistory() {
+      this.navigateToPage(`${this.PAGE_PATH.AFTER_SALE_ORDER}?type=all&role=user`)
     },
     goMerchantStat() {
-      this.isLoading = true;
-      setTimeout(() => {
-        this.isLoading = false;
-        this.$refs.statPopup.open(); 
-      }, 300);
+      if (!this.showMerchantModules) {
+        return;
+      }
+      this.showStatModal = true;
     },
     closeStatPopup() {
-      this.$refs.statPopup.close();
+      this.showStatModal = false;
     },
     openMerchantAdmin() {
-      this.$refs.merchantAdminPopup.open();
+      if (!this.showMerchantModules) {
+        return;
+      }
+      this.showMerchantAdminModal = true;
     },
     closeMerchantAdmin() {
-      this.$refs.merchantAdminPopup.close();
+      this.showMerchantAdminModal = false;
     },
-    gotoOrderManage() {
-      wx.showToast({ title: '进入待处理订单', icon: 'none' });
-      wx.navigateTo({ url: this.PAGE_PATH.MERCHANT_PENDING_ORDER });
+    gotoAfterSaleManage() {
       this.closeMerchantAdmin();
+      this.navigateToPage(this.PAGE_PATH.MERCHANT_AFTER_SALE_ORDER)
+    },
+    gotoAccessoryOrderManage() {
+      this.closeMerchantAdmin();
+      this.navigateToPage(`${this.PAGE_PATH.MERCHANT_ACCESSORY_ORDER}?type=pending`)
     },
     gotoGoodsManage() {
-      wx.showToast({ title: '进入配件商城', icon: 'none' });
       this.closeMerchantAdmin();
       setTimeout(() => {
         wx.switchTab({ url: this.PAGE_PATH.ACCESSORY_MALL });
       }, 100);
     },
     gotoShopSetting() {
-      wx.showToast({ title: '进入店铺设置', icon: 'none' });
-      wx.navigateTo({ url: this.PAGE_PATH.SHOP_SETTING });
       this.closeMerchantAdmin();
+      this.navigateToPage(this.PAGE_PATH.SHOP_SETTING)
     },
     goAddress() {
-      wx.navigateTo({
-        url: this.PAGE_PATH.ADDRESS
-      });
+      this.navigateToPage(this.PAGE_PATH.ADDRESS)
     },
     goService() {
       wx.showModal({
@@ -637,6 +608,7 @@ export default {
   background-color: var(--bg-color);
   padding: 0;
   box-sizing: border-box;
+  position: relative;
 }
 
 .loading {
@@ -719,10 +691,42 @@ export default {
 
 .section-header {
   display: flex;
+  gap: 16rpx;
   justify-content: flex-end;
   align-items: center;
   padding: 30rpx;
   border-bottom: 1px solid var(--border-color);
+}
+
+.section-title {
+  margin-right: auto;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.pending-merchant-section {
+  padding: 28rpx 30rpx;
+  background: linear-gradient(135deg, #fff7e6 0%, #fff1d6 100%);
+}
+
+.pending-merchant-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.pending-merchant-title {
+  margin-left: 12rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #d97706;
+}
+
+.pending-merchant-desc {
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #7c5a11;
 }
 
 .more {
@@ -1025,6 +1029,18 @@ export default {
   box-shadow: 0 10rpx 40rpx rgba(0, 0, 0, 0.15);
 }
 
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+  z-index: 999;
+  box-sizing: border-box;
+}
+
 .stat-header {
   display: flex;
   justify-content: space-between;
@@ -1264,5 +1280,38 @@ export default {
   font-size: 34rpx;
   font-weight: 600;
   border-radius: 0 0 20rpx 20rpx;
+}
+
+.guest-card {
+  background: #fff;
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+  margin: 40rpx;
+  padding: 80rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.guest-avatar {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  margin-bottom: 30rpx;
+}
+
+.guest-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.guest-desc {
+  font-size: 28rpx;
+  color: #999;
+  line-height: 1.6;
+  margin-bottom: 40rpx;
 }
 </style>

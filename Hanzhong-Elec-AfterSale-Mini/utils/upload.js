@@ -1,6 +1,6 @@
 import store from '@/store'
 import config from '@/config'
-import { getToken } from '@/utils/auth'
+import { getToken, removeToken } from '@/utils/auth'
 import errorCode from '@/utils/errorCode'
 import { toast, showConfirm, tansParams } from '@/utils/common'
 
@@ -9,11 +9,17 @@ const baseUrl = config.baseUrl
 
 const upload = config => {
   // 是否需要设置 token
-  const isToken = (config.headers || {}).isToken === false
+  const mergedHeaders = {
+    ...(config.headers || {}),
+    ...(config.header || {})
+  }
+  const isToken = mergedHeaders.isToken === false
   config.header = config.header || {}
+  Object.assign(config.header, mergedHeaders)
   if (getToken() && !isToken) {
     config.header['Authorization'] = 'Bearer ' + getToken()
   }
+  delete config.header.isToken
   // get请求映射params参数
   if (config.params) {
     let url = config.url + '?' + tansParams(config.params)
@@ -37,9 +43,12 @@ const upload = config => {
           } else if (code == 401) {
             showConfirm("登录状态已过期，您可以继续留在该页面，或者重新登录?").then(res => {
               if (res.confirm) {
-                store.dispatch('LogOut').then(res => {
-                  uni.reLaunch({ url: '/pages/login/login' })
-                })
+                removeToken()
+                uni.removeStorageSync('userInfo')
+                store.commit('SET_TOKEN', '')
+                store.commit('SET_ROLES', [])
+                store.commit('SET_PERMISSIONS', [])
+                uni.reLaunch({ url: '/pages/profile/login' })
               }
             })
             reject('无效的会话，或者会话已过期，请重新登录。')

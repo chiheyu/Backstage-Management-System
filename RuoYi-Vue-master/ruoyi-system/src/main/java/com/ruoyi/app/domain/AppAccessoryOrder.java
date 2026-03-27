@@ -28,6 +28,9 @@ public class AppAccessoryOrder extends BaseEntity
     /** 下单用户。 */
     private Long appUserId;
 
+    /** 归属商家 ID。 */
+    private Long merchantId;
+
     /** 数量。 */
     @Excel(name = "数量")
     private Long quantity;
@@ -70,6 +73,9 @@ public class AppAccessoryOrder extends BaseEntity
     @Excel(name = "下单用户")
     private String userName;
 
+    /** 商家名称。 */
+    private String merchantName;
+
     public Long getAccessoryOrderId()
     {
         return accessoryOrderId;
@@ -108,6 +114,16 @@ public class AppAccessoryOrder extends BaseEntity
     public void setAppUserId(Long appUserId)
     {
         this.appUserId = appUserId;
+    }
+
+    public Long getMerchantId()
+    {
+        return merchantId;
+    }
+
+    public void setMerchantId(Long merchantId)
+    {
+        this.merchantId = merchantId;
     }
 
     public Long getQuantity()
@@ -220,6 +236,16 @@ public class AppAccessoryOrder extends BaseEntity
         this.userName = userName;
     }
 
+    public String getMerchantName()
+    {
+        return merchantName;
+    }
+
+    public void setMerchantName(String merchantName)
+    {
+        this.merchantName = merchantName;
+    }
+
     @Override
     public String toString()
     {
@@ -228,6 +254,7 @@ public class AppAccessoryOrder extends BaseEntity
             .append("orderNo", getOrderNo())
             .append("accessoryId", getAccessoryId())
             .append("appUserId", getAppUserId())
+            .append("merchantId", getMerchantId())
             .append("quantity", getQuantity())
             .append("price", getPrice())
             .append("totalAmount", getTotalAmount())
@@ -239,6 +266,7 @@ public class AppAccessoryOrder extends BaseEntity
             .append("accessoryName", getAccessoryName())
             .append("coverImage", getCoverImage())
             .append("userName", getUserName())
+            .append("merchantName", getMerchantName())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())
             .append("updateBy", getUpdateBy())

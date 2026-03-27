@@ -1,59 +1,55 @@
-import request from '@/utils/request'
+import { request } from '@/utils/request'
 
 // 登录方法
-export function login(username, password, code, uuid) {
-  const data = {
-    username,
-    password,
-    code,
-    uuid
-  }
+export function login(phone, password) {
   return request({
-    'url': '/login',
+    url: '/app/auth/login',
+    method: 'POST',
+    data: {
+      phone,
+      password
+    },
     headers: {
       isToken: false
-    },
-    'method': 'post',
-    'data': data
+    }
   })
 }
 
 // 注册方法
 export function register(data) {
   return request({
-    url: '/register',
+    url: '/app/auth/register',
+    method: 'POST',
+    data,
     headers: {
       isToken: false
-    },
-    method: 'post',
-    data: data
+    }
   })
 }
 
 // 获取用户详细信息
 export function getInfo() {
   return request({
-    'url': '/getInfo',
-    'method': 'get'
+    url: '/app/auth/profile',
+    method: 'GET'
   })
 }
 
 // 退出方法
 export function logout() {
   return request({
-    'url': '/logout',
-    'method': 'post'
+    url: '/app/auth/logout',
+    method: 'POST'
   })
 }
 
-// 获取验证码
-export function getCodeImg() {
+// 获取注册验证码
+export function sendCode(phone) {
   return request({
-    'url': '/captchaImage',
+    url: `/app/auth/sendCode?phone=${encodeURIComponent(phone)}`,
+    method: 'GET',
     headers: {
       isToken: false
-    },
-    method: 'get',
-    timeout: 20000
+    }
   })
 }
