@@ -26,7 +26,12 @@
     <view class="empty-tip" v-else>
       <uni-icons type="location" size="120" color="#e5e5e5"></uni-icons>
       <text class="empty-text">暂无收货地址</text>
-      <text class="empty-sub-text">当前页面仅保留已有地址的查看、编辑和默认地址切换</text>
+      <text class="empty-sub-text">点击下方按钮新增一个收货地址</text>
+    </view>
+    <view class="action-bar">
+      <button class="add-btn" @click="addAddress" hover-class="add-btn-hover">
+        新增地址
+      </button>
     </view>
     <uni-popup ref="addressPopup" type="bottom" :mask-click="false" safe-area="bottom">
       <view class="popup-content">
@@ -245,7 +250,7 @@ export default {
 .address-page {
   min-height: 100vh;
   background-color: var(--bg-color);
-  padding: 0 0 30rpx;
+  padding: 0 0 160rpx;
 }
 .address-list {
   padding: 24rpx;
@@ -333,6 +338,31 @@ export default {
 .empty-sub-text {
   font-size: 26rpx;
   color: #b5b5b5;
+}
+.action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(245, 247, 250, 0) 0%, rgba(245, 247, 250, 0.92) 24%, rgba(245, 247, 250, 1) 100%);
+  z-index: 10;
+}
+.add-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--primary-color);
+  color: var(--white);
+  font-size: 30rpx;
+  font-weight: 500;
+  box-shadow: var(--shadow-md);
+}
+.add-btn-hover {
+  background: #2546d1;
+  transform: scale(0.98);
 }
 .popup-content {
   background: var(--white);

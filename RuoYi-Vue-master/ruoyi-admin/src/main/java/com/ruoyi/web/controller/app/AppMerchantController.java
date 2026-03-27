@@ -3,6 +3,7 @@ package com.ruoyi.web.controller.app;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -211,5 +212,15 @@ public class AppMerchantController extends BaseController
     public AjaxResult updateAccessory(@RequestBody AppAccessory accessory)
     {
         return toAjax(accessoryService.updateAccessory(accessory));
+    }
+
+    /**
+     * 商家删除商品。
+     */
+    @PreAuthorize("@ss.hasRole('merchant')")
+    @DeleteMapping("/accessory/{accessoryId}")
+    public AjaxResult removeAccessory(@PathVariable Long accessoryId)
+    {
+        return toAjax(accessoryService.deleteAccessoryById(accessoryId));
     }
 }

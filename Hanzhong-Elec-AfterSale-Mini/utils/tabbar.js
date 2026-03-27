@@ -7,6 +7,7 @@ export function syncRoleTabBar(userInfo = uni.getStorageSync('userInfo') || {}) 
 
   const tabBarConfigs = [
     { index: 1, text: merchantMode ? '售后回执' : '申请售后' },
+    { index: 2, text: merchantMode ? '配件' : '配件商城' },
     { index: 3, text: merchantMode ? '工作台' : '购物车' }
   ]
 

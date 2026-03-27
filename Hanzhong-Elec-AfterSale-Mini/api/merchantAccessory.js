@@ -16,11 +16,26 @@ export function getMerchantAccessoryDetail(accessoryId) {
   })
 }
 
+export function createMerchantAccessory(data) {
+  return request({
+    url: '/app/merchant/accessory',
+    method: 'POST',
+    data
+  })
+}
+
 export function updateMerchantAccessory(data) {
   return request({
     url: '/app/merchant/accessory',
     method: 'PUT',
     data
+  })
+}
+
+export function deleteMerchantAccessory(accessoryId) {
+  return request({
+    url: `/app/merchant/accessory/${accessoryId}`,
+    method: 'DELETE'
   })
 }
 

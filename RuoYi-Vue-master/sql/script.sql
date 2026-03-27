@@ -1,3 +1,15 @@
+-- 汉中售后一体化初始化脚本
+-- 说明：
+-- 1. 以当前实际数据库 ruoyi-data 的表结构为准整理。
+-- 2. 本脚本包含：建库、建表、初始化 admin、普通用户、已审核商家、菜单角色与业务演示数据。
+-- 3. 配件商品数据来源：sql/商品路径.docx，并统一归属给初始化商家账号。
+
+DROP DATABASE IF EXISTS `ruoyi-data`;
+CREATE DATABASE `ruoyi-data` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `ruoyi-data`;
+
+SET NAMES utf8mb4;
+
 create table app_accessory
 (
     accessory_id   bigint auto_increment comment '主键'
@@ -544,4 +556,97 @@ create table sys_user_role
 )
     comment '用户和角色关联表';
 
+INSERT INTO sys_dept (dept_id, parent_id, ancestors, dept_name, order_num, leader, phone, email, status, del_flag, create_by, create_time, update_by, update_time)
+VALUES
+(100, 0, '0', '若依科技', 0, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(101, 100, '0,100', '深圳总公司', 1, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(102, 100, '0,100', '长沙分公司', 2, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(103, 101, '0,100,101', '研发部门', 1, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(104, 101, '0,100,101', '市场部门', 2, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(105, 101, '0,100,101', '测试部门', 3, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(106, 101, '0,100,101', '财务部门', 4, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(107, 101, '0,100,101', '运维部门', 5, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(108, 102, '0,100,102', '市场部门', 1, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL),
+(109, 102, '0,100,102', '财务部门', 2, '若依', '15888888888', 'ry@qq.com', '0', '0', 'admin', NOW(), NULL, NULL);
 
+INSERT INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, menu_check_strictly, dept_check_strictly, status, del_flag, create_by, create_time, update_by, update_time, remark)
+VALUES
+(1, '超级管理员', 'admin', 1, '1', 1, 1, '0', '0', 'admin', NOW(), NULL, NULL, '超级管理员'),
+(200, '售后普通用户', 'user', 3, '1', 1, 1, '0', '0', 'admin', NOW(), NULL, NULL, '汉中市电子产品售后系统-普通用户'),
+(201, '售后商家', 'merchant', 4, '1', 1, 1, '0', '0', 'admin', NOW(), 'admin', NOW(), '汉中市电子产品售后系统-商家');
+
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES
+(2000, '售后业务', 0, 8, 'app', NULL, '', '', 1, 0, 'M', '0', '0', '', 'guide', 'admin', NOW(), NULL, NULL, '汉中市电子产品售后业务根菜单'),
+(2010, '商家管理', 2000, 1, 'merchant', 'app/merchant/index', '', '', 1, 0, 'C', '0', '0', 'app:merchant:list', 'peoples', 'admin', NOW(), NULL, NULL, '商家管理'),
+(2011, '商家查询', 2010, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:merchant:query', '#', 'admin', NOW(), NULL, NULL, '商家查询按钮'),
+(2012, '商家编辑', 2010, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:merchant:edit', '#', 'admin', NOW(), NULL, NULL, '商家编辑按钮'),
+(2013, '商家审核', 2010, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:merchant:audit', '#', 'admin', NOW(), NULL, NULL, '商家审核按钮'),
+(2020, '售后订单管理', 2000, 2, 'afterSalesOrder', 'app/afterSalesOrder/index', '', '', 1, 0, 'C', '0', '0', 'app:afterSalesOrder:list', 'example', 'admin', NOW(), NULL, NULL, '售后订单管理'),
+(2021, '订单查询', 2020, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:afterSalesOrder:query', '#', 'admin', NOW(), NULL, NULL, '订单查询按钮'),
+(2022, '订单编辑', 2020, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:afterSalesOrder:edit', '#', 'admin', NOW(), NULL, NULL, '订单编辑按钮'),
+(2030, '配件管理', 2000, 3, 'accessory', 'app/accessory/index', '', '', 1, 0, 'C', '0', '0', 'app:accessory:list', 'shopping', 'admin', NOW(), NULL, NULL, '配件管理'),
+(2031, '配件查询', 2030, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:accessory:query', '#', 'admin', NOW(), NULL, NULL, '配件查询按钮'),
+(2032, '配件新增', 2030, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:accessory:add', '#', 'admin', NOW(), NULL, NULL, '配件新增按钮'),
+(2033, '配件编辑', 2030, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:accessory:edit', '#', 'admin', NOW(), NULL, NULL, '配件编辑按钮'),
+(2034, '配件删除', 2030, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:accessory:remove', '#', 'admin', NOW(), NULL, NULL, '配件删除按钮'),
+(2040, '配件订单管理', 2000, 4, 'accessoryOrder', 'app/accessoryOrder/index', '', '', 1, 0, 'C', '0', '0', 'app:accessoryOrder:list', 'order', 'admin', NOW(), NULL, NULL, '配件订单管理'),
+(2041, '配件订单查询', 2040, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'app:accessoryOrder:query', '#', 'admin', NOW(), NULL, NULL, '配件订单查询按钮');
+
+INSERT INTO sys_role_menu (role_id, menu_id)
+VALUES
+(1, 2000), (1, 2010), (1, 2011), (1, 2012), (1, 2013), (1, 2020), (1, 2021), (1, 2022), (1, 2030), (1, 2031), (1, 2032), (1, 2033), (1, 2034), (1, 2040), (1, 2041),
+(201, 2000), (201, 2020), (201, 2021), (201, 2022), (201, 2030), (201, 2031), (201, 2032), (201, 2033), (201, 2034), (201, 2040), (201, 2041);
+
+INSERT INTO sys_user (user_id, dept_id, user_name, nick_name, user_type, email, phonenumber, sex, avatar, password, status, del_flag, login_ip, login_date, pwd_update_date, create_by, create_time, update_by, update_time, remark)
+VALUES
+(1, 103, 'admin', '若依', '00', 'ry@163.com', '15888888888', '1', '', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '0', '0', '127.0.0.1', NOW(), NOW(), 'admin', NOW(), NULL, NULL, '管理员'),
+(2000, 100, '18291107686', '测试普通用户', '00', 'user@hanzhong.local', '18291107686', '0', '', '$2a$10$5s2BL3EwQIu4f97u38aFe.VAXaiZwc8titAWJkQx3WFbDs7VnceVa', '0', '0', '127.0.0.1', NOW(), NOW(), 'admin', NOW(), NULL, NULL, '汉中市售后系统测试普通用户'),
+(2001, 100, '18291107689', '测试商家账号', '00', 'merchant@hanzhong.local', '18291107689', '0', '', '$2a$10$5s2BL3EwQIu4f97u38aFe.VAXaiZwc8titAWJkQx3WFbDs7VnceVa', '0', '0', '127.0.0.1', NOW(), NOW(), 'admin', NOW(), NULL, NULL, '汉中市售后系统测试商家');
+
+INSERT INTO sys_user_role (user_id, role_id)
+VALUES
+(1, 1),
+(2000, 200),
+(2001, 200),
+(2001, 201);
+
+INSERT INTO app_user (app_user_id, sys_user_id, phone, nick_name, role_type, merchant_id, status, last_sms_code, last_sms_expire_time, create_by, create_time, update_by, update_time, remark)
+VALUES
+(1, 2000, '18291107686', '测试普通用户', '1', NULL, '0', NULL, NULL, 'admin', NOW(), NULL, NULL, '普通测试用户'),
+(2, 2001, '18291107689', '测试商家账号', '2', 1, '0', NULL, NULL, 'admin', NOW(), 'admin', NOW(), '已审核通过测试商家');
+
+INSERT INTO app_merchant (merchant_id, app_user_id, sys_user_id, merchant_name, contact_name, contact_phone, address, service_scope, merchant_desc, city_name, audit_status, create_by, create_time, update_by, update_time, remark)
+VALUES
+(1, 2, 2001, '汉中诚信数码维修中心', '张师傅', '18291107689', '陕西省汉中市汉台区前进路 88 号', '手机、平板、笔记本、数码配件', '主营手机换屏、换电池、主板检测与数码产品售后。', '汉中市', '1', 'admin', NOW(), 'admin', NOW(), '已审核商家');
+
+INSERT INTO app_accessory (accessory_id, merchant_id, category_name, accessory_name, accessory_desc, cover_image, price, stock, sales_count, status, create_by, create_time, remark)
+VALUES
+(1, 1, '手机配件', '电源适配器', '多口快充电源适配器，兼容手机、平板、笔记本设备，支持门店安装。', '/static/images/accessory/adapter.png', 69.00, 80, 1, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(2, 1, '手机配件', '手机显示屏', '高清原装手机屏幕，碎屏、花屏、漏液维修更换，支持到店安装。', '/static/images/accessory/phone_screen.png', 399.00, 30, 2, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(3, 1, '手机配件', '手机电池', '适配主流安卓机型的高容量电池，续航持久，支持门店安装。', '/static/images/accessory/battery.png', 129.00, 50, 3, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(4, 1, '手机配件', '尾插排线', '手机充电接口总成，解决接触不良、无法充电、不快充问题。', '/static/images/accessory/charging_port.png', 89.00, 60, 4, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(5, 1, '手机配件', '手机扬声器', '手机外放喇叭，修复无声、破音、杂音、音量小故障。', '/static/images/accessory/speaker.png', 79.00, 65, 5, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(6, 1, '电脑配件', '笔记本电池', '笔记本原装规格电池，解决鼓包、不存电、续航短问题。', '/static/images/accessory/laptop_battery.png', 299.00, 20, 6, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(7, 1, '电脑配件', '笔记本充电器', '大功率笔记本电源适配器，适配主流品牌电脑，充电稳定。', '/static/images/accessory/laptop_adapter.png', 169.00, 30, 7, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(8, 1, '电脑配件', '笔记本屏幕', '笔记本高清液晶显示屏，碎屏、暗屏、花屏专业更换。', '/static/images/accessory/laptop_screen.png', 499.00, 15, 8, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(9, 1, '电脑配件', '固态硬盘SSD', '高速固态硬盘，电脑升级提速，支持系统迁移安装。', '/static/images/accessory/ssd.png', 299.00, 25, 9, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(10, 1, '平板配件', '平板屏幕', '平板电脑高清屏幕总成，碎屏、触摸失灵维修。', '/static/images/accessory/tablet_screen.png', 359.00, 20, 10, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(11, 1, '平板配件', '平板电池', '平板大容量原装电池，解决耗电快、不充电、自动关机。', '/static/images/accessory/tablet_battery.png', 199.00, 25, 11, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(12, 1, '通用配件', 'Type-C数据线', '编织快充数据线，支持65W快充，兼容安卓、苹果、平板设备。', '/static/images/accessory/typec_cable.png', 39.00, 150, 12, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(13, 1, '通用配件', '无线充电器', '桌面无线快充底座，支持主流手机无线充电。', '/static/images/accessory/wireless_charger.png', 99.00, 45, 13, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(14, 1, '保护配件', '钢化膜', '高清防爆钢化膜，防指纹、防摔、防刮花。', '/static/images/accessory/glass.png', 29.00, 200, 14, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(15, 1, '保护配件', '手机壳', '全包防摔手机保护壳，软边硬背，有效防护机身。', '/static/images/accessory/case.png', 49.00, 120, 15, '0', '18291107689', NOW(), '商品路径.docx导入'),
+(16, 1, '音频配件', '有线耳机', '半入耳式线控耳机，通话清晰，音质稳定。', '/static/images/accessory/earphone.png', 79.00, 80, 16, '0', '18291107689', NOW(), '商品路径.docx导入');
+
+INSERT INTO app_after_sales_order (order_id, order_no, app_user_id, merchant_id, product_type, fault_desc, fault_images, status, service_remark, contact_name, contact_phone, address, accept_time, finish_time, create_by, create_time, update_by, update_time, remark)
+VALUES
+(1, 'AS202603270001', 1, NULL, '手机屏幕', '屏幕碎裂，先保留一条初始化售后单用于联调。', NULL, '0', NULL, '测试普通用户', '18291107686', '陕西省汉中市汉台区中山街 18 号', NULL, NULL, '18291107686', NOW(), NULL, NULL, '初始化测试售后单');
+
+INSERT INTO app_accessory_order (accessory_order_id, order_no, accessory_id, app_user_id, merchant_id, quantity, price, total_amount, status, receiver_name, receiver_phone, receiver_address, order_remark, create_by, create_time, update_by, update_time, remark)
+VALUES
+(1, 'AO202603270001', 1, 1, 1, 1, 69.00, 69.00, '0', '测试普通用户', '18291107686', '陕西省汉中市汉台区中山街 18 号', '初始化测试配件订单', '18291107686', NOW(), NULL, NULL, '初始化测试配件订单');
+
+INSERT INTO app_accessory_collection (collection_id, app_user_id, accessory_id, create_by, create_time, update_by, update_time, remark)
+VALUES
+(1, 1, 2, '18291107686', NOW(), NULL, NULL, '初始化测试收藏');

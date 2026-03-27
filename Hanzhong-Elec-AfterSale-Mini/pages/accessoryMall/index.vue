@@ -18,7 +18,12 @@
 
     <view v-if="isMerchant" class="merchant-hero">
       <view class="merchant-hero-main">
-        <text class="merchant-hero-title">商品管理</text>
+        <view class="merchant-hero-heading">
+          <text class="merchant-hero-title">商品管理</text>
+          <view class="merchant-add-btn" @tap="openCreateGoods">
+            <uni-icons type="plus" size="22" color="#1236b6"></uni-icons>
+          </view>
+        </view>
       </view>
       <view class="merchant-summary">
         <view class="merchant-stat">
@@ -84,22 +89,30 @@
               <text class="price-symbol">¥</text>
               <text class="price-num">{{ item.price }}</text>
             </view>
-            <button
-              v-if="isMerchant"
-              class="detail-btn"
-              @tap.stop="openMerchantEditor(item.id)"
-            >
-              查看详情
-            </button>
-            <button
-              v-else
-              class="cart-btn"
-              :data-goods="item"
-              @tap.stop="addCart"
-              :disabled="item.stock <= 0"
-            >
-              {{ item.stock <= 0 ? '已售罄' : '加入购物车' }}
-            </button>
+            <view class="action-group action-group-right">
+              <button
+                class="detail-btn"
+                @tap.stop="handleDetailAction(item)"
+              >
+                查看详情
+              </button>
+              <button
+                v-if="isMerchant"
+                class="icon-btn delete-icon-btn"
+                @tap.stop="confirmDeleteGoods(item)"
+              >
+                <uni-icons type="trash" size="20" color="#ff4d4f"></uni-icons>
+              </button>
+              <button
+                v-else
+                class="cart-btn"
+                :data-goods="item"
+                @tap.stop="addCart"
+                :disabled="item.stock <= 0"
+              >
+                {{ item.stock <= 0 ? '已售罄' : '加入购物车' }}
+              </button>
+            </view>
           </view>
         </view>
       </view>
@@ -117,7 +130,7 @@
     <view v-if="isMerchant && showMerchantEditor" class="editor-mask" @tap="closeMerchantEditor">
       <view class="editor-popup" @tap.stop>
         <view class="editor-header">
-          <text class="editor-title">商品编辑</text>
+          <text class="editor-title">{{ merchantEditorTitle }}</text>
           <text :class="['status-chip', merchantForm.status === '0' ? 'status-chip-on' : 'status-chip-off']">
             {{ merchantForm.status === '0' ? '上架中' : '已下架' }}
           </text>
@@ -185,6 +198,8 @@
 import { getAccessoryList, normalizeAccessory } from '@/api/accessory'
 import { getCartList, setCartList } from '@/utils/cart'
 import {
+  createMerchantAccessory,
+  deleteMerchantAccessory,
   getMerchantAccessoryList,
   getMerchantAccessoryDetail,
   updateMerchantAccessory,
@@ -230,6 +245,9 @@ export default {
         onShelf: this.goodsList.filter((item) => item.status === '0').length,
         lowStock: this.goodsList.filter((item) => item.stock > 0 && item.stock <= 10).length
       }
+    },
+    merchantEditorTitle() {
+      return this.merchantForm.accessoryId ? '商品编辑' : '新增商品'
     },
     editorPreviewImage() {
       return this.merchantForm.coverImage || this.defaultImage
@@ -400,6 +418,18 @@ export default {
       }
       this.goDetail(item.id)
     },
+    handleDetailAction(item) {
+      if (!item || !item.id) {
+        return
+      }
+
+      if (this.isMerchant) {
+        this.openMerchantEditor(item.id)
+        return
+      }
+
+      this.goDetail(item.id)
+    },
     async openMerchantEditor(id) {
       try {
         const res = await getMerchantAccessoryDetail(id)
@@ -429,6 +459,23 @@ export default {
           icon: 'none'
         })
       }
+    },
+    openCreateGoods() {
+      if (!this.isMerchant) {
+        return
+      }
+
+      this.merchantForm = {
+        accessoryId: '',
+        accessoryName: '',
+        categoryName: '',
+        accessoryDesc: '',
+        coverImage: '',
+        price: '',
+        stock: '',
+        status: '0'
+      }
+      this.showMerchantEditor = true
     },
     closeMerchantEditor() {
       this.showMerchantEditor = false
@@ -498,8 +545,7 @@ export default {
 
       this.isSavingGoods = true
       try {
-        await updateMerchantAccessory({
-          accessoryId: this.merchantForm.accessoryId,
+        const payload = {
           accessoryName: this.merchantForm.accessoryName.trim(),
           categoryName: this.merchantForm.categoryName.trim(),
           accessoryDesc: this.merchantForm.accessoryDesc.trim(),
@@ -507,9 +553,18 @@ export default {
           price: Number(this.merchantForm.price),
           stock: Number(this.merchantForm.stock),
           status: this.merchantForm.status
-        })
+        }
+
+        if (this.merchantForm.accessoryId) {
+          await updateMerchantAccessory({
+            accessoryId: this.merchantForm.accessoryId,
+            ...payload
+          })
+        } else {
+          await createMerchantAccessory(payload)
+        }
         uni.showToast({
-          title: '保存成功',
+          title: this.merchantForm.accessoryId ? '保存成功' : '新增成功',
           icon: 'success'
         })
         this.showMerchantEditor = false
@@ -528,6 +583,39 @@ export default {
         return
       }
       this.merchantForm.status = this.merchantForm.status === '0' ? '1' : '0'
+    },
+    confirmDeleteGoods(item) {
+      if (!this.isMerchant || !item || !item.id) {
+        return
+      }
+
+      uni.showModal({
+        title: '是否确认删除',
+        content: `删除后将无法恢复，是否确认删除“${item.name}”？`,
+        confirmColor: '#ff4d4f',
+        success: async (res) => {
+          if (!res.confirm) {
+            return
+          }
+
+          try {
+            await deleteMerchantAccessory(item.id)
+            uni.showToast({
+              title: '删除成功',
+              icon: 'success'
+            })
+            if (this.showMerchantEditor && String(this.merchantForm.accessoryId) === String(item.id)) {
+              this.closeMerchantEditor()
+            }
+            await this.loadGoodsList()
+          } catch (error) {
+            uni.showToast({
+              title: (error && error.msg) || '删除失败',
+              icon: 'none'
+            })
+          }
+        }
+      })
     },
     addCart(e) {
       const item = e.currentTarget.dataset.goods
@@ -627,6 +715,25 @@ export default {
   font-size: 38rpx;
   font-weight: 700;
   margin-bottom: 10rpx;
+}
+
+.merchant-hero-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.merchant-add-btn {
+  width: 68rpx;
+  height: 68rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8rpx 18rpx rgba(18, 54, 182, 0.18);
+  flex-shrink: 0;
 }
 
 .merchant-hero-desc {
@@ -891,6 +998,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20rpx;
 }
 
 .price-wrap {
@@ -937,6 +1045,39 @@ export default {
 
 .detail-btn::after {
   border: none;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14rpx;
+  flex-shrink: 0;
+}
+
+.action-group-right {
+  margin-left: auto;
+}
+
+.icon-btn {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999rpx;
+  padding: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.icon-btn::after {
+  border: none;
+}
+
+.delete-icon-btn {
+  background: #fff1f0;
 }
 
 .cart-btn:disabled {
