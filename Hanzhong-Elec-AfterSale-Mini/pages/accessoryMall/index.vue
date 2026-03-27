@@ -18,12 +18,7 @@
 
     <view v-if="isMerchant" class="merchant-hero">
       <view class="merchant-hero-main">
-        <view class="merchant-hero-heading">
-          <text class="merchant-hero-title">商品管理</text>
-          <view class="merchant-add-btn" @tap="openCreateGoods">
-            <uni-icons type="plus" size="22" color="#1236b6"></uni-icons>
-          </view>
-        </view>
+        <text class="merchant-hero-title">商品管理</text>
       </view>
       <view class="merchant-summary">
         <view class="merchant-stat">
@@ -70,6 +65,7 @@
             class="goods-img"
             lazy-load
             @error="imgError(item.id)"
+            show-menu-by-longpress="false"
           ></image>
           <view class="stock-tag" v-if="item.stock <= 10 && item.stock > 0">库存紧张</view>
         </view>
@@ -89,30 +85,22 @@
               <text class="price-symbol">¥</text>
               <text class="price-num">{{ item.price }}</text>
             </view>
-            <view class="action-group action-group-right">
-              <button
-                class="detail-btn"
-                @tap.stop="handleDetailAction(item)"
-              >
-                查看详情
-              </button>
-              <button
-                v-if="isMerchant"
-                class="icon-btn delete-icon-btn"
-                @tap.stop="confirmDeleteGoods(item)"
-              >
-                <uni-icons type="trash" size="20" color="#ff4d4f"></uni-icons>
-              </button>
-              <button
-                v-else
-                class="cart-btn"
-                :data-goods="item"
-                @tap.stop="addCart"
-                :disabled="item.stock <= 0"
-              >
-                {{ item.stock <= 0 ? '已售罄' : '加入购物车' }}
-              </button>
-            </view>
+            <button
+              v-if="isMerchant"
+              class="detail-btn"
+              @tap.stop="openMerchantEditor(item.id)"
+            >
+              查看详情
+            </button>
+            <button
+              v-else
+              class="cart-btn"
+              :data-goods="item"
+              @tap.stop="addCart"
+              :disabled="item.stock <= 0"
+            >
+              {{ item.stock <= 0 ? '已售罄' : '加入购物车' }}
+            </button>
           </view>
         </view>
       </view>
@@ -130,7 +118,7 @@
     <view v-if="isMerchant && showMerchantEditor" class="editor-mask" @tap="closeMerchantEditor">
       <view class="editor-popup" @tap.stop>
         <view class="editor-header">
-          <text class="editor-title">{{ merchantEditorTitle }}</text>
+          <text class="editor-title">商品编辑</text>
           <text :class="['status-chip', merchantForm.status === '0' ? 'status-chip-on' : 'status-chip-off']">
             {{ merchantForm.status === '0' ? '上架中' : '已下架' }}
           </text>
@@ -198,8 +186,6 @@
 import { getAccessoryList, normalizeAccessory } from '@/api/accessory'
 import { getCartList, setCartList } from '@/utils/cart'
 import {
-  createMerchantAccessory,
-  deleteMerchantAccessory,
   getMerchantAccessoryList,
   getMerchantAccessoryDetail,
   updateMerchantAccessory,
@@ -245,9 +231,6 @@ export default {
         onShelf: this.goodsList.filter((item) => item.status === '0').length,
         lowStock: this.goodsList.filter((item) => item.stock > 0 && item.stock <= 10).length
       }
-    },
-    merchantEditorTitle() {
-      return this.merchantForm.accessoryId ? '商品编辑' : '新增商品'
     },
     editorPreviewImage() {
       return this.merchantForm.coverImage || this.defaultImage
@@ -418,18 +401,6 @@ export default {
       }
       this.goDetail(item.id)
     },
-    handleDetailAction(item) {
-      if (!item || !item.id) {
-        return
-      }
-
-      if (this.isMerchant) {
-        this.openMerchantEditor(item.id)
-        return
-      }
-
-      this.goDetail(item.id)
-    },
     async openMerchantEditor(id) {
       try {
         const res = await getMerchantAccessoryDetail(id)
@@ -459,23 +430,6 @@ export default {
           icon: 'none'
         })
       }
-    },
-    openCreateGoods() {
-      if (!this.isMerchant) {
-        return
-      }
-
-      this.merchantForm = {
-        accessoryId: '',
-        accessoryName: '',
-        categoryName: '',
-        accessoryDesc: '',
-        coverImage: '',
-        price: '',
-        stock: '',
-        status: '0'
-      }
-      this.showMerchantEditor = true
     },
     closeMerchantEditor() {
       this.showMerchantEditor = false
@@ -545,7 +499,8 @@ export default {
 
       this.isSavingGoods = true
       try {
-        const payload = {
+        await updateMerchantAccessory({
+          accessoryId: this.merchantForm.accessoryId,
           accessoryName: this.merchantForm.accessoryName.trim(),
           categoryName: this.merchantForm.categoryName.trim(),
           accessoryDesc: this.merchantForm.accessoryDesc.trim(),
@@ -553,18 +508,9 @@ export default {
           price: Number(this.merchantForm.price),
           stock: Number(this.merchantForm.stock),
           status: this.merchantForm.status
-        }
-
-        if (this.merchantForm.accessoryId) {
-          await updateMerchantAccessory({
-            accessoryId: this.merchantForm.accessoryId,
-            ...payload
-          })
-        } else {
-          await createMerchantAccessory(payload)
-        }
+        })
         uni.showToast({
-          title: this.merchantForm.accessoryId ? '保存成功' : '新增成功',
+          title: '保存成功',
           icon: 'success'
         })
         this.showMerchantEditor = false
@@ -583,39 +529,6 @@ export default {
         return
       }
       this.merchantForm.status = this.merchantForm.status === '0' ? '1' : '0'
-    },
-    confirmDeleteGoods(item) {
-      if (!this.isMerchant || !item || !item.id) {
-        return
-      }
-
-      uni.showModal({
-        title: '是否确认删除',
-        content: `删除后将无法恢复，是否确认删除“${item.name}”？`,
-        confirmColor: '#ff4d4f',
-        success: async (res) => {
-          if (!res.confirm) {
-            return
-          }
-
-          try {
-            await deleteMerchantAccessory(item.id)
-            uni.showToast({
-              title: '删除成功',
-              icon: 'success'
-            })
-            if (this.showMerchantEditor && String(this.merchantForm.accessoryId) === String(item.id)) {
-              this.closeMerchantEditor()
-            }
-            await this.loadGoodsList()
-          } catch (error) {
-            uni.showToast({
-              title: (error && error.msg) || '删除失败',
-              icon: 'none'
-            })
-          }
-        }
-      })
     },
     addCart(e) {
       const item = e.currentTarget.dataset.goods
@@ -679,10 +592,12 @@ export default {
   --bg-color: #f8f8f8;
   --white: #fff;
   --border-color: #eee;
-  --radius-sm: 8rpx;
-  --radius-md: 12rpx;
+  --radius-sm: 12rpx;
+  --radius-md: 16rpx;
   --radius-full: 999rpx;
-  --shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  --shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
+  --shadow-deep: 0 8rpx 24rpx rgba(47, 84, 235, 0.12);
+  --transition: all 0.25s ease;
 }
 
 .container {
@@ -695,78 +610,58 @@ export default {
 
 .search-wrap {
   display: flex;
-  padding: 20rpx;
+  align-items: center;
+  padding: 24rpx;
   background: var(--white);
-  overflow: hidden;
   box-sizing: border-box;
 }
 
 .merchant-hero {
-  margin: 20rpx;
-  padding: 28rpx;
-  border-radius: 20rpx;
+  margin: 24rpx;
+  padding: 32rpx;
+  border-radius: 24rpx;
   background: linear-gradient(135deg, #1236b6 0%, #2f54eb 55%, #5d7cff 100%);
   color: #fff;
-  box-shadow: 0 10rpx 24rpx rgba(47, 84, 235, 0.18);
+  box-shadow: var(--shadow-deep);
 }
 
 .merchant-hero-title {
   display: block;
-  font-size: 38rpx;
+  font-size: 40rpx;
   font-weight: 700;
-  margin-bottom: 10rpx;
-}
-
-.merchant-hero-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-}
-
-.merchant-add-btn {
-  width: 68rpx;
-  height: 68rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 8rpx 18rpx rgba(18, 54, 182, 0.18);
-  flex-shrink: 0;
-}
-
-.merchant-hero-desc {
-  display: block;
-  font-size: 24rpx;
-  line-height: 1.7;
-  opacity: 0.9;
+  margin-bottom: 20rpx;
 }
 
 .merchant-summary {
   display: flex;
-  gap: 16rpx;
+  gap: 20rpx;
   margin-top: 24rpx;
 }
 
 .merchant-stat {
   flex: 1;
-  padding: 22rpx 18rpx;
-  border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.14);
+  padding: 24rpx 20rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(10rpx);
+  text-align: center;
+  transition: var(--transition);
+}
+
+.merchant-stat:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .merchant-stat-label {
   display: block;
-  font-size: 22rpx;
-  opacity: 0.85;
+  font-size: 24rpx;
+  opacity: 0.9;
   margin-bottom: 8rpx;
 }
 
 .merchant-stat-value {
   display: block;
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 700;
 }
 
@@ -787,28 +682,40 @@ export default {
 
 .search-input {
   width: 100%;
-  height: 72rpx;
-  padding: 0 28rpx 0 68rpx;
+  height: 76rpx;
+  padding: 0 32rpx 0 72rpx;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
   font-size: 28rpx;
   color: var(--text-color);
   background: var(--bg-color);
   box-sizing: border-box;
+  transition: var(--transition);
+}
+
+.search-input:focus {
+  border-color: var(--primary-color);
+  background: var(--white);
 }
 
 .search-btn {
-  width: 130rpx;
-  height: 72rpx;
-  line-height: 72rpx;
+  width: 136rpx;
+  height: 76rpx;
+  line-height: 76rpx;
   background: var(--primary-color);
   color: var(--white);
   border-radius: var(--radius-full);
-  margin-left: 15rpx;
+  margin-left: 16rpx;
   font-size: 28rpx;
   border: none;
   flex-shrink: 0;
+  transition: var(--transition);
   box-sizing: border-box;
+}
+
+.search-btn:active {
+  transform: scale(0.96);
+  opacity: 0.9;
 }
 
 .search-btn::after,
@@ -819,8 +726,7 @@ export default {
 
 .cate-wrap {
   background: var(--white);
-  padding: 10rpx 20rpx;
-  overflow: hidden;
+  padding: 10rpx 24rpx;
   box-sizing: border-box;
 }
 
@@ -830,6 +736,7 @@ export default {
   white-space: nowrap;
   padding: 10rpx 0;
   scrollbar-width: none;
+  scroll-behavior: smooth;
 }
 
 .cate-list::-webkit-scrollbar {
@@ -837,17 +744,19 @@ export default {
 }
 
 .cate-item {
-  padding: 16rpx 28rpx;
+  padding: 18rpx 32rpx;
   margin-right: 20rpx;
   border-radius: var(--radius-full);
   background: var(--bg-color);
   font-size: 26rpx;
   color: var(--text-light);
+  transition: var(--transition);
 }
 
 .cate-item.active {
   background: var(--primary-color);
   color: var(--white);
+  transform: scale(1.03);
 }
 
 .loading-wrap,
@@ -879,16 +788,21 @@ export default {
 
 .empty-refresh-btn {
   margin-top: 32rpx;
-  padding: 16rpx 40rpx;
+  padding: 18rpx 44rpx;
   background: var(--white);
   color: var(--primary-color);
   border: 1px solid var(--primary-color);
   border-radius: var(--radius-full);
   font-size: 26rpx;
+  transition: var(--transition);
+}
+
+.empty-refresh-btn:active {
+  transform: scale(0.96);
 }
 
 .goods-list {
-  padding: 20rpx;
+  padding: 24rpx;
   overflow-x: hidden;
   box-sizing: border-box;
 }
@@ -897,16 +811,23 @@ export default {
   display: flex;
   background: var(--white);
   border-radius: var(--radius-md);
-  padding: 24rpx;
-  margin-bottom: 20rpx;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
   box-shadow: var(--shadow);
+  transition: var(--transition);
   overflow: hidden;
   box-sizing: border-box;
 }
 
+.goods-item:active {
+  transform: translateY(-4rpx);
+  box-shadow: var(--shadow-deep);
+}
+
 .goods-img-wrap {
   position: relative;
-  margin-right: 24rpx;
+  margin-right: 28rpx;
+  flex-shrink: 0;
 }
 
 .goods-img {
@@ -914,6 +835,7 @@ export default {
   height: 180rpx;
   border-radius: var(--radius-sm);
   background: var(--bg-color);
+  object-fit: cover;
 }
 
 .stock-tag {
@@ -923,8 +845,9 @@ export default {
   font-size: 20rpx;
   color: var(--stock-color);
   background: #fff0f0;
-  padding: 2rpx 10rpx;
+  padding: 4rpx 12rpx;
   border-radius: var(--radius-full);
+  font-weight: 500;
 }
 
 .goods-info {
@@ -940,7 +863,7 @@ export default {
   font-weight: 600;
   color: var(--text-color);
   margin-bottom: 10rpx;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .goods-spec {
@@ -964,7 +887,7 @@ export default {
 .merchant-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 10rpx;
+  gap: 12rpx;
   margin-bottom: 20rpx;
 }
 
@@ -998,7 +921,6 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20rpx;
 }
 
 .price-wrap {
@@ -1019,27 +941,29 @@ export default {
 
 .cart-btn {
   min-width: 170rpx;
-  height: 64rpx;
-  line-height: 64rpx;
+  height: 68rpx;
+  line-height: 68rpx;
   background: var(--primary-color);
   color: var(--white);
   border-radius: var(--radius-full);
   font-size: 24rpx;
   border: none;
   flex-shrink: 0;
+  transition: var(--transition);
   box-sizing: border-box;
 }
 
 .detail-btn {
   min-width: 170rpx;
-  height: 64rpx;
-  line-height: 64rpx;
+  height: 68rpx;
+  line-height: 68rpx;
   background: #eef2ff;
   color: var(--primary-color);
   border-radius: var(--radius-full);
   font-size: 24rpx;
   border: none;
   flex-shrink: 0;
+  transition: var(--transition);
   box-sizing: border-box;
 }
 
@@ -1047,53 +971,27 @@ export default {
   border: none;
 }
 
-.action-group {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 14rpx;
-  flex-shrink: 0;
-}
-
-.action-group-right {
-  margin-left: auto;
-}
-
-.icon-btn {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: 999rpx;
-  padding: 0;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
-
-.icon-btn::after {
-  border: none;
-}
-
-.delete-icon-btn {
-  background: #fff1f0;
+.cart-btn:active,
+.detail-btn:active {
+  transform: scale(0.96);
 }
 
 .cart-btn:disabled {
   background: var(--text-gray);
+  transform: none;
 }
 
 .editor-mask {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.42);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24rpx;
   z-index: 999;
   box-sizing: border-box;
+  animation: maskFade 0.3s ease;
 }
 
 .editor-popup {
@@ -1101,27 +999,36 @@ export default {
   max-height: calc(100vh - 80rpx);
   overflow-y: auto;
   background: var(--white);
-  border-radius: 24rpx;
-  padding: 30rpx;
+  border-radius: 28rpx;
+  padding: 36rpx;
   box-sizing: border-box;
   box-shadow: 0 20rpx 40rpx rgba(0, 0, 0, 0.18);
+  animation: popupScale 0.3s ease;
+}
+
+.editor-popup::-webkit-scrollbar {
+  width: 6rpx;
+}
+.editor-popup::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3rpx;
 }
 
 .editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24rpx;
+  margin-bottom: 28rpx;
 }
 
 .editor-title {
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: var(--text-color);
 }
 
 .status-chip {
-  padding: 8rpx 18rpx;
+  padding: 8rpx 20rpx;
   border-radius: 999rpx;
   font-size: 22rpx;
 }
@@ -1137,23 +1044,24 @@ export default {
 }
 
 .editor-preview {
-  margin-bottom: 24rpx;
+  margin-bottom: 28rpx;
 }
 
 .editor-preview-image {
   width: 100%;
   height: 280rpx;
-  border-radius: 18rpx;
+  border-radius: 20rpx;
   background: #f5f5f5;
+  object-fit: cover;
 }
 
 .form-item {
-  margin-bottom: 24rpx;
+  margin-bottom: 28rpx;
 }
 
 .form-row {
   display: flex;
-  gap: 20rpx;
+  gap: 24rpx;
 }
 
 .half {
@@ -1171,21 +1079,28 @@ export default {
 .form-textarea {
   width: 100%;
   border: 1px solid var(--border-color);
-  border-radius: 12rpx;
+  border-radius: 16rpx;
   box-sizing: border-box;
   background: #fafafa;
   color: var(--text-color);
   font-size: 28rpx;
+  transition: var(--transition);
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  border-color: var(--primary-color);
+  background: var(--white);
 }
 
 .form-input {
-  height: 84rpx;
-  padding: 0 20rpx;
+  height: 88rpx;
+  padding: 0 24rpx;
 }
 
 .form-textarea {
-  min-height: 180rpx;
-  padding: 20rpx;
+  min-height: 200rpx;
+  padding: 24rpx;
 }
 
 .image-actions {
@@ -1194,18 +1109,19 @@ export default {
 
 .action-row {
   display: flex;
-  gap: 20rpx;
-  margin-top: 32rpx;
+  gap: 24rpx;
+  margin-top: 36rpx;
 }
 
 .primary-btn,
 .secondary-btn {
   flex: 1;
-  height: 84rpx;
-  line-height: 84rpx;
+  height: 88rpx;
+  line-height: 88rpx;
   border: none;
-  border-radius: 42rpx;
+  border-radius: 44rpx;
   font-size: 28rpx;
+  transition: var(--transition);
 }
 
 .primary-btn {
@@ -1218,13 +1134,23 @@ export default {
   color: var(--primary-color);
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
+.primary-btn:active,
+.secondary-btn:active {
+  transform: scale(0.96);
+}
 
-  100% {
-    transform: rotate(360deg);
-  }
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes maskFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes popupScale {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 </style>

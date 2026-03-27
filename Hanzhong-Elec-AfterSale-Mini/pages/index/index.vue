@@ -79,29 +79,36 @@
         <text class="empty-text">暂无热门配件</text>
       </view>
 
-      <view class="list" v-else>
-        <view 
-          class="item" 
-          v-for="item in hotAccessoryList" 
-          :key="item.id" 
-          @click="toAccessoryDetail(item)"
-        >
-          <view class="img-wrap">
-            <image 
-              :src="item.image" 
-              mode="aspectFill" 
-              class="item-img"
-              lazy-load
-              @error="imgError($event)"
-            ></image>
-          </view>
-          <text class="item-name" :title="item.name">{{ item.name }}</text>
-          <view class="price-wrap">
-            <text class="item-price">¥{{ item.price }}</text>
-            <text class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</text>
+      <!-- 优化：横向滚动列表，更贴合商城商品展示 -->
+      <scroll-view class="list-scroll" scroll-x="true" v-else>
+        <view class="list">
+          <view 
+            class="item" 
+            v-for="item in hotAccessoryList" 
+            :key="item.id" 
+            @click="toAccessoryDetail(item)"
+          >
+            <view class="img-wrap">
+              <image 
+                :src="item.image" 
+                mode="aspectFill" 
+                class="item-img"
+                lazy-load
+                @error="imgError($event)"
+              ></image>
+              <!-- 新增：价格标签 -->
+              <view class="price-tag" v-if="item.originalPrice > item.price">
+                <text>省¥{{ item.originalPrice - item.price }}</text>
+              </view>
+            </view>
+            <text class="item-name" :title="item.name">{{ item.name }}</text>
+            <view class="price-wrap">
+              <text class="item-price">¥{{ item.price }}</text>
+              <text class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</text>
+            </view>
           </view>
         </view>
-      </view>
+      </scroll-view>
     </view>
   </view>
 </template>
@@ -136,9 +143,9 @@ export default {
   onLoad() {
     setTimeout(() => {
       this.hotAccessoryList = [
-        { id: 9, name: "电源适配器", price: 89, originalPrice: 129, image: "/static/images/accessory/accessory1.png" },
-        { id: 1, name: "显示屏", price: 399, originalPrice: 499, image: "/static/images/accessory/accessory2.png" },
-        { id: 4, name: "数据线", price: 29, originalPrice: 49, image: "/static/images/accessory/accessory3.jpg" }
+        { id: 9, name: "电源适配器", price: 89, originalPrice: 129, image: "/static/images/accessory/adapter.png" },
+        { id: 1, name: "显示屏", price: 399, originalPrice: 499, image: "/static/images/accessory/laptop_screen.png" },
+        { id: 4, name: "数据线", price: 29, originalPrice: 49, image: "/static/images/accessory/typec_cable.png" }
       ]
     }, 300);
   },
@@ -197,25 +204,21 @@ export default {
   --transition: all 0.3s ease;
 }
 
-/* 核心修改：移除页面顶部padding，让轮播图顶到导航栏 */
 .home-page {
   min-height: 100vh;
   background-color: var(--bg-color);
-  padding-bottom: 100rpx;
-  padding: 0 16rpx 0 16rpx; /* 只保留左右和底部padding，移除顶部padding */
+  padding: 0 16rpx 100rpx 16rpx;
   margin-top: 0;
 }
 
-/* 轮播图美化核心 - 移除margin-top */
 .banner-wrap {
-  margin: 0 0 20rpx 0; /* 只保留底部margin，移除顶部margin */
-  border-radius: var(--radius-lg);
+  margin: 0 0 20rpx 0;
   overflow: hidden;
   box-shadow: var(--shadow-deep);
   position: relative;
-  width: 100vw; /* 让轮播图宽度铺满屏幕 */
-  margin-left: -16rpx; /* 抵消home-page的左padding */
-  border-radius: 0; /* 移除圆角，实现全屏无缝 */
+  width: 100vw;
+  margin-left: -16rpx;
+  border-radius: 0;
 }
 .banner {
   height: 340rpx;
@@ -340,14 +343,19 @@ export default {
   margin-top: 20rpx;
 }
 
+/* 优化：横向滚动容器 */
+.list-scroll {
+  white-space: nowrap;
+  width: 100%;
+}
 .list {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 24rpx;
-  justify-content: flex-start;
+  padding-bottom: 10rpx;
 }
 .item {
-  width: calc(33.33% - 16rpx);
+  width: 200rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -362,16 +370,28 @@ export default {
   box-shadow: var(--shadow-deep);
 }
 .img-wrap {
-  width: 140rpx;
-  height: 140rpx;
+  width: 180rpx;
+  height: 180rpx;
   border-radius: var(--radius-sm);
   overflow: hidden;
   margin-bottom: 12rpx;
   background-color: #f5f5f5;
+  position: relative;
 }
 .item-img {
   width: 100%;
   height: 100%;
+}
+/* 新增：价格标签 */
+.price-tag {
+  position: absolute;
+  top: 8rpx;
+  right: 8rpx;
+  background-color: var(--price-color);
+  color: #fff;
+  font-size: 20rpx;
+  padding: 4rpx 8rpx;
+  border-radius: var(--radius-sm);
 }
 .item-name {
   font-size: 24rpx;

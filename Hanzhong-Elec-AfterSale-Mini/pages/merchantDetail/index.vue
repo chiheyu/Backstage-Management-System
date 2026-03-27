@@ -114,7 +114,7 @@ export default {
       isMerchantMode: false,
       merchantInfo: {
         name: "汉中电子售后旗舰店",
-        avatar: "/static/images/merchant/avatar.png",
+        avatar: "/static/images/hz-logo.png",
         tag: "官方认证 | 售后无忧",
         rating: 4.8,
         phone: "400-123-4567",
@@ -160,7 +160,7 @@ export default {
         const data = res.data || {};
         this.merchantInfo = {
           name: data.merchantName || '我的店铺',
-          avatar: "/static/images/merchant/avatar.png",
+          avatar: "/static/images/hz-logo.png",
           tag: (data.auditStatus === '1' ? '官方认证' : '待审核') + ' | 售后无忧',
           rating: 4.8,
           phone: data.contactPhone || '未填写',
