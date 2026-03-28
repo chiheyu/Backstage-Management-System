@@ -561,11 +561,21 @@ export default {
 </script>
 
 <style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+page {
+  background: #f8f9fa;
+}
+
 .order-page {
   min-height: 100vh;
   background-color: #f8f9fa;
   padding: 0;
-  box-sizing: border-box;
 }
 
 .loading-wrap,
@@ -574,13 +584,13 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 150rpx 40rpx;
+  padding: 180rpx 40rpx;
   color: #ccc;
 }
 
 .loading-icon {
   animation: spin 1s linear infinite;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
 }
 
 .loading-text,
@@ -590,15 +600,16 @@ export default {
 }
 
 .empty-icon {
-  margin-bottom: 30rpx;
+  margin-bottom: 32rpx;
+  opacity: 0.6;
 }
 
 .empty-text {
-  margin-bottom: 40rpx;
+  margin-bottom: 48rpx;
 }
 
 .empty-btn {
-  width: 60%;
+  width: 320rpx;
   height: 88rpx;
   line-height: 88rpx;
   background: #2f54eb;
@@ -606,18 +617,19 @@ export default {
   border-radius: 44rpx;
   font-size: 30rpx;
   border: none;
+  transition: all 0.2s ease;
 }
 
 .empty-btn-hover {
-  background: #1e42d2;
+  transform: scale(0.96);
   opacity: 0.9;
 }
 
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
-  padding: 20rpx;
+  gap: 24rpx;
+  padding: 24rpx;
 }
 
 .load-more {
@@ -626,12 +638,18 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  padding: 24rpx 0 40rpx;
+  padding: 32rpx 0 60rpx;
   color: #666;
+  transition: all 0.2s ease;
+}
+
+.load-more:active:not(.disabled) {
+  transform: scale(0.98);
 }
 
 .load-more.disabled {
   color: #999;
+  pointer-events: none;
 }
 
 .load-more-text {
@@ -645,13 +663,15 @@ export default {
 
 .order-item {
   background: #fff;
-  padding: 30rpx;
-  border-radius: 16rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  padding: 32rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.05);
+  transition: all 0.25s ease;
 }
 
 .order-item-hover {
-  background-color: #f8f8f8;
+  transform: translateY(-4rpx);
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.08);
 }
 
 .order-header {
@@ -659,9 +679,9 @@ export default {
   justify-content: space-between;
   align-items: center;
   gap: 20rpx;
-  margin-bottom: 25rpx;
-  padding-bottom: 15rpx;
-  border-bottom: 1px solid #f5f5f5;
+  margin-bottom: 32rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f5f5f5;
 }
 
 .order-no {
@@ -674,51 +694,51 @@ export default {
 .status-tag {
   font-size: 24rpx;
   font-weight: 500;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
   white-space: nowrap;
 }
 
 .status-pending {
-  background-color: #fff3e0;
-  color: #ff7300;
+  background-color: #fff7e8;
+  color: #ff7d00;
 }
 
 .status-accepted {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: #e8f4ff;
+  color: #1677ff;
 }
 
 .status-repairing {
-  background-color: #fff7e6;
+  background-color: #fff4e8;
   color: #fa8c16;
 }
 
 .status-completed {
-  background-color: #f0fff4;
-  color: #07c160;
+  background-color: #e8fff4;
+  color: #00b46a;
 }
 
 .status-canceled,
 .status-unknown {
-  background-color: #f5f5f5;
-  color: #999;
+  background-color: #f7f8fa;
+  color: #8c8c8c;
 }
 
 .order-body {
-  margin-bottom: 20rpx;
+  margin-bottom: 28rpx;
 }
 
 .info-row {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
   font-size: 28rpx;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .label {
-  width: 140rpx;
+  width: 150rpx;
   flex-shrink: 0;
   color: #666;
   font-weight: 500;
@@ -734,14 +754,19 @@ export default {
   flex: 1;
   display: flex;
   flex-wrap: wrap;
-  gap: 15rpx;
+  gap: 16rpx;
 }
 
 .img {
   width: 120rpx;
   height: 120rpx;
-  border-radius: 12rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.img:active {
+  transform: scale(0.96);
 }
 
 .order-footer {
@@ -749,8 +774,8 @@ export default {
   justify-content: space-between;
   align-items: center;
   gap: 20rpx;
-  padding-top: 20rpx;
-  border-top: 1px solid #f5f5f5;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #f5f5f5;
 }
 
 .create-time {
@@ -760,20 +785,25 @@ export default {
 
 .btn-group {
   display: flex;
-  gap: 15rpx;
+  gap: 16rpx;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
 
 .btn {
   height: 70rpx;
-  padding: 0 24rpx;
+  padding: 0 28rpx;
   font-size: 26rpx;
   border-radius: 35rpx;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn:active:not([disabled]) {
+  transform: scale(0.95);
 }
 
 .primary-btn {
@@ -782,17 +812,17 @@ export default {
 }
 
 .success-btn {
-  background-color: #07c160;
+  background-color: #00b46a;
   color: #fff;
 }
 
 .warn-btn {
-  background-color: #ff7875;
+  background-color: #ff6b6b;
   color: #fff;
 }
 
 .default-btn {
-  background-color: #f5f5f5;
+  background-color: #f5f7fa;
   color: #666;
 }
 
@@ -804,7 +834,6 @@ export default {
   0% {
     transform: rotate(0deg);
   }
-
   100% {
     transform: rotate(360deg);
   }

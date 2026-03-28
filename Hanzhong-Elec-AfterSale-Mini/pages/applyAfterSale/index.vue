@@ -18,12 +18,12 @@
 
       <view class="form-item">
         <view class="label-wrap">
-          <text class="label">产品型号</text>
+          <text class="label">订单号</text>
           <text class="required">*</text>
         </view>
         <input
           v-model="form.productModel"
-          placeholder="请输入产品型号"
+          placeholder="请输入订单号"
           class="input"
           placeholder-class="input-placeholder"
         />

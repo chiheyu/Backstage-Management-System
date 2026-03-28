@@ -27,11 +27,13 @@
           <text class="workbench-item-title">售后回执</text>
           <text class="workbench-item-desc">填写维修回执并推进状态</text>
         </view>
-        <view class="workbench-item" @tap="goProfile">
+      </view>
+      <view class="workbench-bottom" @tap="goProfile">
+        <view class="bottom-left">
           <uni-icons type="person" size="34" color="#722ed1"></uni-icons>
-          <text class="workbench-item-title">返回我的</text>
-          <text class="workbench-item-desc">回到商家个人中心</text>
+          <text class="workbench-bottom-title">返回我的</text>
         </view>
+        <uni-icons type="right" size="24" color="#646570"></uni-icons>
       </view>
     </view>
 
@@ -111,11 +113,9 @@ export default {
     ensureLogin() {
       const token = wx.getStorageSync('token')
       const userInfo = wx.getStorageSync('userInfo')
-
       if (token && userInfo) {
         return true
       }
-
       wx.showToast({
         title: '请先登录',
         icon: 'none'
@@ -141,10 +141,8 @@ export default {
         })
         return
       }
-
       const failedItems = []
       const paidItems = []
-
       for (const item of this.cartList) {
         try {
           await createAccessoryOrder({
@@ -163,7 +161,6 @@ export default {
           })
         }
       }
-
       if (failedItems.length) {
         this.cartList = this.cartList.filter((item) => !paidItems.includes(item.id))
         this.updateCart()
@@ -174,7 +171,6 @@ export default {
         })
         return
       }
-
       this.cartList = []
       this.updateCart()
       wx.showToast({
@@ -190,7 +186,6 @@ export default {
       if (!this.ensureLogin()) {
         return
       }
-
       wx.showModal({
         title: '确认结算',
         content: `共计¥${this.totalPrice.toFixed(2)}，确认提交订单？`,
@@ -275,136 +270,154 @@ export default {
   --primary-color: #2f54eb;
   --light-primary: #f0f5ff;
   --price-color: #ff7300;
-  --text-color: #333;
+  --text-color: #1d2129;
   --text-gray: #999;
-  --text-light: #666;
-  --bg-color: #f8f8f8;
-  --white: #fff;
+  --text-light: #646570;
+  --bg-color: #f7f8fa;
+  --white: #ffffff;
   --red: #ff4d4f;
-  --border-color: #eee;
-  --radius-sm: 8rpx;
-  --radius-md: 12rpx;
-  --radius-lg: 16rpx;
+  --border-color: #e5e6eb;
+  --radius-sm: 10rpx;
+  --radius-md: 16rpx;
+  --radius-lg: 20rpx;
   --radius-full: 999rpx;
-  --shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-  --shadow-deep: 0 6rpx 16rpx rgba(0, 0, 0, 0.08);
-  --transition: all 0.3s ease;
+  --shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  --shadow-deep: 0 6rpx 20rpx rgba(0, 0, 0, 0.08);
+  --transition: all 0.2s ease;
 }
-
-.cart-page {
+.cart-root {
   min-height: 100vh;
   background: var(--bg-color);
-  padding: 20rpx;
-  padding-bottom: 120rpx;
 }
-
 .merchant-workbench {
-  min-height: 100vh;
-  background: var(--bg-color);
-  padding: 20rpx;
-  box-sizing: border-box;
+  padding: 24rpx;
 }
-
 .workbench-hero {
-  padding: 32rpx 30rpx;
+  padding: 32rpx 28rpx;
   border-radius: var(--radius-lg);
-  background: linear-gradient(135deg, #1236b6 0%, #2f54eb 60%, #5d7cff 100%);
+  background: linear-gradient(135deg, #0d2fa8 0%, #2f54eb 100%);
   color: var(--white);
   box-shadow: var(--shadow-deep);
-  margin-bottom: 24rpx;
+  margin-bottom: 32rpx;
 }
-
 .workbench-title {
-  display: block;
-  font-size: 38rpx;
+  font-size: 36rpx;
   font-weight: 700;
-  margin-bottom: 10rpx;
-}
-
-.workbench-desc {
+  margin-bottom: 16rpx;
   display: block;
-  font-size: 26rpx;
-  line-height: 1.7;
-  opacity: 0.92;
 }
-
+.workbench-desc {
+  font-size: 24rpx;
+  line-height: 1.6;
+  opacity: 0.9;
+  display: block;
+}
 .workbench-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20rpx;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24rpx;
 }
-
 .workbench-item {
   background: var(--white);
   border-radius: var(--radius-lg);
-  padding: 28rpx 24rpx;
+  padding: 36rpx 32rpx;
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 18rpx;
+  transition: var(--transition);
 }
-
+.workbench-item:active {
+  transform: scale(0.97);
+  box-shadow: var(--shadow-deep);
+}
 .workbench-item-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-color);
+}
+.workbench-item-desc {
+  font-size: 24rpx;
+  color: var(--text-light);
+  line-height: 1.5;
+}
+/* 底部按钮：左右布局，图标+文字居中，箭头靠右 */
+.workbench-bottom {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 28rpx 32rpx;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  transition: var(--transition);
+}
+.workbench-bottom:active {
+  transform: scale(0.97);
+  box-shadow: var(--shadow-deep);
+}
+.bottom-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.workbench-bottom-title {
   font-size: 30rpx;
   font-weight: 600;
   color: var(--text-color);
 }
-
-.workbench-item-desc {
-  font-size: 24rpx;
-  color: var(--text-light);
-  line-height: 1.6;
+.cart-page {
+  padding: 24rpx;
+  padding-bottom: 130rpx;
 }
-
 .empty-cart {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 150rpx 0;
+  padding: 180rpx 0;
 }
 .empty-text {
   font-size: 32rpx;
   color: var(--text-gray);
-  margin: 30rpx 0;
+  margin: 40rpx 0;
 }
 .go-shop-btn {
   background: var(--primary-color);
   color: var(--white);
   border-radius: var(--radius-full);
-  padding: 20rpx 50rpx;
+  padding: 24rpx 60rpx;
   font-size: 30rpx;
   border: none;
   transition: var(--transition);
   box-shadow: var(--shadow);
 }
 .go-shop-btn:active {
-  background: #1e42c8;
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
-
 .cart-list {
-  margin-top: 20rpx;
+  margin-top: 24rpx;
 }
 .cart-item {
   display: flex;
   background: var(--white);
-  padding: 24rpx;
+  padding: 28rpx;
   border-radius: var(--radius-md);
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
   align-items: center;
   box-shadow: var(--shadow);
   transition: var(--transition);
 }
 .cart-item:active {
   transform: scale(0.98);
-  box-shadow: var(--shadow-deep);
 }
 .item-img {
-  width: 140rpx;
-  height: 140rpx;
+  width: 150rpx;
+  height: 150rpx;
   border-radius: var(--radius-sm);
-  margin-right: 24rpx;
+  margin-right: 28rpx;
   background: var(--bg-color);
+  object-fit: cover;
 }
 .item-info {
   flex: 1;
@@ -412,10 +425,10 @@ export default {
 .item-name {
   font-size: 32rpx;
   color: var(--text-color);
-  font-weight: bold;
+  font-weight: 600;
   display: block;
-  margin-bottom: 10rpx;
-  line-height: 1.3;
+  margin-bottom: 12rpx;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -425,30 +438,25 @@ export default {
   font-size: 24rpx;
   color: var(--text-light);
   display: block;
-  margin-bottom: 15rpx;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  margin-bottom: 16rpx;
 }
 .item-price {
-  font-size: 32rpx;
+  font-size: 34rpx;
   color: var(--price-color);
-  font-weight: bold;
+  font-weight: 700;
   display: block;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
 }
 .count-wrap {
   display: flex;
   align-items: center;
 }
 .count-btn {
-  width: 50rpx;
-  height: 50rpx;
-  line-height: 50rpx;
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
   text-align: center;
-  border: 1px solid var(--border-color);
+  border: 1rpx solid var(--border-color);
   border-radius: var(--radius-sm);
   font-size: 28rpx;
   color: var(--text-color);
@@ -458,56 +466,54 @@ export default {
 .count-btn:disabled {
   color: var(--text-gray);
   background: var(--white);
-  border-color: var(--border-color);
 }
 .count-btn:active:not(:disabled) {
   background: var(--light-primary);
   border-color: var(--primary-color);
 }
 .count {
-  margin: 0 20rpx;
-  font-size: 28rpx;
+  margin: 0 24rpx;
+  font-size: 30rpx;
   color: var(--text-color);
   font-weight: 500;
 }
 .delete-btn {
   color: var(--red);
-  border: 1px solid var(--red);
+  border: 1rpx solid var(--red);
   border-radius: var(--radius-sm);
-  padding: 12rpx 24rpx;
+  padding: 16rpx 28rpx;
   font-size: 26rpx;
-  background: var(--white);
+  background: transparent;
   transition: var(--transition);
 }
 .delete-btn:active {
   background: var(--red);
   color: var(--white);
 }
-
 .total-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background: var(--white);
-  padding: 20rpx 30rpx;
+  padding: 24rpx 32rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--border-color);
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.03);
+  border-top: 1rpx solid var(--border-color);
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.04);
   z-index: 99;
 }
 .total-text {
-  font-size: 34rpx;
-  font-weight: bold;
+  font-size: 36rpx;
+  font-weight: 700;
   color: var(--text-color);
 }
 .pay-btn {
   background: var(--primary-color);
   color: var(--white);
   border-radius: var(--radius-full);
-  padding: 20rpx 50rpx;
+  padding: 24rpx 60rpx;
   font-size: 30rpx;
   border: none;
   transition: var(--transition);
@@ -515,10 +521,8 @@ export default {
 }
 .pay-btn:disabled {
   background: var(--text-gray);
-  color: var(--white);
 }
 .pay-btn:active:not(:disabled) {
-  background: #1e42c8;
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 </style>

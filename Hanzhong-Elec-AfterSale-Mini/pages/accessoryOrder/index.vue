@@ -277,11 +277,21 @@ export default {
 </script>
 
 <style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+page {
+  background: #f8f9fa;
+}
+
 .order-page {
   min-height: 100vh;
   background: #f8f9fa;
   padding: 0;
-  box-sizing: border-box;
 }
 
 .loading-wrap,
@@ -290,12 +300,12 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 150rpx 40rpx;
+  padding: 180rpx 40rpx;
 }
 
 .loading-icon {
   animation: spin 1s linear infinite;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
 }
 
 .loading-text,
@@ -305,15 +315,16 @@ export default {
 }
 
 .empty-icon {
-  margin-bottom: 30rpx;
+  margin-bottom: 32rpx;
+  opacity: 0.6;
 }
 
 .empty-text {
-  margin-bottom: 40rpx;
+  margin-bottom: 48rpx;
 }
 
 .empty-btn {
-  width: 60%;
+  width: 320rpx;
   height: 88rpx;
   line-height: 88rpx;
   background: #2f54eb;
@@ -321,20 +332,32 @@ export default {
   border-radius: 44rpx;
   font-size: 30rpx;
   border: none;
+  transition: all 0.2s ease;
+}
+
+.empty-btn:active {
+  transform: scale(0.96);
+  opacity: 0.9;
 }
 
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
-  padding: 20rpx;
+  gap: 24rpx;
+  padding: 24rpx;
 }
 
 .order-item {
   background: #fff;
-  border-radius: 16rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.order-item:active {
+  transform: translateY(-4rpx);
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.08);
 }
 
 .order-header {
@@ -342,8 +365,8 @@ export default {
   justify-content: space-between;
   align-items: center;
   gap: 20rpx;
-  padding: 24rpx 30rpx 18rpx;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 32rpx 32rpx 20rpx;
+  border-bottom: 1rpx solid #f5f5f5;
 }
 
 .order-no {
@@ -356,44 +379,45 @@ export default {
 .status-tag {
   font-size: 24rpx;
   font-weight: 500;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
   white-space: nowrap;
 }
 
 .status-pending {
-  background-color: #fff3e0;
-  color: #ff7300;
+  background-color: #fff7e8;
+  color: #ff7d00;
 }
 
 .status-shipped {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: #e8f4ff;
+  color: #1677ff;
 }
 
 .status-completed {
-  background-color: #f0fff4;
-  color: #07c160;
+  background-color: #e8fff4;
+  color: #00b46a;
 }
 
 .status-canceled,
 .status-unknown {
-  background-color: #f5f5f5;
-  color: #999;
+  background-color: #f7f8fa;
+  color: #8c8c8c;
 }
 
 .order-body {
   display: flex;
-  gap: 20rpx;
-  padding: 24rpx 30rpx;
+  gap: 24rpx;
+  padding: 32rpx;
 }
 
 .cover-image {
   width: 180rpx;
   height: 180rpx;
-  border-radius: 12rpx;
+  border-radius: 16rpx;
   background: #f5f5f5;
   flex-shrink: 0;
+  object-fit: cover;
 }
 
 .order-info {
@@ -403,18 +427,18 @@ export default {
 
 .accessory-name {
   display: block;
-  font-size: 30rpx;
+  font-size: 32rpx;
   color: #333;
   font-weight: 600;
-  margin-bottom: 12rpx;
+  margin-bottom: 16rpx;
   word-break: break-all;
 }
 
 .order-line {
   display: block;
-  font-size: 25rpx;
+  font-size: 26rpx;
   color: #666;
-  line-height: 1.7;
+  line-height: 1.8;
   word-break: break-all;
 }
 
@@ -423,8 +447,8 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 20rpx;
-  padding: 18rpx 30rpx 24rpx;
-  border-top: 1px solid #f5f5f5;
+  padding: 20rpx 32rpx 32rpx;
+  border-top: 1rpx solid #f5f5f5;
 }
 
 .create-time {
@@ -444,9 +468,15 @@ export default {
   padding: 0 24rpx;
   background: #f0f5ff;
   color: #2f54eb;
-  border: 1px solid #b7ccff;
+  border: 1rpx solid #d0e0ff;
   border-radius: 28rpx;
   font-size: 24rpx;
+  transition: all 0.2s ease;
+}
+
+.after-sale-btn:active {
+  transform: scale(0.95);
+  background: #e0ebff;
 }
 
 .load-more {
@@ -455,12 +485,18 @@ export default {
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  padding: 24rpx 0 40rpx;
+  padding: 32rpx 0 60rpx;
   color: #666;
+  transition: all 0.2s ease;
+}
+
+.load-more:active:not(.disabled) {
+  transform: scale(0.98);
 }
 
 .load-more.disabled {
   color: #999;
+  pointer-events: none;
 }
 
 .load-more-text {
@@ -476,7 +512,6 @@ export default {
   0% {
     transform: rotate(0deg);
   }
-
   100% {
     transform: rotate(360deg);
   }

@@ -114,10 +114,10 @@
     }
   ],
   "tabBar": {
-    "color": "#666",
+    "color": "#86909c",
     "selectedColor": "#2f54eb",
-    "backgroundColor": "#fff",
-    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",

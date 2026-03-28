@@ -59,7 +59,7 @@
     </view>
 
     <view v-else class="order-list">
-      <view v-if="filteredList.length === 0" class="tab-hint-card">
+      <view class="tab-hint-card" v-if="filteredList.length === 0">
         <text class="tab-hint-title">当前页还没有命中 {{ currentTabLabel }}</text>
         <text class="tab-hint-desc">可以继续加载更多订单，或者切换到“全部订单”查看当前已加载数据。</text>
       </view>
@@ -171,7 +171,7 @@ export default {
       actioningOrderId: null,
       errorMessage: '',
       LOGIN_PATH: '/pages/profile/login'
-    }
+    };
   },
   computed: {
     currentTabLabel() {
@@ -473,395 +473,374 @@ export default {
 <style scoped>
 .merchant-order-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f4f8ff 0%, #f8fafc 26%, #f6f7fb 100%);
-  padding: 24rpx;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 20rpx;
   box-sizing: border-box;
 }
-
 .hero-card {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 24rpx;
-  padding: 30rpx;
-  border-radius: 24rpx;
-  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 48%, #60a5fa 100%);
+  padding: 40rpx 32rpx;
+  border-radius: 28rpx;
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
   color: #fff;
-  box-shadow: 0 16rpx 36rpx rgba(37, 99, 235, 0.2);
+  box-shadow: 0 20rpx 48rpx rgba(59, 130, 246, 0.25);
+  margin-bottom: 24rpx;
+  position: relative;
+  overflow: hidden;
 }
-
 .hero-copy {
   flex: 1;
+  z-index: 2;
 }
-
 .hero-title {
   display: block;
-  font-size: 38rpx;
+  font-size: 42rpx;
   font-weight: 700;
+  letter-spacing: 1rpx;
 }
-
 .hero-desc {
   display: block;
   margin-top: 12rpx;
-  font-size: 24rpx;
+  font-size: 26rpx;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.85);
 }
-
 .hero-badge {
   min-width: 160rpx;
-  padding: 18rpx 20rpx;
+  padding: 20rpx;
   border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.18);
   text-align: center;
-  align-self: center;
+  backdrop-filter: blur(10rpx);
+  z-index: 2;
 }
-
 .hero-badge-label {
   display: block;
   font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.8);
 }
-
 .hero-badge-value {
   display: block;
   margin-top: 8rpx;
-  font-size: 28rpx;
-  font-weight: 600;
+  font-size: 30rpx;
+  font-weight: 700;
 }
-
 .tab-bar {
   display: flex;
-  margin-top: 24rpx;
-  padding: 10rpx;
+  padding: 8rpx;
   border-radius: 999rpx;
-  background: #fff;
-  box-shadow: 0 10rpx 28rpx rgba(15, 23, 42, 0.06);
+  background: #ffffff;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
+  margin-bottom: 24rpx;
 }
-
 .tab-item {
   flex: 1;
   text-align: center;
-  padding: 18rpx 0;
+  padding: 20rpx 0;
   border-radius: 999rpx;
   font-size: 28rpx;
   color: #64748b;
+  transition: all 0.25s ease;
 }
-
 .tab-item.active {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
   color: #fff;
   font-weight: 600;
+  box-shadow: 0 6rpx 16rpx rgba(59, 130, 246, 0.3);
 }
-
 .summary-strip {
   display: flex;
-  gap: 18rpx;
-  margin-top: 24rpx;
+  gap: 20rpx;
+  margin-bottom: 28rpx;
 }
-
 .summary-card {
   flex: 1;
-  padding: 22rpx 18rpx;
-  border-radius: 20rpx;
+  padding: 28rpx 20rpx;
+  border-radius: 24rpx;
   background: #fff;
-  box-shadow: 0 12rpx 24rpx rgba(15, 23, 42, 0.06);
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.05);
   text-align: center;
+  transition: all 0.2s ease;
 }
-
+.summary-card:active {
+  transform: scale(0.97);
+}
 .summary-label {
   display: block;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #64748b;
 }
-
 .summary-value {
   display: block;
   margin-top: 10rpx;
-  font-size: 28rpx;
+  font-size: 32rpx;
   color: #0f172a;
-  font-weight: 600;
+  font-weight: 700;
 }
-
 .notice-card {
-  margin-top: 24rpx;
-  padding: 24rpx 26rpx;
-  border-radius: 22rpx;
-  background: linear-gradient(135deg, #fff7e6 0%, #fff1d6 100%);
+  margin-bottom: 24rpx;
+  padding: 28rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
   box-shadow: 0 12rpx 24rpx rgba(217, 119, 6, 0.08);
 }
-
 .notice-head {
   display: flex;
   align-items: center;
 }
-
 .notice-title {
   margin-left: 12rpx;
   font-size: 28rpx;
   font-weight: 600;
-  color: #c2410c;
+  color: #d97706;
 }
-
 .notice-desc {
   display: block;
   margin-top: 12rpx;
-  font-size: 24rpx;
+  font-size: 25rpx;
   line-height: 1.7;
-  color: #7c5a11;
+  color: #92400e;
 }
-
 .loading-wrap,
 .empty-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 140rpx 40rpx;
+  padding: 120rpx 40rpx;
 }
-
 .loading-icon {
   animation: spin 1s linear infinite;
   margin-bottom: 20rpx;
 }
-
 .loading-text,
 .empty-desc {
   font-size: 26rpx;
   color: #64748b;
 }
-
 .empty-title {
   margin-top: 26rpx;
   font-size: 34rpx;
   font-weight: 600;
   color: #0f172a;
 }
-
 .empty-desc {
   margin-top: 16rpx;
   line-height: 1.7;
   text-align: center;
 }
-
 .empty-btn {
-  width: 58%;
-  height: 84rpx;
-  line-height: 84rpx;
+  width: 380rpx;
+  height: 80rpx;
+  line-height: 80rpx;
   margin-top: 36rpx;
   border: none;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #fff;
   font-size: 28rpx;
   font-weight: 600;
+  box-shadow: 0 12rpx 28rpx rgba(59, 130, 246, 0.25);
+  transition: all 0.2s ease;
 }
-
+.empty-btn:active {
+  transform: scale(0.96);
+}
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
-  margin-top: 24rpx;
+  gap: 24rpx;
 }
-
 .tab-hint-card {
-  padding: 26rpx 28rpx;
-  border-radius: 22rpx;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 12rpx 24rpx rgba(15, 23, 42, 0.05);
+  padding: 32rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 12rpx 28rpx rgba(0, 0, 0, 0.05);
 }
-
 .tab-hint-title {
   display: block;
   font-size: 28rpx;
   font-weight: 600;
   color: #0f172a;
 }
-
 .tab-hint-desc {
   display: block;
   margin-top: 10rpx;
-  font-size: 24rpx;
+  font-size: 25rpx;
   line-height: 1.7;
   color: #64748b;
 }
-
 .order-card {
-  background: rgba(255, 255, 255, 0.96);
-  border-radius: 24rpx;
-  box-shadow: 0 14rpx 28rpx rgba(15, 23, 42, 0.08);
+  background: #ffffff;
+  border-radius: 28rpx;
+  box-shadow: 0 16rpx 36rpx rgba(0, 0, 0, 0.06);
   overflow: hidden;
+  transition: all 0.25s ease;
 }
-
+.order-card:active {
+  transform: scale(0.985);
+}
 .order-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20rpx;
-  padding: 24rpx 28rpx 18rpx;
-  border-bottom: 1px solid #eef2f7;
+  padding: 28rpx 32rpx 20rpx;
+  border-bottom: 1rpx solid #f1f5f9;
 }
-
 .order-no-wrap {
   flex: 1;
   min-width: 0;
 }
-
 .order-no-label {
   display: block;
   font-size: 22rpx;
-  color: #64748b;
+  color: #94a3b8;
 }
-
 .order-no {
   display: block;
   margin-top: 8rpx;
   font-size: 26rpx;
   color: #0f172a;
   word-break: break-all;
+  font-weight: 500;
 }
-
 .status-tag {
   flex-shrink: 0;
-  padding: 8rpx 18rpx;
+  padding: 10rpx 20rpx;
   border-radius: 999rpx;
   font-size: 24rpx;
   font-weight: 600;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
-
 .status-pending {
-  background: #fff3e0;
-  color: #ea580c;
+  background: #fef3c7;
+  color: #d97706;
 }
-
 .status-shipped {
-  background: #e0f2fe;
-  color: #0284c7;
+  background: #dbeafe;
+  color: #2563eb;
 }
-
 .status-completed {
   background: #dcfce7;
-  color: #15803d;
+  color: #16a34a;
 }
-
 .status-canceled,
 .status-unknown {
   background: #f1f5f9;
   color: #64748b;
 }
-
 .order-card-body {
   display: flex;
-  gap: 20rpx;
-  padding: 24rpx 28rpx;
+  gap: 24rpx;
+  padding: 28rpx 32rpx;
 }
-
 .cover-image {
   width: 180rpx;
   height: 180rpx;
-  border-radius: 16rpx;
-  background: #f1f5f9;
+  border-radius: 20rpx;
+  background: #f8fafc;
   flex-shrink: 0;
+  object-fit: cover;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.06);
 }
-
 .order-info {
   flex: 1;
   min-width: 0;
 }
-
 .accessory-name {
   display: block;
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 700;
   color: #0f172a;
-  margin-bottom: 14rpx;
+  margin-bottom: 16rpx;
   word-break: break-all;
 }
-
 .order-line {
   display: block;
-  font-size: 24rpx;
+  font-size: 25rpx;
   line-height: 1.75;
   color: #475569;
   word-break: break-all;
+  margin-bottom: 6rpx;
 }
-
 .order-card-foot {
-  padding: 18rpx 28rpx 24rpx;
-  border-top: 1px solid #eef2f7;
+  padding: 20rpx 32rpx 28rpx;
+  border-top: 1rpx solid #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20rpx;
   flex-wrap: wrap;
+  gap: 20rpx;
 }
-
 .create-time {
   font-size: 22rpx;
   color: #94a3b8;
 }
-
 .action-group {
   display: flex;
   gap: 16rpx;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
-
 .action-btn {
   min-width: 160rpx;
-  height: 66rpx;
-  line-height: 66rpx;
+  height: 68rpx;
+  line-height: 68rpx;
   padding: 0 24rpx;
   border: none;
   border-radius: 999rpx;
   font-size: 24rpx;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 6rpx 16rpx rgba(0, 0, 0, 0.08);
 }
-
+.action-btn:disabled {
+  opacity: 0.6;
+}
+.action-btn:active {
+  transform: scale(0.95);
+}
 .primary-btn {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: #fff;
 }
-
 .success-btn {
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: #fff;
 }
-
 .warn-btn {
-  background: #fff1f2;
+  background: #fef2f2;
   color: #e11d48;
-  border: 1px solid #fecdd3;
 }
-
 .load-more {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8rpx;
-  padding: 24rpx 0 40rpx;
+  padding: 40rpx 0 60rpx;
+  transition: all 0.2s ease;
 }
-
+.load-more:active {
+  transform: scale(0.97);
+}
 .load-more.disabled {
-  opacity: 0.72;
+  opacity: 0.6;
+  pointer-events: none;
 }
-
 .load-more-text {
   font-size: 26rpx;
   color: #334155;
+  font-weight: 500;
 }
-
 .load-more-desc {
   font-size: 22rpx;
   color: #94a3b8;
 }
-
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>

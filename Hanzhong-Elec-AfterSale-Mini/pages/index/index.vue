@@ -79,15 +79,19 @@
         <text class="empty-text">暂无热门配件</text>
       </view>
 
-      <!-- 优化：横向滚动列表，更贴合商城商品展示 -->
-      <scroll-view class="list-scroll" scroll-x="true" v-else>
-        <view class="list">
-          <view 
-            class="item" 
-            v-for="item in hotAccessoryList" 
-            :key="item.id" 
-            @click="toAccessoryDetail(item)"
-          >
+      <swiper 
+        class="goods-swiper" 
+        autoplay 
+        circular 
+        indicator-dots
+        indicator-color="#e0e6f6"
+        indicator-active-color="#2f54eb"
+        interval="4000"
+        duration="800"
+        v-else
+      >
+        <swiper-item v-for="item in hotAccessoryList" :key="item.id">
+          <view class="swiper-item-box">
             <view class="img-wrap">
               <image 
                 :src="item.image" 
@@ -96,7 +100,6 @@
                 lazy-load
                 @error="imgError($event)"
               ></image>
-              <!-- 新增：价格标签 -->
               <view class="price-tag" v-if="item.originalPrice > item.price">
                 <text>省¥{{ item.originalPrice - item.price }}</text>
               </view>
@@ -107,8 +110,8 @@
               <text class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</text>
             </view>
           </view>
-        </view>
-      </scroll-view>
+        </swiper-item>
+      </swiper>
     </view>
   </view>
 </template>
@@ -143,9 +146,22 @@ export default {
   onLoad() {
     setTimeout(() => {
       this.hotAccessoryList = [
-        { id: 9, name: "电源适配器", price: 89, originalPrice: 129, image: "/static/images/accessory/adapter.png" },
-        { id: 1, name: "显示屏", price: 399, originalPrice: 499, image: "/static/images/accessory/laptop_screen.png" },
-        { id: 4, name: "数据线", price: 29, originalPrice: 49, image: "/static/images/accessory/typec_cable.png" }
+        { id: 1, name: "电源适配器", price: 89, originalPrice: 129, image: "/static/images/accessory/adapter.png" },
+        { id: 2, name: "手机电池", price: 129, originalPrice: 169, image: "/static/images/accessory/battery.png" },
+        { id: 3, name: "手机壳", price: 39, originalPrice: 59, image: "/static/images/accessory/case.png" },
+        { id: 4, name: "充电口", price: 49, originalPrice: 69, image: "/static/images/accessory/charging_port.png" },
+        { id: 6, name: "耳机", price: 199, originalPrice: 259, image: "/static/images/accessory/earphone.png" },
+        { id: 7, name: "手机膜", price: 29, originalPrice: 49, image: "/static/images/accessory/glass.png" },
+        { id: 8, name: "笔记本适配器", price: 129, originalPrice: 169, image: "/static/images/accessory/laptop_adapter.png" },
+        { id: 9, name: "笔记本电池", price: 299, originalPrice: 399, image: "/static/images/accessory/laptop_battery.png" },
+        { id: 10, name: "笔记本屏幕", price: 599, originalPrice: 799, image: "/static/images/accessory/laptop_screen.png" },
+        { id: 11, name: "手机屏幕", price: 399, originalPrice: 499, image: "/static/images/accessory/phone_screen.png" },
+        { id: 12, name: "扬声器", price: 89, originalPrice: 119, image: "/static/images/accessory/speaker.png" },
+        { id: 13, name: "固态硬盘", price: 399, originalPrice: 499, image: "/static/images/accessory/ssd.png" },
+        { id: 14, name: "平板电池", price: 199, originalPrice: 259, image: "/static/images/accessory/tablet_battery.png" },
+        { id: 15, name: "平板屏幕", price: 499, originalPrice: 649, image: "/static/images/accessory/tablet_screen.png" },
+        { id: 16, name: "Type-C数据线", price: 29, originalPrice: 49, image: "/static/images/accessory/typec_cable.png" },
+        { id: 17, name: "无线充电器", price: 129, originalPrice: 169, image: "/static/images/accessory/wireless_charger.png" }
       ]
     }, 300);
   },
@@ -177,11 +193,7 @@ export default {
         : '/pages/merchantDetail/index'
       wx.navigateTo({ url });
     },
-    toAccessoryDetail(item) {
-      wx.navigateTo({
-        url: `/pages/accessoryDetail/index?id=${item.id}&name=${item.name}&price=${item.price}&image=${item.image}&originalPrice=${item.originalPrice}`
-      });
-    }
+    toAccessoryDetail(item) {}
   }
 }
 </script>
@@ -190,38 +202,39 @@ export default {
 :root {
   --primary-color: #2f54eb;
   --light-primary: #f0f5ff;
-  --text-color: #333;
-  --text-gray: #999;
-  --price-color: #ff4d4f;
-  --bg-color: #f8f8f8;
-  --white: #fff;
-  --shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-  --shadow-deep: 0 6rpx 16rpx rgba(0, 0, 0, 0.08);
-  --radius-sm: 8rpx;
-  --radius-md: 12rpx;
-  --radius-lg: 16rpx;
+  --grad-primary: linear-gradient(135deg, #4d6fff, #2f54eb);
+  --text-color: #1d2129;
+  --text-gray: #86909c;
+  --price-color: #ff3d3d;
+  --bg-color: linear-gradient(135deg, #f7f8fa, #f0f2f5);
+  --white: #ffffff;
+  --shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.04);
+  --shadow-deep: 0 6rpx 16rpx rgba(0, 0, 0, 0.06);
+  --radius-sm: 12rpx;
+  --radius-md: 18rpx;
+  --radius-lg: 24rpx;
   --radius-circle: 50%;
-  --transition: all 0.3s ease;
+  --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 
 .home-page {
   min-height: 100vh;
-  background-color: var(--bg-color);
-  padding: 0 16rpx 100rpx 16rpx;
+  background: var(--bg-color);
+  padding: 0 24rpx 120rpx 24rpx;
   margin-top: 0;
 }
 
 .banner-wrap {
-  margin: 0 0 20rpx 0;
+  margin: 0 0 32rpx 0;
   overflow: hidden;
-  box-shadow: var(--shadow-deep);
+  box-shadow: var(--shadow);
   position: relative;
   width: 100vw;
-  margin-left: -16rpx;
-  border-radius: 0;
+  margin-left: -24rpx;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 .banner {
-  height: 340rpx;
+  height: 380rpx;
   width: 100%;
 }
 .banner-item {
@@ -233,37 +246,40 @@ export default {
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: cover;
 }
 .banner-mask {
   position: absolute;
   left: 0;
   bottom: 0;
   width: 100%;
-  padding: 40rpx 32rpx;
-  background: linear-gradient(transparent, rgba(0,0,0,0.6));
+  padding: 60rpx 40rpx;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
 }
 .banner-title {
-  font-size: 40rpx;
-  font-weight: bold;
+  font-size: 44rpx;
+  font-weight: 700;
   color: #fff;
-  margin-bottom: 8rpx;
-  text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.3);
+  margin-bottom: 12rpx;
+  text-shadow: 0 4rpx 8rpx rgba(0,0,0,0.4);
+  letter-spacing: 2rpx;
 }
 .banner-subtitle {
-  font-size: 26rpx;
-  color: rgba(255,255,255,0.9);
-  text-shadow: 0 1rpx 2rpx rgba(0,0,0,0.3);
+  font-size: 28rpx;
+  color: rgba(255,255,255,0.95);
+  text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.4);
+  font-weight: 300;
 }
 
 .func-list {
   display: flex;
   justify-content: space-around;
-  padding: 30rpx 20rpx;
-  background: linear-gradient(120deg, var(--white), #f9fbff);
-  margin: 20rpx 0;
+  padding: 40rpx 24rpx;
+  background: var(--white);
+  margin: 0 0 32rpx 0;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
@@ -271,13 +287,13 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 120rpx;
-  padding: 15rpx 10rpx;
+  width: 150rpx;
+  padding: 20rpx;
   border-radius: var(--radius-md);
   transition: var(--transition);
 }
 .func-item:active {
-  background-color: var(--light-primary);
+  background: var(--light-primary);
   transform: scale(0.95);
 }
 .icon-wrap {
@@ -288,19 +304,21 @@ export default {
   justify-content: center;
   background-color: var(--light-primary);
   border-radius: var(--radius-circle);
-  margin-bottom: 12rpx;
+  margin-bottom: 16rpx;
   box-shadow: var(--shadow);
 }
 .func-text {
   font-size: 26rpx;
   color: var(--text-color);
   font-weight: 500;
+  letter-spacing: 1rpx;
+  white-space: nowrap;
 }
 
 .hot-accessory {
   background: var(--white);
-  padding: 30rpx;
-  margin: 20rpx 0;
+  padding: 40rpx;
+  margin: 0 0 32rpx 0;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
@@ -308,116 +326,106 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 25rpx;
+  margin-bottom: 40rpx;
 }
 .title {
-  font-size: 32rpx;
-  font-weight: bold;
+  font-size: 36rpx;
+  font-weight: 700;
   color: var(--text-color);
   position: relative;
+  letter-spacing: 1rpx;
 }
 .title::after {
   content: '';
   position: absolute;
   left: 0;
-  bottom: -8rpx;
-  width: 40rpx;
-  height: 4rpx;
-  background-color: var(--primary-color);
-  border-radius: 2rpx;
+  bottom: -10rpx;
+  width: 48rpx;
+  height: 6rpx;
+  background: var(--grad-primary);
+  border-radius: 3rpx;
 }
 .more-text {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: var(--text-gray);
+  font-weight: 400;
 }
 
 .empty-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 60rpx 0;
+  padding: 80rpx 0;
 }
 .empty-text {
   font-size: 28rpx;
   color: var(--text-gray);
-  margin-top: 20rpx;
+  margin-top: 24rpx;
 }
 
-/* 优化：横向滚动容器 */
-.list-scroll {
-  white-space: nowrap;
-  width: 100%;
+.goods-swiper {
+  height: 460rpx;
 }
-.list {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 24rpx;
-  padding-bottom: 10rpx;
-}
-.item {
-  width: 200rpx;
+.swiper-item-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 15rpx;
+  padding: 20rpx 40rpx;
+}
+.img-wrap {
+  width: 280rpx;
+  height: 280rpx;
   border-radius: var(--radius-md);
-  background: var(--white);
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  background-color: #f7f8fa;
+  position: relative;
   box-shadow: var(--shadow);
   transition: var(--transition);
 }
-.item:active {
-  transform: translateY(-4rpx);
-  box-shadow: var(--shadow-deep);
-}
-.img-wrap {
-  width: 180rpx;
-  height: 180rpx;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  margin-bottom: 12rpx;
-  background-color: #f5f5f5;
-  position: relative;
+.img-wrap:active {
+  transform: scale(0.96);
 }
 .item-img {
   width: 100%;
   height: 100%;
+  object-fit: cover;
 }
-/* 新增：价格标签 */
 .price-tag {
   position: absolute;
-  top: 8rpx;
-  right: 8rpx;
-  background-color: var(--price-color);
+  top: 12rpx;
+  right: 12rpx;
+  background: var(--price-color);
   color: #fff;
-  font-size: 20rpx;
-  padding: 4rpx 8rpx;
+  font-size: 22rpx;
+  padding: 6rpx 12rpx;
   border-radius: var(--radius-sm);
+  font-weight: 500;
+  box-shadow: 0 4rpx 8rpx rgba(255,61,61,0.3);
 }
 .item-name {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: var(--text-color);
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
   text-align: center;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  width: 100%;
+  font-weight: 500;
+  line-height: 1.4;
+  max-width: 280rpx;
 }
 .price-wrap {
   display: flex;
   align-items: baseline;
-  gap: 8rpx;
+  gap: 12rpx;
 }
 .item-price {
-  font-size: 28rpx;
+  font-size: 34rpx;
   color: var(--price-color);
-  font-weight: bold;
+  font-weight: 700;
 }
 .original-price {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: var(--text-gray);
   text-decoration: line-through;
+  font-weight: 400;
 }
 </style>
