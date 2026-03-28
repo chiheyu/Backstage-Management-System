@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
-import { apiBaseUrl, commonApi, userApi } from '@/lib/api'
+import { apiBaseUrl, commonApi, merchantApi, userApi } from '@/lib/api'
 import { formatMoney, getRoleState, resolveImage, safeRows, shortText } from '@/lib/domain'
 import { addCartItem, formatAddress, getDefaultAddress, loadAddressList } from '@/lib/localData'
 import { pushNotice } from '@/lib/notice'
@@ -20,6 +20,10 @@ const router = useRouter()
 
 const loading = ref(true)
 const submitting = ref(false)
+const merchantSaving = ref(false)
+const merchantUploading = ref(false)
+const merchantDeleting = ref(false)
+const fileInput = ref(null)
 const accessory = ref(null)
 const relatedList = ref([])
 const addressList = ref(loadAddressList())
@@ -33,10 +37,48 @@ const orderForm = reactive({
   orderRemark: ''
 })
 
+const merchantForm = reactive({
+  accessoryId: '',
+  accessoryName: '',
+  categoryName: '',
+  accessoryDesc: '',
+  coverImage: '',
+  price: '',
+  stock: '',
+  status: '0'
+})
+
 const roleState = computed(() => getRoleState(session.roleType))
 const isMerchantMode = computed(() => roleState.value.isMerchant)
 const canOrder = computed(() => session.token && roleState.value.isUser && !roleState.value.isMerchant)
-const resolvedImage = computed(() => resolveImage(accessory.value?.coverImage, apiBaseUrl))
+const resolvedImage = computed(() => {
+  const imageUrl = isMerchantMode.value
+    ? merchantForm.coverImage || accessory.value?.coverImage
+    : accessory.value?.coverImage
+
+  return resolveImage(imageUrl, apiBaseUrl)
+})
+const merchantStatusBadge = computed(() => (
+  merchantForm.status === '0'
+    ? { label: '上架中', tone: 'success' }
+    : { label: '已下架', tone: 'muted' }
+))
+
+function normalizeAccessoryDetail(detail = {}) {
+  return {
+    ...detail,
+    accessoryId: detail.accessoryId,
+    accessoryName: detail.accessoryName || '未命名商品',
+    categoryName: detail.categoryName || '通用配件',
+    accessoryDesc: detail.accessoryDesc || '',
+    coverImage: detail.coverImage || '',
+    price: Number(detail.price || 0),
+    stock: Number(detail.stock || 0),
+    salesCount: Number(detail.salesCount || 0),
+    status: String(detail.status ?? '0'),
+    collected: Boolean(detail.collected)
+  }
+}
 
 function syncAddressOptions() {
   addressList.value = loadAddressList()
@@ -46,6 +88,7 @@ function applyAddress(address) {
   if (!address) {
     return
   }
+
   selectedAddressId.value = address.id
   orderForm.receiverName = address.name || ''
   orderForm.receiverPhone = address.phone || ''
@@ -59,11 +102,32 @@ function applyDefaultAddress() {
   }
 }
 
+function syncMerchantForm(detail = {}) {
+  merchantForm.accessoryId = detail.accessoryId ? String(detail.accessoryId) : ''
+  merchantForm.accessoryName = detail.accessoryName || ''
+  merchantForm.categoryName = detail.categoryName || ''
+  merchantForm.accessoryDesc = detail.accessoryDesc || ''
+  merchantForm.coverImage = detail.coverImage || ''
+  merchantForm.price = detail.price === 0 ? '0' : String(detail.price ?? '')
+  merchantForm.stock = detail.stock === 0 ? '0' : String(detail.stock ?? '')
+  merchantForm.status = String(detail.status ?? '0')
+}
+
 async function loadDetail() {
   loading.value = true
   try {
-    const detail = await commonApi.getAccessory(props.id)
+    const detailPayload = isMerchantMode.value
+      ? await merchantApi.getAccessory(props.id)
+      : await commonApi.getAccessory(props.id)
+    const detail = normalizeAccessoryDetail(detailPayload)
+
     accessory.value = detail
+
+    if (isMerchantMode.value) {
+      relatedList.value = []
+      syncMerchantForm(detail)
+      return
+    }
 
     orderForm.receiverName = session.appUser?.nickName || ''
     orderForm.receiverPhone = session.appUser?.phone || ''
@@ -81,6 +145,7 @@ async function loadDetail() {
     relatedList.value = safeRows(relatedPayload).filter(item => String(item.accessoryId) !== String(props.id))
   } catch (error) {
     accessory.value = null
+    relatedList.value = []
     pushNotice(error.message || '商品详情加载失败', 'danger')
   } finally {
     loading.value = false
@@ -200,8 +265,117 @@ async function submitOrder() {
   }
 }
 
+function openImagePicker() {
+  fileInput.value?.click()
+}
+
+async function handleMerchantImageChange(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) {
+    return
+  }
+
+  merchantUploading.value = true
+  try {
+    const payload = await merchantApi.uploadAccessoryImage(file)
+    merchantForm.coverImage = payload?.url || merchantForm.coverImage
+    pushNotice('图片上传成功', 'success')
+  } catch (error) {
+    pushNotice(error.message || '图片上传失败', 'danger')
+  } finally {
+    merchantUploading.value = false
+  }
+}
+
+function toggleShelfStatus() {
+  merchantForm.status = merchantForm.status === '0' ? '1' : '0'
+}
+
+function validateMerchantForm() {
+  if (!merchantForm.accessoryName.trim()) {
+    return '请输入商品名称'
+  }
+  if (!merchantForm.categoryName.trim()) {
+    return '请输入商品分类'
+  }
+  if (!merchantForm.price || Number(merchantForm.price) <= 0) {
+    return '请输入有效售价'
+  }
+  if (merchantForm.stock === '' || Number(merchantForm.stock) < 0) {
+    return '请输入有效库存'
+  }
+  return ''
+}
+
+async function saveMerchantGoods() {
+  if (!merchantForm.accessoryId) {
+    pushNotice('缺少商品编号，无法保存', 'danger')
+    return
+  }
+
+  const validationMessage = validateMerchantForm()
+  if (validationMessage) {
+    pushNotice(validationMessage, 'danger')
+    return
+  }
+  if (merchantSaving.value) {
+    return
+  }
+
+  merchantSaving.value = true
+  try {
+    await merchantApi.updateAccessory({
+      accessoryId: Number(merchantForm.accessoryId),
+      accessoryName: merchantForm.accessoryName.trim(),
+      categoryName: merchantForm.categoryName.trim(),
+      accessoryDesc: merchantForm.accessoryDesc.trim(),
+      coverImage: merchantForm.coverImage.trim(),
+      price: Number(merchantForm.price),
+      stock: Number(merchantForm.stock),
+      status: merchantForm.status
+    })
+    pushNotice('商品已更新', 'success')
+    await loadDetail()
+  } catch (error) {
+    pushNotice(error.message || '商品保存失败', 'danger')
+  } finally {
+    merchantSaving.value = false
+  }
+}
+
+async function deleteMerchantGoods() {
+  if (!accessory.value?.accessoryId || merchantDeleting.value) {
+    return
+  }
+
+  const confirmed = window.confirm(`确认删除商品“${merchantForm.accessoryName || accessory.value.accessoryName}”吗？`)
+  if (!confirmed) {
+    return
+  }
+
+  merchantDeleting.value = true
+  try {
+    await merchantApi.deleteAccessory(accessory.value.accessoryId)
+    pushNotice('商品已删除', 'success')
+    router.push({ name: 'merchant-accessories' })
+  } catch (error) {
+    pushNotice(error.message || '商品删除失败', 'danger')
+  } finally {
+    merchantDeleting.value = false
+  }
+}
+
 watch(
   () => props.id,
+  () => {
+    syncAddressOptions()
+    loadDetail()
+  }
+)
+
+watch(
+  () => session.roleType,
   () => {
     syncAddressOptions()
     loadDetail()
@@ -239,31 +413,39 @@ onMounted(() => {
           <div class="between-row accessory-main__top">
             <span class="eyebrow">{{ accessory.categoryName || '通用配件' }}</span>
             <StatusBadge
-              :label="isMerchantMode ? '只读浏览' : accessory.collected ? '已收藏' : '可购买'"
-              :tone="isMerchantMode ? 'muted' : accessory.collected ? 'warm' : 'brand'"
+              v-if="isMerchantMode"
+              v-bind="merchantStatusBadge"
+            />
+            <StatusBadge
+              v-else
+              :label="accessory.collected ? '已收藏' : '可购买'"
+              :tone="accessory.collected ? 'warm' : 'brand'"
             />
           </div>
 
-          <h1>{{ accessory.accessoryName }}</h1>
-          <p>{{ accessory.accessoryDesc || '适用于常见电子产品维修、更换和保养场景。' }}</p>
+          <h1>{{ isMerchantMode ? (merchantForm.accessoryName || accessory.accessoryName) : accessory.accessoryName }}</h1>
+          <p>{{ isMerchantMode ? (merchantForm.accessoryDesc || accessory.accessoryDesc || '请补充商品说明、适配型号和售后说明。') : (accessory.accessoryDesc || '适用于常见电子产品维修、更换和保养场景。') }}</p>
 
           <div class="accessory-price">
-            <strong>￥{{ formatMoney(accessory.price) }}</strong>
-            <span>库存 {{ accessory.stock || 0 }} / 销量 {{ accessory.salesCount || 0 }}</span>
+            <strong>￥{{ formatMoney(isMerchantMode ? merchantForm.price : accessory.price) }}</strong>
+            <span>
+              库存 {{ isMerchantMode ? merchantForm.stock || 0 : accessory.stock || 0 }}
+              / 销量 {{ accessory.salesCount || 0 }}
+            </span>
           </div>
 
           <div class="accessory-points">
             <article>
-              <strong>{{ isMerchantMode ? '当前模式' : '库存透明' }}</strong>
-              <span>{{ isMerchantMode ? '商家网页端当前只接入商品只读浏览能力。' : '下单前即可查看当前库存和销量。' }}</span>
+              <strong>{{ isMerchantMode ? '商品维护' : '库存透明' }}</strong>
+              <span>{{ isMerchantMode ? '网页端商品详情页现在和小程序一致，可直接修改商品名称、分类、价格、库存、图片和上下架状态。' : '下单前即可查看当前库存和销量。' }}</span>
             </article>
             <article>
-              <strong>{{ isMerchantMode ? '接口适配' : '收藏便捷' }}</strong>
-              <span>{{ isMerchantMode ? '后端未开放商品管理接口，已自动关闭编辑和上传操作。' : '常用配件可随时加入或取消收藏。' }}</span>
+              <strong>{{ isMerchantMode ? '接口复用' : '收藏便捷' }}</strong>
+              <span>{{ isMerchantMode ? '详情页直接复用现有商家商品接口，不改后端结构，也不影响小程序端。' : '常用配件可随时加入或取消收藏。' }}</span>
             </article>
             <article>
-              <strong>{{ isMerchantMode ? '售后衔接' : '售后衔接' }}</strong>
-              <span>{{ isMerchantMode ? '商家如需处理售后，请前往售后工单和回执页面。' : '购买后如需维修，可继续提交相关售后申请。' }}</span>
+              <strong>售后衔接</strong>
+              <span>{{ isMerchantMode ? '如需继续处理商家业务，可前往商品管理、配件订单和售后工单页面。' : '购买后如需维修，可继续提交相关售后申请。' }}</span>
             </article>
           </div>
 
@@ -278,8 +460,8 @@ onMounted(() => {
               </RouterLink>
             </template>
             <template v-else>
-              <RouterLink class="btn btn--ghost" :to="{ name: 'after-sales-orders', query: { mode: 'pending' } }">售后工单</RouterLink>
-              <RouterLink class="btn btn--primary" :to="{ name: 'merchant-settings' }">店铺设置</RouterLink>
+              <RouterLink class="btn btn--ghost" :to="{ name: 'merchant-accessories' }">返回商品管理</RouterLink>
+              <RouterLink class="btn btn--primary" :to="{ name: 'merchant-accessory-orders' }">查看配件订单</RouterLink>
             </template>
           </div>
         </div>
@@ -290,32 +472,83 @@ onMounted(() => {
           <template v-if="isMerchantMode">
             <div class="section-head">
               <div>
-                <span class="eyebrow">能力说明</span>
-                <h2>商家网页端当前为只读商品页</h2>
-                <p>当前后端没有开放商家商品查询/编辑接口，因此网页端只保留详情浏览，不再请求商品管理相关地址。</p>
+                <span class="eyebrow">商品编辑</span>
+                <h2>直接维护当前商品</h2>
+                <p>这里按小程序商家详情页的交互补齐了商品编辑能力，支持修改、上下架、图片上传和删除。</p>
               </div>
             </div>
 
-            <div class="related-list">
-              <article class="related-card">
-                <div>
-                  <strong>已保留</strong>
-                  <p>公共配件详情浏览、库存查看、商品说明查看。</p>
+            <form class="order-form merchant-form" @submit.prevent="saveMerchantGoods">
+              <div class="field-row">
+                <label>
+                  <span>商品名称</span>
+                  <input v-model.trim="merchantForm.accessoryName" class="field" placeholder="请输入商品名称" />
+                </label>
+                <label>
+                  <span>商品分类</span>
+                  <input v-model.trim="merchantForm.categoryName" class="field" placeholder="请输入商品分类" />
+                </label>
+              </div>
+
+              <div class="field-row">
+                <label>
+                  <span>售价</span>
+                  <input v-model.trim="merchantForm.price" class="field" type="number" min="0" step="0.01" placeholder="请输入售价" />
+                </label>
+                <label>
+                  <span>库存</span>
+                  <input v-model.trim="merchantForm.stock" class="field" type="number" min="0" step="1" placeholder="请输入库存" />
+                </label>
+              </div>
+
+              <label>
+                <span>图片地址</span>
+                <div class="field-row">
+                  <input v-model.trim="merchantForm.coverImage" class="field" placeholder="支持直接填写图片地址或上传图片" />
+                  <button type="button" class="btn btn--ghost btn--small" :disabled="merchantUploading" @click="openImagePicker">
+                    {{ merchantUploading ? '上传中...' : '上传图片' }}
+                  </button>
                 </div>
-              </article>
-              <article class="related-card">
-                <div>
-                  <strong>已关闭</strong>
-                  <p>商品编辑、图片上传、上架下架、商家商品管理列表。</p>
+              </label>
+
+              <label>
+                <span>商品详情</span>
+                <textarea
+                  v-model.trim="merchantForm.accessoryDesc"
+                  class="textarea"
+                  placeholder="请输入商品详情、适配型号和售后说明"
+                ></textarea>
+              </label>
+
+              <div class="surface-card merchant-summary-card">
+                <div class="merchant-summary-grid">
+                  <article>
+                    <strong>商品编号</strong>
+                    <span>{{ accessory.accessoryId }}</span>
+                  </article>
+                  <article>
+                    <strong>累计销量</strong>
+                    <span>{{ accessory.salesCount || 0 }}</span>
+                  </article>
+                  <article>
+                    <strong>当前状态</strong>
+                    <span>{{ merchantStatusBadge.label }}</span>
+                  </article>
                 </div>
-              </article>
-              <article class="related-card">
-                <div>
-                  <strong>建议入口</strong>
-                  <p>如需处理商家业务，请使用售后工单、售后回执和店铺设置页面。</p>
-                </div>
-              </article>
-            </div>
+              </div>
+
+              <div class="action-row merchant-form__footer">
+                <button type="button" class="btn btn--ghost" @click="toggleShelfStatus">
+                  {{ merchantForm.status === '0' ? '切换为下架' : '切换为上架' }}
+                </button>
+                <button type="button" class="btn btn--ghost" :disabled="merchantDeleting" @click="deleteMerchantGoods">
+                  {{ merchantDeleting ? '删除中...' : '删除商品' }}
+                </button>
+                <button class="btn btn--primary" :disabled="merchantSaving">
+                  {{ merchantSaving ? '保存中...' : '保存商品' }}
+                </button>
+              </div>
+            </form>
           </template>
 
           <template v-else>
@@ -397,9 +630,9 @@ onMounted(() => {
         <section class="surface-card section-card">
           <div class="section-head">
             <div>
-              <span class="eyebrow">{{ isMerchantMode ? '只读提示' : '同类推荐' }}</span>
-              <h2>{{ isMerchantMode ? '商家端说明' : '同类推荐' }}</h2>
-              <p v-if="isMerchantMode">当前商品详情页不会再发起商家商品管理请求，因此不会触发右上角失败弹窗。</p>
+              <span class="eyebrow">{{ isMerchantMode ? '公开预览' : '同类推荐' }}</span>
+              <h2>{{ isMerchantMode ? '商品展示信息' : '同类推荐' }}</h2>
+              <p v-if="isMerchantMode">当前页面右侧保留对外展示视角和业务提示，方便边改边确认商品信息是否完整。</p>
               <p v-else>继续浏览同类配件，方便一次完成选购。</p>
             </div>
           </div>
@@ -419,27 +652,53 @@ onMounted(() => {
               </div>
             </RouterLink>
           </div>
+
           <div v-else-if="isMerchantMode" class="related-list">
-            <article class="related-card">
+            <article class="related-card related-card--single">
               <div>
-                <strong>售后工单</strong>
-                <p>进入售后工单页处理接单、维修中和已完成的工单。</p>
+                <strong>当前对外展示</strong>
+                <p>{{ merchantForm.accessoryName || accessory.accessoryName }}</p>
+                <span>{{ merchantForm.categoryName || accessory.categoryName || '通用配件' }}</span>
               </div>
             </article>
-            <article class="related-card">
+            <article class="related-card related-card--single">
               <div>
-                <strong>售后回执</strong>
-                <p>进入回执页填写检测结果和完工说明，推动工单流转。</p>
+                <strong>价格与库存</strong>
+                <p>售价 ￥{{ formatMoney(merchantForm.price) }}</p>
+                <span>库存 {{ merchantForm.stock || 0 }} / 销量 {{ accessory.salesCount || 0 }}</span>
+              </div>
+            </article>
+            <article class="related-card related-card--single">
+              <div>
+                <strong>状态提醒</strong>
+                <p>{{ merchantStatusBadge.label }}</p>
+                <span>下架商品不会在用户公开商城中展示。</span>
+              </div>
+            </article>
+            <article class="related-card related-card--single">
+              <div>
+                <strong>后续操作</strong>
+                <p>如需处理商城订单或售后工单，可直接前往对应商家页面继续操作。</p>
+                <span>不修改小程序前端，也不修改后端接口。</span>
               </div>
             </article>
           </div>
+
           <EmptyState
             v-else
-            :title="isMerchantMode ? '暂无更多提示' : '暂无推荐'"
-            :description="isMerchantMode ? '当前商品页已调整为只读浏览，无需额外处理。' : '同分类下暂时没有更多可展示的配件。'"
+            title="暂无推荐"
+            description="同分类下暂时没有更多可展示的配件。"
           />
         </section>
       </section>
+
+      <input
+        ref="fileInput"
+        class="file-input"
+        type="file"
+        accept="image/*"
+        @change="handleMerchantImageChange"
+      />
     </template>
   </section>
 </template>
@@ -518,7 +777,8 @@ onMounted(() => {
 
 .accessory-points strong,
 .related-card strong,
-.order-summary strong {
+.order-summary strong,
+.merchant-summary-card strong {
   display: block;
   margin-bottom: 6px;
 }
@@ -544,6 +804,34 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 700;
   color: var(--primary-deep);
+}
+
+.merchant-summary-card {
+  padding: 18px 20px;
+  border-radius: 24px;
+}
+
+.merchant-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.merchant-summary-grid article {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(17, 61, 77, 0.08);
+}
+
+.merchant-summary-grid span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.merchant-form__footer {
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .order-summary {
@@ -576,6 +864,10 @@ onMounted(() => {
   border: 1px solid rgba(17, 61, 77, 0.08);
 }
 
+.related-card--single {
+  grid-template-columns: 1fr;
+}
+
 .related-card img {
   width: 108px;
   height: 108px;
@@ -592,6 +884,10 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.file-input {
+  display: none;
+}
+
 @media (max-width: 980px) {
   .accessory-hero,
   .accessory-grid {
@@ -602,7 +898,8 @@ onMounted(() => {
 @media (max-width: 720px) {
   .order-summary,
   .field-row,
-  .related-card {
+  .related-card,
+  .merchant-summary-grid {
     display: grid;
   }
 

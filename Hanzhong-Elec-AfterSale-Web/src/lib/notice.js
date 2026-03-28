@@ -14,12 +14,13 @@ let lastNotice = {
 export function pushNotice(message, tone = 'info', duration = 2600) {
   const normalizedMessage = String(message || '').trim()
   const now = Date.now()
+  const dedupeWindow = tone === 'danger' ? 4200 : 1600
 
   if (
     normalizedMessage &&
     normalizedMessage === lastNotice.message &&
     tone === lastNotice.tone &&
-    now - lastNotice.time < 1600
+    now - lastNotice.time < dedupeWindow
   ) {
     return
   }

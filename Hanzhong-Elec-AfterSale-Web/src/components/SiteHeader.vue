@@ -23,13 +23,14 @@ const navItems = computed(() => {
       { label: '首页', to: { name: 'home' } },
       { label: '售后工单', to: { name: 'after-sales-orders', query: { mode: 'pending' } } },
       { label: '售后回执', to: { name: 'after-sales-apply' } },
+      { label: '配件订单', to: { name: 'merchant-accessory-orders' } },
+      { label: '商品管理', to: { name: 'merchant-accessories' } },
       { label: '工作台', to: { name: 'cart' } },
       {
         label: '我的店铺',
         to: merchantStoreLink.value,
         matchNames: ['merchant-detail', 'merchant-settings']
       },
-      { label: '配件商城', to: { name: 'mall' } },
       { label: '个人中心', to: { name: 'profile' } }
     ]
   }
@@ -69,13 +70,14 @@ async function handleLogout() {
     <div class="page-shell site-header__inner">
       <RouterLink class="site-brand" :to="{ name: 'home' }">
         <span class="site-brand__mark">售</span>
-        <span>
+        <span class="site-brand__copy">
+          <small class="site-brand__eyebrow">WEB PORTAL</small>
           <strong>汉中电子售后服务平台</strong>
           <small>配件商城 / 售后申请 / 商家服务</small>
         </span>
       </RouterLink>
 
-      <nav class="site-nav">
+      <nav class="site-nav" aria-label="Primary">
         <RouterLink
           v-for="item in navItems"
           :key="item.label"
@@ -90,8 +92,12 @@ async function handleLogout() {
       <div class="site-auth">
         <template v-if="session.token">
           <div class="site-auth__profile">
-            <strong>{{ session.appUser?.nickName || session.appUser?.phone || '已登录' }}</strong>
-            <span>{{ roleLabel }}</span>
+            <small class="site-auth__eyebrow">CURRENT ROLE</small>
+            <strong>{{ session.appUser?.nickName || session.appUser?.phone || '已登录用户' }}</strong>
+            <div class="site-auth__meta">
+              <span class="site-auth__badge">{{ roleLabel }}</span>
+              <span>{{ session.appUser?.phone || 'Mobile account' }}</span>
+            </div>
           </div>
           <button class="btn btn--ghost btn--small" @click="handleLogout">退出</button>
         </template>

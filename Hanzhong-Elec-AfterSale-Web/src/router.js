@@ -13,6 +13,7 @@ import MerchantSettingsView from '@/views/MerchantSettingsView.vue'
 import CartView from '@/views/CartView.vue'
 import AddressView from '@/views/AddressView.vue'
 import MerchantAccessoryOrdersView from '@/views/MerchantAccessoryOrdersView.vue'
+import MerchantAccessoriesView from '@/views/MerchantAccessoriesView.vue'
 import { bootstrapSession } from '@/lib/session'
 
 const router = createRouter({
@@ -31,6 +32,7 @@ const router = createRouter({
     { path: '/addresses', name: 'addresses', component: AddressView },
     { path: '/profile', name: 'profile', component: ProfileView },
     { path: '/merchant/settings', name: 'merchant-settings', component: MerchantSettingsView },
+    { path: '/merchant/accessories', name: 'merchant-accessories', component: MerchantAccessoriesView },
     { path: '/merchant/accessory-orders', name: 'merchant-accessory-orders', component: MerchantAccessoryOrdersView }
   ],
   scrollBehavior() {

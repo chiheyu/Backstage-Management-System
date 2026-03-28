@@ -145,7 +145,7 @@ onMounted(() => {
         <h1>{{ roleState.isMerchant ? '商家浏览公共配件数据' : '筛选在售配件' }}</h1>
         <p>
           {{ roleState.isMerchant
-            ? '后端当前未开放网页商家商品管理接口，这里只保留公共配件浏览和详情查看，不再进入管理模式。'
+            ? '这里是用户侧公开商城视图，商家可在这里预览公开商品展示效果；真正的商品维护请前往商品管理页。'
             : '按名称、分类和价格区间筛选，快速找到合适的维修配件。' }}
         </p>
       </div>
@@ -216,7 +216,7 @@ onMounted(() => {
           <div class="between-row">
             <span class="mall-card__tag">{{ item.categoryName || '通用配件' }}</span>
             <StatusBadge
-              :label="roleState.isMerchant ? '只读浏览' : item.collected ? '已收藏' : '可加购'"
+              :label="roleState.isMerchant ? '公开视图' : item.collected ? '已收藏' : '可加购'"
               :tone="roleState.isMerchant ? 'muted' : item.collected ? 'warm' : 'brand'"
             />
           </div>
@@ -261,18 +261,24 @@ onMounted(() => {
     <section class="surface-card section-card mall-footer-card">
       <div>
         <h2>{{ roleState.isMerchant ? '商家说明' : '下单提示' }}</h2>
-        <p v-if="roleState.isMerchant">商家当前只能浏览配件公开信息和详情页，网页端不会再请求不存在的商品管理接口。</p>
+        <p v-if="roleState.isMerchant">这里继续保留公开商城预览；商品维护和商家订单处理请分别前往“商品管理”和“配件订单”页面。</p>
         <p v-else>普通用户可先加入购物车再统一结算，也可以直接在详情页下单和收藏。</p>
       </div>
       <div class="action-row">
-        <button class="btn btn--ghost btn--small" :disabled="filters.pageNum <= 1" @click="changePage(-1)">上一页</button>
-        <button
-          class="btn btn--primary btn--small"
-          :disabled="filters.pageNum >= Math.max(1, Math.ceil(state.total / filters.pageSize))"
-          @click="changePage(1)"
-        >
-          下一页
-        </button>
+        <template v-if="roleState.isMerchant">
+          <button class="btn btn--ghost btn--small" @click="router.push({ name: 'merchant-accessories' })">前往商品管理</button>
+          <button class="btn btn--primary btn--small" @click="router.push({ name: 'merchant-accessory-orders' })">前往配件订单</button>
+        </template>
+        <template v-else>
+          <button class="btn btn--ghost btn--small" :disabled="filters.pageNum <= 1" @click="changePage(-1)">上一页</button>
+          <button
+            class="btn btn--primary btn--small"
+            :disabled="filters.pageNum >= Math.max(1, Math.ceil(state.total / filters.pageSize))"
+            @click="changePage(1)"
+          >
+            下一页
+          </button>
+        </template>
       </div>
     </section>
   </section>

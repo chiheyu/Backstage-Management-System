@@ -10,11 +10,13 @@ import {
   getRoleState,
   getStatusMeta,
   resolveImage,
-  safeRows,
   shortText
 } from '@/lib/domain'
 import { pushNotice } from '@/lib/notice'
+import { fetchAllPagedRows } from '@/lib/pagination'
 import { session } from '@/lib/session'
+
+const PAGE_SIZE = 50
 
 const route = useRoute()
 const router = useRouter()
@@ -77,6 +79,13 @@ function parseImages(value) {
     .map(item => resolveImage(item, apiBaseUrl))
 }
 
+function buildBaseFilters() {
+  return {
+    orderNo: filters.orderNo,
+    productType: filters.productType
+  }
+}
+
 async function loadOrders() {
   if (!session.token) {
     return
@@ -85,35 +94,35 @@ async function loadOrders() {
   loading.value = true
   try {
     if (roleState.value.isMerchant) {
-      const [pendingPayload, minePayload] = await Promise.all([
-        merchantApi.listPendingOrders({
-          orderNo: filters.orderNo,
-          productType: filters.productType,
-          pageNum: 1,
-          pageSize: 30
+      const [pendingRows, mineRows] = await Promise.all([
+        fetchAllPagedRows(params => merchantApi.listPendingOrders(params), {
+          params: buildBaseFilters(),
+          pageSize: PAGE_SIZE,
+          dedupeKey: 'orderId'
         }),
-        merchantApi.listOrders({
-          orderNo: filters.orderNo,
-          productType: filters.productType,
-          status: filters.status,
-          pageNum: 1,
-          pageSize: 30
+        fetchAllPagedRows(params => merchantApi.listOrders(params), {
+          params: {
+            ...buildBaseFilters(),
+            status: filters.status
+          },
+          pageSize: PAGE_SIZE,
+          dedupeKey: 'orderId'
         })
       ])
-      pendingOrders.value = safeRows(pendingPayload)
-      merchantOrders.value = safeRows(minePayload)
+      pendingOrders.value = pendingRows
+      merchantOrders.value = mineRows
       return
     }
 
     if (roleState.value.isUser) {
-      const payload = await userApi.listAfterSalesOrders({
-        orderNo: filters.orderNo,
-        productType: filters.productType,
-        status: filters.status,
-        pageNum: 1,
-        pageSize: 30
+      userOrders.value = await fetchAllPagedRows(params => userApi.listAfterSalesOrders(params), {
+        params: {
+          ...buildBaseFilters(),
+          status: filters.status
+        },
+        pageSize: PAGE_SIZE,
+        dedupeKey: 'orderId'
       })
-      userOrders.value = safeRows(payload)
     }
   } catch (error) {
     pushNotice(error.message || '售后订单加载失败', 'danger')

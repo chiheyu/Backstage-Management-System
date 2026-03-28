@@ -9,6 +9,18 @@ function buildApiError(message, extra = {}) {
   return error
 }
 
+function buildNetworkError(path, originalError) {
+  return buildApiError(
+    `无法连接后端服务，请确认 ${apiBaseUrl} 已启动且可访问`,
+    {
+      status: 0,
+      path,
+      network: true,
+      cause: originalError
+    }
+  )
+}
+
 function buildUrl(path, params) {
   const url = new URL(path, apiBaseUrl)
   if (params && typeof params === 'object') {
@@ -55,11 +67,16 @@ export async function apiRequest(path, options = {}) {
     headers.Authorization = `Bearer ${getStoredToken()}`
   }
 
-  const response = await fetch(buildUrl(path, params), {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined
-  })
+  let response
+  try {
+    response = await fetch(buildUrl(path, params), {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    })
+  } catch (error) {
+    throw buildNetworkError(path, error)
+  }
 
   let payload = null
   try {
@@ -124,11 +141,16 @@ export async function apiUpload(path, file, options = {}) {
   const formData = new FormData()
   formData.append(fieldName, file)
 
-  const response = await fetch(buildUrl(path), {
-    method: 'POST',
-    headers,
-    body: formData
-  })
+  let response
+  try {
+    response = await fetch(buildUrl(path), {
+      method: 'POST',
+      headers,
+      body: formData
+    })
+  } catch (error) {
+    throw buildNetworkError(path, error)
+  }
 
   let payload = null
   try {
@@ -242,6 +264,11 @@ export const userApi = {
       raw: true
     })
   },
+  getAfterSalesOrder(orderId) {
+    return apiRequest(`/app/user/afterSalesOrder/${orderId}`, {
+      method: 'GET'
+    })
+  },
   cancelAfterSalesOrder(orderId) {
     return apiRequest(`/app/user/afterSalesOrder/cancel/${orderId}`, {
       method: 'PUT'
@@ -275,6 +302,11 @@ export const userApi = {
       method: 'GET',
       params,
       raw: true
+    })
+  },
+  getAccessoryOrder(accessoryOrderId) {
+    return apiRequest(`/app/user/accessoryOrder/${accessoryOrderId}`, {
+      method: 'GET'
     })
   }
 }
@@ -313,5 +345,66 @@ export const merchantApi = {
       method: 'PUT',
       body: payload
     })
+  },
+  listAccessoryOrders(params = {}) {
+    return apiRequest('/app/merchant/accessoryOrder/list', {
+      method: 'GET',
+      params,
+      raw: true
+    })
+  },
+  listPendingAccessoryOrders(params = {}) {
+    return apiRequest('/app/merchant/accessoryOrder/pendingList', {
+      method: 'GET',
+      params,
+      raw: true
+    })
+  },
+  shipAccessoryOrder(accessoryOrderId) {
+    return apiRequest(`/app/merchant/accessoryOrder/ship/${accessoryOrderId}`, {
+      method: 'PUT'
+    })
+  },
+  completeAccessoryOrder(accessoryOrderId) {
+    return apiRequest(`/app/merchant/accessoryOrder/complete/${accessoryOrderId}`, {
+      method: 'PUT'
+    })
+  },
+  cancelAccessoryOrder(accessoryOrderId) {
+    return apiRequest(`/app/merchant/accessoryOrder/cancel/${accessoryOrderId}`, {
+      method: 'PUT'
+    })
+  },
+  listAccessories(params = {}) {
+    return apiRequest('/app/merchant/accessory/list', {
+      method: 'GET',
+      params,
+      raw: true
+    })
+  },
+  getAccessory(accessoryId) {
+    return apiRequest(`/app/merchant/accessory/${accessoryId}`, {
+      method: 'GET'
+    })
+  },
+  createAccessory(payload) {
+    return apiRequest('/app/merchant/accessory', {
+      method: 'POST',
+      body: payload
+    })
+  },
+  updateAccessory(payload) {
+    return apiRequest('/app/merchant/accessory', {
+      method: 'PUT',
+      body: payload
+    })
+  },
+  deleteAccessory(accessoryId) {
+    return apiRequest(`/app/merchant/accessory/${accessoryId}`, {
+      method: 'DELETE'
+    })
+  },
+  uploadAccessoryImage(file) {
+    return apiUpload('/common/upload', file)
   }
 }

@@ -11,12 +11,14 @@ import {
   getRoleState,
   getStatusMeta,
   resolveImage,
-  safeRows,
   shortText
 } from '@/lib/domain'
 import { saveAfterSalePrefill } from '@/lib/localData'
 import { pushNotice } from '@/lib/notice'
+import { fetchAllPagedRows } from '@/lib/pagination'
 import { session } from '@/lib/session'
+
+const PAGE_SIZE = 50
 
 const router = useRouter()
 
@@ -43,21 +45,23 @@ async function loadData() {
 
   loading.value = true
   try {
-    const [orderPayload, favoritePayload] = await Promise.all([
-      userApi.listAccessoryOrders({
-        orderNo: filters.orderNo,
-        status: filters.status,
-        pageNum: 1,
-        pageSize: 24
+    const [orders, favorites] = await Promise.all([
+      fetchAllPagedRows(params => userApi.listAccessoryOrders(params), {
+        params: {
+          orderNo: filters.orderNo,
+          status: filters.status
+        },
+        pageSize: PAGE_SIZE,
+        dedupeKey: 'accessoryOrderId'
       }),
-      userApi.listAccessoryCollections({
-        pageNum: 1,
-        pageSize: 12
+      fetchAllPagedRows(params => userApi.listAccessoryCollections(params), {
+        pageSize: PAGE_SIZE,
+        dedupeKey: 'collectionId'
       })
     ])
 
-    orderList.value = safeRows(orderPayload)
-    favoriteList.value = safeRows(favoritePayload)
+    orderList.value = orders
+    favoriteList.value = favorites
   } catch (error) {
     pushNotice(error.message || '订单数据加载失败', 'danger')
   } finally {
@@ -121,9 +125,9 @@ onMounted(() => {
     <EmptyState
       v-else-if="!roleState.isUser"
       title="当前账号没有配件下单能力"
-      description="商家账号主要处理售后工单，请切换普通用户账号查看配件订单。"
-      action-label="查看售后工单"
-      @action="router.push({ name: 'after-sales-orders' })"
+      description="商家账号可以前往商家配件订单页处理商城订单；当前这个订单中心仍只展示普通用户自己的下单记录。"
+      action-label="前往商家配件订单"
+      @action="router.push({ name: 'merchant-accessory-orders' })"
     />
 
     <template v-else>

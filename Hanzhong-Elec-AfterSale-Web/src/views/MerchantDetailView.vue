@@ -3,10 +3,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
-import { commonApi } from '@/lib/api'
-import { MERCHANT_AUDIT_STATUS, formatDateTime, getStatusMeta, shortText } from '@/lib/domain'
+import { apiBaseUrl, commonApi } from '@/lib/api'
+import { MERCHANT_AUDIT_STATUS, formatDateTime, getStatusMeta, resolveImage, shortText } from '@/lib/domain'
 import { pushNotice } from '@/lib/notice'
 import { session } from '@/lib/session'
+import { loadMerchantShopMeta } from '@/lib/storage'
 
 const props = defineProps({
   id: {
@@ -19,18 +20,49 @@ const router = useRouter()
 
 const loading = ref(true)
 const merchant = ref(null)
+const merchantLocalConfig = ref(loadMerchantShopMeta(''))
 
 const merchantInitial = computed(() => {
   const name = merchant.value?.merchantName || '?'
   return name.slice(0, 1).toUpperCase()
 })
 
+const isOwnMerchant = computed(() => {
+  return String(session.merchant?.merchantId || '') === String(merchant.value?.merchantId || '')
+})
+
+const merchantLogo = computed(() => {
+  return merchantLocalConfig.value.logo
+    ? resolveImage(merchantLocalConfig.value.logo, apiBaseUrl)
+    : ''
+})
+
+const hasLocalDisplayConfig = computed(() => {
+  return Boolean(
+    merchantLocalConfig.value.logo ||
+    merchantLocalConfig.value.businessTime ||
+    merchantLocalConfig.value.isOpen === false
+  )
+})
+
+const businessStatus = computed(() => (
+  merchantLocalConfig.value.isOpen
+    ? { label: '营业中', tone: 'success' }
+    : { label: '暂停营业', tone: 'muted' }
+))
+
+function syncMerchantLocalConfig(merchantId) {
+  merchantLocalConfig.value = loadMerchantShopMeta(merchantId)
+}
+
 async function loadMerchant() {
   loading.value = true
   try {
     merchant.value = await commonApi.getMerchant(props.id)
+    syncMerchantLocalConfig(merchant.value?.merchantId)
   } catch (error) {
     merchant.value = null
+    merchantLocalConfig.value = loadMerchantShopMeta('')
     pushNotice(error.message || '商家详情加载失败', 'danger')
   } finally {
     loading.value = false
@@ -66,12 +98,18 @@ onMounted(() => {
 
     <template v-else>
       <section class="glass-card merchant-detail-hero">
-        <div class="merchant-avatar">{{ merchantInitial }}</div>
+        <div class="merchant-avatar" :class="{ 'merchant-avatar--image': merchantLogo }">
+          <img v-if="merchantLogo" :src="merchantLogo" alt="门店 Logo" />
+          <template v-else>{{ merchantInitial }}</template>
+        </div>
 
         <div class="surface-card merchant-detail-main">
           <div class="between-row merchant-detail-main__top">
             <span class="eyebrow">{{ merchant.cityName || '汉中市' }}</span>
-            <StatusBadge v-bind="getStatusMeta(MERCHANT_AUDIT_STATUS, merchant.auditStatus)" />
+            <div class="action-row merchant-detail-badges">
+              <StatusBadge v-bind="getStatusMeta(MERCHANT_AUDIT_STATUS, merchant.auditStatus)" />
+              <StatusBadge v-if="hasLocalDisplayConfig" v-bind="businessStatus" />
+            </div>
           </div>
           <h1>{{ merchant.merchantName }}</h1>
           <p>{{ merchant.merchantDesc || '提供电子产品检测、维修、保养和配件更换服务。' }}</p>
@@ -85,7 +123,7 @@ onMounted(() => {
               提交售后申请
             </RouterLink>
             <RouterLink
-              v-if="session.merchant?.merchantId === merchant.merchantId"
+              v-if="isOwnMerchant"
               class="btn btn--ghost"
               :to="{ name: 'merchant-settings' }"
             >
@@ -122,6 +160,14 @@ onMounted(() => {
               <strong>入驻时间</strong>
               <span>{{ formatDateTime(merchant.createTime) }}</span>
             </article>
+            <article v-if="hasLocalDisplayConfig || isOwnMerchant">
+              <strong>营业时间</strong>
+              <span>{{ merchantLocalConfig.businessTime || '未设置' }}</span>
+            </article>
+            <article v-if="hasLocalDisplayConfig || isOwnMerchant">
+              <strong>营业状态</strong>
+              <span>{{ businessStatus.label }}</span>
+            </article>
           </div>
         </section>
 
@@ -144,6 +190,10 @@ onMounted(() => {
               <article>
                 <strong>处理方式</strong>
                 <span>提交售后申请后，门店可接单并持续更新维修进度。</span>
+              </article>
+              <article v-if="hasLocalDisplayConfig || isOwnMerchant">
+                <strong>网页端补齐信息</strong>
+                <span>当前浏览器已保存店铺 Logo、营业时间或营业状态，和网页端店铺设置页保持一致。</span>
               </article>
             </div>
           </div>
@@ -176,6 +226,17 @@ onMounted(() => {
   color: #fff;
   font-size: 62px;
   font-weight: 800;
+  overflow: hidden;
+}
+
+.merchant-avatar--image {
+  background: linear-gradient(135deg, rgba(18, 105, 93, 0.12), rgba(215, 141, 43, 0.16));
+}
+
+.merchant-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .merchant-detail-main {
@@ -190,6 +251,10 @@ onMounted(() => {
   margin: 0 0 12px;
   font-size: clamp(30px, 4vw, 48px);
   line-height: 1.08;
+}
+
+.merchant-detail-badges {
+  flex-wrap: wrap;
 }
 
 .merchant-detail-actions {
@@ -207,6 +272,7 @@ onMounted(() => {
 
 .merchant-detail-cards {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -236,7 +302,8 @@ onMounted(() => {
 
 @media (max-width: 900px) {
   .merchant-detail-hero,
-  .merchant-detail-grid {
+  .merchant-detail-grid,
+  .merchant-detail-cards {
     grid-template-columns: 1fr;
   }
 }

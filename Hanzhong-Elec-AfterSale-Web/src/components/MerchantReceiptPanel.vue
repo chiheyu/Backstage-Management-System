@@ -4,8 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { apiBaseUrl, merchantApi } from '@/lib/api'
-import { AFTER_SALES_STATUS, formatDateTime, getStatusMeta, resolveImage, safeRows, shortText } from '@/lib/domain'
+import { AFTER_SALES_STATUS, formatDateTime, getStatusMeta, resolveImage, shortText } from '@/lib/domain'
 import { pushNotice } from '@/lib/notice'
+import { fetchAllPagedRows } from '@/lib/pagination'
+
+const PAGE_SIZE = 50
 
 const emit = defineEmits(['updated'])
 
@@ -121,11 +124,12 @@ function syncSelection() {
 async function loadMerchantOrders() {
   loading.value = true
   try {
-    const payload = await merchantApi.listOrders({
-      pageNum: 1,
-      pageSize: 50
-    })
-    merchantOrders.value = safeRows(payload).filter(item => ['1', '2', '3'].includes(String(item.status)))
+    merchantOrders.value = (
+      await fetchAllPagedRows(params => merchantApi.listOrders(params), {
+        pageSize: PAGE_SIZE,
+        dedupeKey: 'orderId'
+      })
+    ).filter(item => ['1', '2', '3'].includes(String(item.status)))
     syncSelection()
   } catch (error) {
     merchantOrders.value = []

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import { userApi } from '@/lib/api'
 import { MERCHANT_AUDIT_STATUS, formatMoney, getRoleState, getStatusMeta } from '@/lib/domain'
-import { fetchMerchantDashboardSummary, merchantFeatureSupport } from '@/lib/merchantDashboard'
+import { fetchMerchantDashboardSummary } from '@/lib/merchantDashboard'
 import {
   addCartItem,
   clearCart,
@@ -168,12 +168,12 @@ onMounted(() => {
         <div>
           <span class="eyebrow">商家工作台</span>
           <h1>{{ merchantSummary?.merchant?.merchantName || '商家工作台' }}</h1>
-          <p>工作台现在只保留后端真实存在的商家售后能力，配件订单和商品管理入口已隐藏，避免进入页面后连续请求失败。</p>
+          <p>工作台已经补齐商家售后、配件订单和商品管理入口，网页端现在可以直接处理完整的商家日常操作。</p>
         </div>
         <div class="surface-card workbench-hero__side">
           <strong>{{ merchantSummary?.merchant?.contactPhone || '--' }}</strong>
           <span>{{ merchantSummary?.merchant?.address || '请先完善店铺地址' }}</span>
-          <span>{{ workbenchLoading ? '正在同步商家工作台数据...' : '网页端与小程序共享同一套商家售后和店铺资料数据。' }}</span>
+          <span>{{ workbenchLoading ? '正在同步商家工作台数据...' : '网页端与小程序共享同一套商家售后、商品和订单数据。' }}</span>
         </div>
       </section>
 
@@ -198,6 +198,14 @@ onMounted(() => {
           <strong>售后回执</strong>
           <span>填写检测结果、维修进度和完工说明</span>
         </button>
+        <button class="surface-card workbench-card" @click="router.push({ name: 'merchant-accessory-orders' })">
+          <strong>配件订单</strong>
+          <span>查看用户下单后的商城订单并处理发货、完成、取消</span>
+        </button>
+        <button class="surface-card workbench-card" @click="router.push({ name: 'merchant-accessories' })">
+          <strong>商品管理</strong>
+          <span>新增、编辑、删除商品并维护上架状态与库存</span>
+        </button>
         <button class="surface-card workbench-card" @click="router.push({ name: 'merchant-settings' })">
           <strong>店铺设置</strong>
           <span>维护联系人、地址和服务范围</span>
@@ -216,20 +224,19 @@ onMounted(() => {
         <div class="section-head">
           <div>
             <span class="eyebrow">接口适配</span>
-            <h2>当前工作台已静默降级</h2>
-            <p>只展示后端已经开放的商家售后能力，未开放的页面入口不再主动请求。</p>
+            <h2>当前工作台已接入完整商家链路</h2>
+            <p>商家售后、配件订单、商品管理和店铺资料维护都已接到现有后端接口。</p>
           </div>
         </div>
 
         <div class="workbench-grid">
           <article class="workbench-card">
             <strong>已接入</strong>
-            <span>商家信息、待接售后、我的工单、售后回执、店铺资料维护。</span>
+            <span>商家信息、待接售后、我的工单、售后回执、配件订单、商品管理、店铺资料维护。</span>
           </article>
           <article class="workbench-card">
-            <strong>已隐藏</strong>
-            <span v-if="!merchantFeatureSupport.accessoryOrders">商家配件订单接口未开放，相关入口已移除。</span>
-            <span v-if="!merchantFeatureSupport.accessoryCatalog">商家商品管理接口未开放，网页端保留公共配件浏览，不再进入管理模式。</span>
+            <strong>共享数据</strong>
+            <span>网页端和小程序端继续共用同一套商家订单、商品、售后和店铺资料数据，不改动后端结构。</span>
           </article>
         </div>
       </section>

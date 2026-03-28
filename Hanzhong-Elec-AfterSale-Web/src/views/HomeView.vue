@@ -16,7 +16,7 @@ import {
   safeRows,
   shortText
 } from '@/lib/domain'
-import { fetchMerchantDashboardSummary, merchantFeatureSupport } from '@/lib/merchantDashboard'
+import { fetchMerchantDashboardSummary } from '@/lib/merchantDashboard'
 import { pushNotice } from '@/lib/notice'
 import { session } from '@/lib/session'
 
@@ -73,13 +73,14 @@ const merchantQuickLinks = computed(() => {
     { label: '待接售后工单', desc: '优先处理新提交的售后需求', to: { name: 'after-sales-orders', query: { mode: 'pending' } } },
     { label: '我的售后工单', desc: '查看已接单和处理中工单', to: { name: 'after-sales-orders', query: { mode: 'mine' } } },
     { label: '售后回执', desc: '填写检测结果、维修进度和完工说明', to: { name: 'after-sales-apply' } },
+    { label: '配件订单', desc: '处理商城订单的发货、完成和取消', to: { name: 'merchant-accessory-orders' } },
+    { label: '商品管理', desc: '维护商品、库存、状态和图片', to: { name: 'merchant-accessories' } },
     { label: '店铺设置', desc: '维护联系人、地址和服务范围', to: { name: 'merchant-settings' } },
     {
       label: '我的店铺',
       desc: '查看当前门店对外展示信息',
       to: merchantId ? { name: 'merchant-detail', params: { id: merchantId } } : { name: 'merchant-settings' }
-    },
-    { label: '配件商城', desc: '浏览用户侧公开可见的配件信息', to: { name: 'mall' } }
+    }
   ]
 })
 
@@ -144,7 +145,7 @@ onMounted(() => {
         <div>
           <span class="eyebrow">商家首页</span>
           <h1>{{ merchantDashboard?.merchant?.merchantName || '商家工作台' }}</h1>
-          <p>网页端商家页现在只使用后端已经开放的售后接口，配件订单和商品管理入口已自动隐藏，不再反复请求不存在的地址。</p>
+          <p>网页端商家首页现在已经接入售后工单、配件订单、商品管理和店铺资料维护，和小程序保持同一套业务链路。</p>
 
           <div class="hero-actions">
             <RouterLink class="btn btn--primary" :to="{ name: 'after-sales-orders', query: { mode: 'pending' } }">查看待接工单</RouterLink>
@@ -216,8 +217,8 @@ onMounted(() => {
           <div class="section-head">
             <div>
               <span class="eyebrow">接口适配</span>
-              <h2>当前网页端已静默降级</h2>
-              <p>根据现有后端控制器，网页商家端只保留真实可用的能力，避免右上角连续弹出请求失败。</p>
+              <h2>当前网页端已接入商家完整主流程</h2>
+              <p>现有后端已经提供商家商品和配件订单接口，网页端现在直接接入，不改动小程序和后端。</p>
             </div>
           </div>
 
@@ -225,22 +226,21 @@ onMounted(() => {
             <article class="merchant-card">
               <div class="merchant-card__head">
                 <div>
-                  <h3>已保留</h3>
-                  <p>后端真实存在</p>
+                  <h3>已接入</h3>
+                  <p>网页端已可直接使用</p>
                 </div>
               </div>
-              <p>商家信息、待接售后、我的工单、售后状态更新、售后回执。</p>
+              <p>商家信息、待接售后、我的工单、售后状态更新、售后回执、配件订单、商品管理、店铺资料维护。</p>
             </article>
 
             <article class="merchant-card">
               <div class="merchant-card__head">
                 <div>
-                  <h3>已隐藏</h3>
-                  <p>后端当前未开放</p>
+                  <h3>共享数据</h3>
+                  <p>继续复用现有接口与数据表</p>
                 </div>
               </div>
-              <p v-if="!merchantFeatureSupport.accessoryOrders">商家配件订单接口未开放，相关入口已移除。</p>
-              <p v-if="!merchantFeatureSupport.accessoryCatalog">商家商品管理接口未开放，网页端已改为只读浏览公共配件数据。</p>
+              <p>网页端与小程序继续共用同一套商家订单、商品、售后和店铺资料数据，不改变后端实现。</p>
             </article>
           </div>
         </section>

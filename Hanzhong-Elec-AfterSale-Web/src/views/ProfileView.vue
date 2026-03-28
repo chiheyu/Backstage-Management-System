@@ -10,7 +10,7 @@ import {
   getRoleState,
   getStatusMeta
 } from '@/lib/domain'
-import { fetchMerchantDashboardSummary, merchantFeatureSupport } from '@/lib/merchantDashboard'
+import { fetchMerchantDashboardSummary } from '@/lib/merchantDashboard'
 import { pushNotice } from '@/lib/notice'
 import { session } from '@/lib/session'
 
@@ -87,10 +87,11 @@ const merchantAfterSalesLinks = [
 ]
 
 const merchantServiceLinks = computed(() => [
+  { label: '商品管理', desc: '维护商品、库存、上下架状态和图片', to: { name: 'merchant-accessories' } },
+  { label: '配件订单', desc: '处理商城订单的发货、完成和取消', to: { name: 'merchant-accessory-orders' } },
   { label: '店铺设置', desc: '维护店铺资料和服务范围', to: { name: 'merchant-settings' } },
   { label: '商家工作台', desc: '返回商家工作台入口', to: { name: 'cart' } },
-  { label: '我的店铺', desc: '查看当前门店展示详情', to: merchantStoreLink.value },
-  { label: '配件商城', desc: '浏览公开配件数据，不进入商家管理模式', to: { name: 'mall' } }
+  { label: '我的店铺', desc: '查看当前门店展示详情', to: merchantStoreLink.value }
 ])
 
 const pendingMerchantMessage = computed(() => {
@@ -189,7 +190,7 @@ onMounted(() => {
           <div>
             <span class="eyebrow">账号概览</span>
             <h2>{{ roleState.isMerchant ? '商家数据概览' : roleState.isPendingMerchant ? '入驻概览' : '账号概览' }}</h2>
-            <p v-if="roleState.isMerchant">这里只展示后端当前真实支持的商家售后和店铺资料能力。</p>
+            <p v-if="roleState.isMerchant">这里展示网页端当前已接入的商家售后、商品、配件订单和店铺资料能力。</p>
             <p v-else-if="roleState.isPendingMerchant">待审核商家仍可继续以普通用户模式浏览和下单。</p>
             <p v-else>按当前普通用户账号展示售后、订单和收藏统计。</p>
           </div>
@@ -230,7 +231,7 @@ onMounted(() => {
               <div>
                 <span class="eyebrow">商家后台</span>
                 <h2>商家后台入口</h2>
-                <p>店铺设置、工作台和店铺展示在这里统一汇总。</p>
+                <p>商品管理、配件订单、店铺设置、工作台和店铺展示入口都汇总在这里。</p>
               </div>
             </div>
 
@@ -247,23 +248,23 @@ onMounted(() => {
           <div class="section-head">
             <div>
               <span class="eyebrow">接口适配</span>
-              <h2>网页端当前已静默降级</h2>
-              <p>后端未开放的商家页面已从主要入口移除，避免继续触发不存在的接口。</p>
+              <h2>网页端当前已接入完整商家主流程</h2>
+              <p>商家商品管理和配件订单页已经接到现有后端接口，和小程序继续共享同一套数据。</p>
             </div>
           </div>
 
           <div class="admin-grid">
             <article class="admin-card">
               <strong>已保留</strong>
-              <span>商家信息、待接售后、我的工单、回执提交、店铺资料维护。</span>
+              <span>商家信息、待接售后、我的工单、回执提交、配件订单、商品管理、店铺资料维护。</span>
             </article>
-            <article class="admin-card" v-if="!merchantFeatureSupport.accessoryOrders">
+            <article class="admin-card">
               <strong>配件订单</strong>
-              <span>后端当前没有商家配件订单接口，网页端已隐藏相关入口。</span>
+              <span>网页端可直接处理发货、完成、取消等商家配件订单动作。</span>
             </article>
-            <article class="admin-card" v-if="!merchantFeatureSupport.accessoryCatalog">
+            <article class="admin-card">
               <strong>商品管理</strong>
-              <span>后端当前没有商家商品管理接口，网页端保留公共配件浏览，不再进入管理模式。</span>
+              <span>网页端可直接新增、编辑、删除商品，并维护图片、库存和上下架状态。</span>
             </article>
           </div>
         </section>

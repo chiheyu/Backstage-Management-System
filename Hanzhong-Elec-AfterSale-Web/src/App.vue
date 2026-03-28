@@ -12,7 +12,11 @@ onMounted(() => {
 
 <template>
   <div class="app-root">
-    <div class="app-backdrop"></div>
+    <div class="app-backdrop" aria-hidden="true">
+      <span class="app-backdrop__orb app-backdrop__orb--mint"></span>
+      <span class="app-backdrop__orb app-backdrop__orb--amber"></span>
+      <span class="app-backdrop__grid"></span>
+    </div>
     <SiteHeader />
 
     <main class="app-main">
@@ -21,7 +25,11 @@ onMounted(() => {
         <h1>正在同步账号信息</h1>
         <p>请稍候，系统正在检查登录状态并读取当前资料。</p>
       </section>
-      <RouterView v-else />
+      <RouterView v-else v-slot="{ Component, route }">
+        <Transition name="page-fade" mode="out-in">
+          <component :is="Component" :key="route.fullPath" />
+        </Transition>
+      </RouterView>
     </main>
 
     <TransitionGroup name="toast" tag="div" class="toast-stack">
