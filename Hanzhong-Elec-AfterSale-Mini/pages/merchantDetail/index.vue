@@ -1,6 +1,5 @@
 <template>
   <view class="merchant-detail">
-    <!-- 商家头部信息 -->
     <view class="merchant-header">
       <image 
         class="merchant-avatar" 
@@ -21,7 +20,6 @@
       </view>
     </view>
 
-    <!-- 商家核心信息 -->
     <view class="merchant-content">
       <view class="info-item" @click="callMerchant" hover-class="info-item-hover">
         <uni-icons type="phone" size="30" color="var(--primary-color)"></uni-icons>
@@ -38,7 +36,7 @@
       </view>
 
       <view class="info-item">
-        <uni-icons type="time" size="30" color="var(--primary-color)"></uni-icons>
+        <uni-icons type="calendar" size="30" color="var(--primary-color)"></uni-icons>
         <text class="info-label">营业时间</text>
         <text class="info-value">{{ merchantInfo.businessHours }}</text>
       </view>
@@ -50,7 +48,6 @@
       </view>
     </view>
 
-    <!-- 快速操作按钮 -->
     <view class="action-bar" v-if="!isMerchantMode">
       <button class="action-btn call-btn" @click="callMerchant">
         <uni-icons type="phone" size="28" color="#fff"></uni-icons>
@@ -62,7 +59,6 @@
       </button>
     </view>
 
-    <!-- 用户评价区 -->
     <view class="comment-section">
       <view class="section-header">
         <text class="section-title">用户评价</text>
@@ -76,11 +72,13 @@
       
       <view class="comment-list" v-else>
         <view class="comment-item" v-for="(item, idx) in commentList" :key="idx" hover-class="comment-item-hover">
-          <image 
-            class="user-avatar" 
-            :src="item.avatar || '/static/images/avatar.png'" 
-            mode="aspectFill"
-          ></image>
+          <view class="avatar-wrapper">
+            <image 
+              class="user-avatar" 
+              :src="item.avatar || '/static/images/avatar.png'" 
+              mode="aspectFill"
+            ></image>
+          </view>
           <view class="comment-content">
             <view class="user-info">
               <text class="user-name">{{ item.username }}</text>
@@ -114,7 +112,7 @@ export default {
       isMerchantMode: false,
       merchantInfo: {
         name: "汉中电子售后旗舰店",
-        avatar: "/static/images/merchant/avatar.png",
+        avatar: "/static/images/hz-logo.png",
         tag: "官方认证 | 售后无忧",
         rating: 4.8,
         phone: "400-123-4567",
@@ -160,7 +158,7 @@ export default {
         const data = res.data || {};
         this.merchantInfo = {
           name: data.merchantName || '我的店铺',
-          avatar: "/static/images/merchant/avatar.png",
+          avatar: "/static/images/hz-logo.png",
           tag: (data.auditStatus === '1' ? '官方认证' : '待审核') + ' | 售后无忧',
           rating: 4.8,
           phone: data.contactPhone || '未填写',
@@ -170,7 +168,7 @@ export default {
           desc: data.merchantDesc || '暂无店铺简介'
         };
       } catch (error) {
-        wx.showToast({ title: '加载店铺信息失败', icon: 'none' });
+        wx.showToast({ title: '加载店铺信息失败', icon: "none" });
       }
     },
     loadInitComments() {
@@ -187,7 +185,6 @@ export default {
         if (this.commentList.length >= this.totalCount) this.noMore = true;
       }, 800);
     },
-    // 拨打电话
     callMerchant() {
       wx.makePhoneCall({
         phoneNumber: this.merchantInfo.phone,
@@ -195,7 +192,6 @@ export default {
         fail: () => wx.showToast({ title: "拨号失败", icon: "none" })
       });
     },
-    // 复制地址（纯前端，无任何接口/后端）
     copyAddress() {
       wx.setClipboardData({
         data: this.merchantInfo.address,
@@ -212,162 +208,236 @@ export default {
 :root {
   --primary-color: #2f54eb;
   --success-color: #07c160;
-  --text-color: #333;
-  --text-light: #666;
-  --text-gray: #999;
-  --bg-color: #f8f8f8;
-  --white: #fff;
-  --border-color: #eee;
+  --text-color: #1d2129;
+  --text-light: #4e5969;
+  --text-gray: #86909c;
+  --bg-color: #f7f8fa;
+  --white: #ffffff;
+  --border-color: #e5e6eb;
   --light-primary: #f0f5ff;
-  --radius-md: 12rpx;
-  --shadow: 0 4rpx 12rpx rgba(0,0,0,0.05);
-  --transition: all 0.3s ease;
+  --avatar-border: #cce5ff;
+  --radius-md: 20rpx;
+  --radius-lg: 24rpx;
+  --shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
+  --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 .merchant-detail {
   min-height: 100vh;
   background: var(--bg-color);
-  padding-bottom: 20rpx;
+  padding-bottom: 40rpx;
 }
 
-/* 商家头部 */
 .merchant-header {
-  background: #fff;
-  padding: 30rpx;
+  background: var(--white);
+  padding: 40rpx 32rpx;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border-color);
   box-shadow: var(--shadow);
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
 }
 .merchant-avatar {
-  width: 120rpx;
-  height: 120rpx;
+  width: 130rpx;
+  height: 130rpx;
   border-radius: 50%;
-  margin-right: 30rpx;
-  border: 3px solid var(--light-primary);
+  margin-right: 32rpx;
+  border: 4rpx solid var(--light-primary);
+  box-shadow: 0 4rpx 12rpx rgba(47, 84, 235, 0.1);
 }
 .merchant-name {
-  font-size: 32rpx;
-  font-weight: bold;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--text-color);
   display: block;
-  margin-bottom: 10rpx;
+  margin-bottom: 12rpx;
+  letter-spacing: 1rpx;
 }
 .merchant-tag {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: var(--text-light);
   display: block;
-  margin-bottom: 10rpx;
+  margin-bottom: 16rpx;
 }
 .merchant-rating {
   display: flex;
   align-items: center;
+  gap: 6rpx;
 }
 .rating-text {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: var(--text-light);
-  margin-left: 10rpx;
+  margin-left: 12rpx;
+  font-weight: 500;
 }
 
-/* 信息卡片 */
 .merchant-content {
-  background: #fff;
-  margin: 0 20rpx 20rpx;
-  border-radius: var(--radius-md);
-  padding: 30rpx;
+  background: var(--white);
+  margin: 0 32rpx 24rpx;
+  border-radius: var(--radius-lg);
+  padding: 20rpx 32rpx;
   box-shadow: var(--shadow);
 }
 .info-item {
   display: flex;
   align-items: center;
-  padding: 25rpx 0;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 32rpx 0;
+  border-bottom: 1rpx solid var(--border-color);
   position: relative;
+  transition: var(--transition);
 }
 .info-item:last-child { border-bottom: none; }
-.info-item-hover { background: var(--light-primary); padding: 0 10rpx; margin: 0 -10rpx; }
+.info-item-hover {
+  background: var(--light-primary);
+  transform: scale(0.98);
+  border-radius: 16rpx;
+  padding-left: 16rpx;
+  padding-right: 16rpx;
+}
 .info-label {
   font-size: 28rpx;
   color: var(--text-light);
-  width: 140rpx;
-  margin-left: 20rpx;
+  width: 150rpx;
+  margin-left: 24rpx;
+  font-weight: 500;
 }
 .info-value {
   font-size: 28rpx;
+  color: var(--text-color);
   flex: 1;
-  line-height: 1.4;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
-/* 操作按钮 */
 .action-bar {
   display: flex;
-  padding: 0 20rpx 20rpx;
-  gap: 20rpx;
+  padding: 0 32rpx 32rpx;
+  gap: 24rpx;
 }
 .action-btn {
   flex: 1;
   height: 88rpx;
   border-radius: var(--radius-md);
   font-size: 30rpx;
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
+  gap: 12rpx;
   border: none;
   box-shadow: var(--shadow);
+  transition: var(--transition);
 }
-.call-btn { background: #2f54eb; color: #fff; }
-.nav-btn { background: #07c160; color: #fff; }
+.action-btn:active { transform: scale(0.96); }
+.call-btn { background: var(--primary-color); color: #fff; }
+.nav-btn { background: var(--success-color); color: #fff; }
 
-/* 评价区域 */
 .comment-section {
-  background: #fff;
-  margin: 0 20rpx;
-  border-radius: var(--radius-md);
-  padding: 30rpx;
+  background: var(--white);
+  margin: 0 32rpx;
+  border-radius: var(--radius-lg);
+  padding: 40rpx 32rpx;
   box-shadow: var(--shadow);
 }
 .section-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 20rpx;
+  align-items: center;
+  margin-bottom: 32rpx;
 }
-.section-title { font-size: 32rpx; font-weight: bold; }
-.comment-count { font-size: 24rpx; color: var(--text-gray); }
+.section-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--text-color);
+}
+.comment-count {
+  font-size: 26rpx;
+  color: var(--text-gray);
+  font-weight: 400;
+}
+
+.empty-comment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60rpx 0;
+}
+.empty-text {
+  font-size: 28rpx;
+  color: var(--text-gray);
+  margin-top: 24rpx;
+}
 
 .comment-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 24rpx;
 }
 .comment-item {
   display: flex;
-  padding: 20rpx 0;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--border-color);
+  transition: var(--transition);
 }
 .comment-item:last-child { border-bottom: none; }
-.comment-item-hover { background: var(--light-primary); padding: 20rpx; margin: -20rpx 0; }
-.user-avatar {
-  width: 60rpx;
-  height: 60rpx;
+.comment-item-hover {
+  background: var(--light-primary);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin: -24rpx 0;
+}
+.avatar-wrapper {
+  width: 70rpx;
+  height: 70rpx;
   border-radius: 50%;
-  margin-right: 20rpx;
+  background: var(--avatar-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+}
+.user-avatar {
+  width: 50rpx;
+  height: 50rpx;
+  border-radius: 50%;
+  display: block;
 }
 .user-info {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10rpx;
+  align-items: center;
+  margin-bottom: 12rpx;
 }
-.user-name { font-size: 26rpx; font-weight: 500; }
-.comment-text { font-size: 26rpx; color: var(--text-light); line-height: 1.6; }
-.comment-time { font-size: 22rpx; color: var(--text-gray); }
+.user-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--text-color);
+}
+.comment-text {
+  font-size: 28rpx;
+  color: var(--text-light);
+  line-height: 1.6;
+  margin-bottom: 12rpx;
+}
+.comment-time {
+  font-size: 24rpx;
+  color: var(--text-gray);
+}
 
-/* 加载更多 */
 .load-more, .no-more {
   display: flex;
   justify-content: center;
-  padding: 20rpx 0;
+  align-items: center;
+  padding: 32rpx 0;
 }
-.loading-icon { animation: spin 1s linear infinite; }
-.load-text, .no-more-text { font-size: 24rpx; color: var(--text-gray); }
-@keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
+.loading-icon {
+  animation: spin 1s linear infinite;
+}
+.load-text, .no-more-text {
+  font-size: 26rpx;
+  color: var(--text-gray);
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 </style>

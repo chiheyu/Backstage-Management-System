@@ -7,22 +7,25 @@
     <view class="receipt-layout">
       <view class="receipt-list-card">
         <view class="receipt-card-title">订单列表</view>
-        <view v-if="merchantOrders.length === 0" class="receipt-empty">
-          <text class="receipt-empty-text">暂无可处理订单</text>
-        </view>
-        <view
-          v-for="item in merchantOrders"
-          :key="item.orderId"
-          :class="['receipt-order-item', selectedOrderId === item.orderId ? 'receipt-order-item-active' : '']"
-          @tap="selectMerchantOrder(item)"
-        >
-          <view class="receipt-order-header">
-            <text class="receipt-order-no">{{ item.orderNo || `AS${item.orderId}` }}</text>
-            <text class="receipt-order-status">{{ getMerchantStatusText(item.status) }}</text>
+        
+        <scroll-view class="order-scroll-container" scroll-y>
+          <view v-if="merchantOrders.length === 0" class="receipt-empty">
+            <text class="receipt-empty-text">暂无可处理订单</text>
           </view>
-          <text class="receipt-order-product">{{ item.productType || '未填写产品类型' }}</text>
-          <text class="receipt-order-user">{{ item.userName || '未知用户' }}</text>
-        </view>
+          <view
+            v-for="item in merchantOrders"
+            :key="item.orderId"
+            :class="['receipt-order-item', selectedOrderId === item.orderId ? 'receipt-order-item-active' : '']"
+            @tap="selectMerchantOrder(item)"
+          >
+            <view class="receipt-order-header">
+              <text class="receipt-order-no">{{ item.orderNo || `AS${item.orderId}` }}</text>
+              <text class="receipt-order-status">{{ getMerchantStatusText(item.status) }}</text>
+            </view>
+            <text class="receipt-order-product">{{ item.productType || '未填写产品类型' }}</text>
+            <text class="receipt-order-user">{{ item.userName || '未知用户' }}</text>
+          </view>
+        </scroll-view>
       </view>
 
       <view class="receipt-form-card">
@@ -119,7 +122,7 @@ export default {
           pageSize: 50
         })
         const rows = Array.isArray(res.rows) ? res.rows : []
-        this.merchantOrders = rows.filter((item) => ['1', '2', '3'].includes(String(item.status)))
+        this.merchantOrders = rows.filter((item) => ['1', '2'].includes(String(item.status)))
         if (this.merchantOrders.length) {
           const preferredOrderId = Number(uni.getStorageSync(RECEIPT_ORDER_KEY) || 0) || null
           if (preferredOrderId) {
@@ -133,6 +136,9 @@ export default {
         } else {
           this.selectedOrderId = null
           this.merchantReceipt.remark = ''
+          uni.navigateTo({
+            url: '/pages/afterSaleOrder/index'
+          })
         }
       } catch (error) {
         this.merchantOrders = []
@@ -188,6 +194,16 @@ export default {
           icon: 'success'
         })
         await this.loadMerchantOrders()
+        
+        if (targetStatus === '3') {
+          if (this.merchantOrders.length) {
+            this.selectedOrderId = this.merchantOrders[0].orderId
+            this.merchantReceipt.remark = this.getDefaultRemark(this.merchantOrders[0])
+          } else {
+            this.selectedOrderId = null
+            this.merchantReceipt.remark = ''
+          }
+        }
       } catch (error) {
         if (!error || !error.msg) {
           uni.showToast({
@@ -204,68 +220,85 @@ export default {
 </script>
 
 <style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+page {
+  background: #f8f8f8;
+}
+
 .receipt-page {
   min-height: 100vh;
   background: #f8f8f8;
-  padding: 20rpx;
-  box-sizing: border-box;
+  padding: 24rpx;
 }
 
 .receipt-hero {
-  padding: 32rpx 30rpx;
-  border-radius: 16rpx;
+  padding: 40rpx 32rpx;
+  border-radius: 24rpx;
   background: linear-gradient(135deg, #1236b6 0%, #2f54eb 60%, #5d7cff 100%);
   color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-  margin-bottom: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(47, 84, 235, 0.15);
+  margin-bottom: 24rpx;
 }
 
 .receipt-title {
   display: block;
-  font-size: 38rpx;
+  font-size: 42rpx;
   font-weight: 700;
-  margin-bottom: 10rpx;
-}
-
-.receipt-desc {
-  display: block;
-  font-size: 25rpx;
-  line-height: 1.7;
-  opacity: 0.92;
 }
 
 .receipt-layout {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 24rpx;
 }
 
 .receipt-list-card,
 .receipt-form-card {
   background: #fff;
-  padding: 30rpx;
-  border-radius: 16rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  padding: 32rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
 }
 
 .receipt-card-title {
-  font-size: 32rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: #333;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.order-scroll-container {
+  height: 480rpx;
+  overflow-y: auto;
+}
+
+.order-scroll-container::-webkit-scrollbar {
+  width: 0;
 }
 
 .receipt-order-item {
-  padding: 22rpx 20rpx;
-  border-radius: 12rpx;
+  padding: 28rpx 24rpx;
+  border-radius: 16rpx;
   background: #f8f9fc;
-  margin-bottom: 16rpx;
-  border: 1px solid transparent;
+  margin-bottom: 20rpx;
+  border: 1rpx solid transparent;
+  transition: all 0.25s ease;
+}
+
+.receipt-order-item:active {
+  transform: scale(0.98);
 }
 
 .receipt-order-item-active {
   border-color: #2f54eb;
   background: #f0f5ff;
+  box-shadow: 0 4rpx 12rpx rgba(47, 84, 235, 0.1);
 }
 
 .receipt-order-header {
@@ -273,31 +306,32 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 20rpx;
-  margin-bottom: 10rpx;
+  margin-bottom: 12rpx;
 }
 
 .receipt-order-no {
-  font-size: 25rpx;
+  font-size: 26rpx;
   color: #666;
 }
 
 .receipt-order-status {
-  font-size: 23rpx;
+  font-size: 24rpx;
   color: #2f54eb;
+  font-weight: 500;
 }
 
 .receipt-order-product {
   display: block;
-  font-size: 30rpx;
+  font-size: 32rpx;
   font-weight: 600;
   color: #333;
-  margin-bottom: 8rpx;
+  margin-bottom: 10rpx;
 }
 
 .receipt-order-user,
 .receipt-line {
   display: block;
-  font-size: 25rpx;
+  font-size: 26rpx;
   color: #666;
   line-height: 1.7;
 }
@@ -305,18 +339,24 @@ export default {
 .receipt-textarea {
   width: 100%;
   min-height: 220rpx;
-  margin-top: 20rpx;
-  padding: 20rpx;
-  border: 1px solid #eee;
-  border-radius: 12rpx;
-  box-sizing: border-box;
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border: 1rpx solid #f0f0f0;
+  border-radius: 16rpx;
   background: #fafafa;
   font-size: 28rpx;
   color: #333;
+  transition: all 0.2s ease;
+}
+
+.receipt-textarea:focus {
+  border-color: #2f54eb;
+  background: #fff;
+  box-shadow: 0 0 0 6rpx rgba(47, 84, 235, 0.1);
 }
 
 .receipt-action-row {
-  margin-top: 24rpx;
+  margin-top: 32rpx;
 }
 
 .receipt-primary-btn,
@@ -325,8 +365,10 @@ export default {
   height: 88rpx;
   line-height: 88rpx;
   border: none;
-  border-radius: 999rpx;
+  border-radius: 44rpx;
   font-size: 30rpx;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .receipt-primary-btn {
@@ -334,13 +376,23 @@ export default {
   color: #fff;
 }
 
+.receipt-primary-btn:active:not(:disabled) {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
 .receipt-secondary-btn {
   background: #eef2ff;
   color: #2f54eb;
 }
 
+.receipt-primary-btn:disabled,
+.receipt-secondary-btn:disabled {
+  opacity: 0.6;
+}
+
 .receipt-empty {
-  padding: 60rpx 20rpx;
+  padding: 80rpx 20rpx;
   text-align: center;
 }
 

@@ -2,6 +2,7 @@
   <view class="login-page">
     <view class="status-bar"></view>
 
+    <!-- 美化后的标签栏 -->
     <view class="tab-wrap">
       <view 
         class="tab-item" 
@@ -19,9 +20,10 @@
       </view>
     </view>
 
-    <view v-if="currentTab === 'login'" class="form-wrap">
+    <!-- 登录表单 -->
+    <view v-if="currentTab === 'login'" class="form-wrap card-animate">
       <view class="input-item" :class="{ focused: loginFocus.phone }">
-        <uni-icons type="phone" size="24" color="#666"></uni-icons>
+        <uni-icons type="phone" size="26" color="#666"></uni-icons>
         <input 
           v-model="loginForm.phone" 
           placeholder="请输入手机号" 
@@ -35,7 +37,7 @@
       <view class="error-tip" v-if="loginErrors.phone">{{ loginErrors.phone }}</view>
 
       <view class="input-item" :class="{ focused: loginFocus.password }">
-        <uni-icons type="locked" size="24" color="#666"></uni-icons>
+        <uni-icons type="locked" size="26" color="#666"></uni-icons>
         <input 
           :key="`login-password-${loginPasswordVisible ? 'plain' : 'secret'}`"
           v-model="loginForm.password" 
@@ -48,7 +50,7 @@
         />
         <uni-icons
           :type="loginPasswordVisible ? 'eye-slash' : 'eye'"
-          size="22"
+          size="24"
           color="#999"
           class="toggle-password"
           @tap="toggleLoginPassword"
@@ -67,9 +69,10 @@
       </button>
     </view>
 
-    <view v-else class="form-wrap">
+    <!-- 注册表单 -->
+    <view v-else class="form-wrap card-animate">
       <view class="input-item" :class="{ focused: registerFocus.nickName }">
-        <uni-icons type="person" size="24" color="#666"></uni-icons>
+        <uni-icons type="person" size="26" color="#666"></uni-icons>
         <input 
           v-model="registerForm.nickName" 
           placeholder="请输入昵称（2-16位）" 
@@ -82,7 +85,7 @@
       <view class="error-tip" v-if="registerErrors.nickName">{{ registerErrors.nickName }}</view>
 
       <view class="input-item" :class="{ focused: registerFocus.password }">
-        <uni-icons type="locked" size="24" color="#666"></uni-icons>
+        <uni-icons type="locked" size="26" color="#666"></uni-icons>
         <input 
           :key="`register-password-${registerPasswordVisible ? 'plain' : 'secret'}`"
           v-model="registerForm.password" 
@@ -95,7 +98,7 @@
         />
         <uni-icons
           :type="registerPasswordVisible ? 'eye-slash' : 'eye'"
-          size="22"
+          size="24"
           color="#999"
           class="toggle-password"
           @tap="toggleRegisterPassword"
@@ -104,7 +107,7 @@
       <view class="error-tip" v-if="registerErrors.password">{{ registerErrors.password }}</view>
 
       <view class="input-item" :class="{ focused: registerFocus.phone }">
-        <uni-icons type="phone" size="24" color="#666"></uni-icons>
+        <uni-icons type="phone" size="26" color="#666"></uni-icons>
         <input 
           v-model="registerForm.phone" 
           placeholder="请输入手机号" 
@@ -122,7 +125,7 @@
         :class="{ focused: registerFocus.merchantName }"
         v-if="registerForm.role === 'merchant'"
       >
-        <uni-icons type="shop" size="24" color="#666"></uni-icons>
+        <uni-icons type="shop" size="26" color="#666"></uni-icons>
         <input
           v-model="registerForm.merchantName"
           placeholder="请输入商家名称"
@@ -139,7 +142,7 @@
         :class="{ focused: registerFocus.contactName }"
         v-if="registerForm.role === 'merchant'"
       >
-        <uni-icons type="person" size="24" color="#666"></uni-icons>
+        <uni-icons type="person" size="26" color="#666"></uni-icons>
         <input
           v-model="registerForm.contactName"
           placeholder="请输入联系人（选填）"
@@ -155,7 +158,7 @@
         :class="{ focused: registerFocus.address }"
         v-if="registerForm.role === 'merchant'"
       >
-        <uni-icons type="location" size="24" color="#666"></uni-icons>
+        <uni-icons type="location" size="26" color="#666"></uni-icons>
         <input
           v-model="registerForm.address"
           placeholder="请输入商家地址（选填）"
@@ -171,7 +174,7 @@
         :class="{ focused: registerFocus.serviceScope }"
         v-if="registerForm.role === 'merchant'"
       >
-        <uni-icons type="location" size="24" color="#666"></uni-icons>
+        <uni-icons type="location" size="26" color="#666"></uni-icons>
         <input
           v-model="registerForm.serviceScope"
           placeholder="请输入服务范围（选填）"
@@ -183,7 +186,7 @@
       </view>
 
       <view class="input-item" :class="{ focused: registerFocus.code }">
-        <uni-icons type="compose" size="24" color="#666"></uni-icons>
+        <uni-icons type="compose" size="26" color="#666"></uni-icons>
         <input
           v-model="registerForm.code"
           placeholder="请输入验证码"
@@ -193,11 +196,12 @@
           maxlength="6"
         />
         <button class="code-btn" @tap="handleSendCode" :disabled="isSendingCode">
-          {{ isSendingCode ? '发送中...' : '获取验证码' }}
+          {{ isSendingCode ? `${countdownTime}s` : '获取验证码' }}
         </button>
       </view>
       <view class="error-tip" v-if="registerErrors.code">{{ registerErrors.code }}</view>
 
+      <!-- 优化角色选择 -->
       <view class="role-wrap">
         <view 
           class="role-item" 
@@ -241,6 +245,8 @@ export default {
       currentTab: 'login',
       isLoading: false,
       isSendingCode: false,
+      countdownTime: 60,
+      countdownTimer: null,
       loginPasswordVisible: false,
       registerPasswordVisible: false,
       loginForm: {
@@ -278,6 +284,9 @@ export default {
       isRegisterFormValid: false
     }
   },
+  onUnload() {
+    clearInterval(this.countdownTimer)
+  },
   methods: {
     switchTab(tab) {
       this.currentTab = tab;
@@ -306,6 +315,17 @@ export default {
         icon: 'none',
         duration: 1500
       });
+    },
+    startCountdown() {
+      this.isSendingCode = true
+      this.countdownTime = 60
+      this.countdownTimer = setInterval(() => {
+        this.countdownTime--
+        if (this.countdownTime <= 0) {
+          clearInterval(this.countdownTimer)
+          this.isSendingCode = false
+        }
+      }, 1000)
     },
     getRoleMeta(roleType) {
       const normalizedRoleType = String(roleType || '1');
@@ -439,7 +459,7 @@ export default {
         return;
       }
 
-      this.isSendingCode = true;
+      this.startCountdown()
       try {
         const res = await sendCode(this.registerForm.phone);
         const smsCode = res.smsCode || '';
@@ -462,8 +482,8 @@ export default {
           title: (err && err.msg) || '验证码发送失败',
           icon: 'none'
         });
-      } finally {
-        this.isSendingCode = false;
+        clearInterval(this.countdownTimer)
+        this.isSendingCode = false
       }
     },
     async handleRegister() {
@@ -535,160 +555,223 @@ export default {
 </script>
 
 <style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+page {
+  background: #f6f7f9;
+  height: 100%;
+}
+
 .status-bar {
   height: var(--status-bar-height);
-  background: #fff;
+  background: #ffffff;
 }
 
 .login-page {
-  padding: 40rpx;
+  padding: 60rpx 40rpx;
   min-height: 100vh;
-  background: #f8f9fa;
-  box-sizing: border-box;
+  background: #f6f7f9;
 }
 
+/* -------------- 核心美化：登录/注册切换Tab -------------- */
 .tab-wrap {
   display: flex;
-  margin-bottom: 60rpx;
-  border-radius: 8rpx;
-  background: #fff;
-  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.05);
+  margin: 0 auto 60rpx;
+  width: 400rpx;
+  background: #ffffff;
+  border-radius: 999rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
+  overflow: hidden;
 }
+
 .tab-item {
   flex: 1;
   text-align: center;
-  padding: 20rpx 0;
+  padding: 26rpx 0;
   font-size: 32rpx;
-  color: #666;
-  position: relative;
-}
-.tab-item.active {
-  color: #2f54eb;
-  font-weight: 600;
-}
-.tab-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60rpx;
-  height: 4rpx;
-  background: #2f54eb;
-  border-radius: 2rpx;
+  color: #666666;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border-radius: 999rpx;
+  background: transparent;
 }
 
+.tab-item.active {
+  background: #2f54eb;
+  color: #ffffff;
+  font-weight: 600;
+}
+/* ------------------------------------------------------ */
+
 .form-wrap {
-  background: #fff;
-  padding: 40rpx;
-  border-radius: 12rpx;
-  box-shadow: 0 2rpx 15rpx rgba(0,0,0,0.05);
+  background: #ffffff;
+  padding: 48rpx;
+  border-radius: 32rpx;
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.08);
+  margin-bottom: 30rpx;
+}
+
+.card-animate {
+  animation: formFade 0.4s ease forwards;
 }
 
 .input-item {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #eee;
-  padding: 15rpx 0;
-  margin-bottom: 10rpx;
-  transition: border-color 0.3s;
+  background: #f6f7f9;
+  border-radius: 20rpx;
+  padding: 28rpx 32rpx;
+  margin-bottom: 24rpx;
+  transition: all 0.3s ease;
+  border: 2rpx solid transparent;
 }
+
 .input-item.focused {
-  border-bottom-color: #2f54eb;
+  background: #ffffff;
+  border-color: #2f54eb;
+  box-shadow: 0 0 0 6rpx rgba(47, 84, 235, 0.1);
 }
+
 .input {
   flex: 1;
-  margin-left: 20rpx;
-  font-size: 28rpx;
-  color: #333;
-  height: 40rpx;
-  line-height: 40rpx;
+  margin-left: 24rpx;
+  font-size: 30rpx;
+  color: #1d2129;
+  height: 44rpx;
+  line-height: 44rpx;
+  border: none;
+  background: transparent;
 }
+
 .input::placeholder {
-  color: #999;
+  color: #86909c;
 }
 
 .toggle-password {
   flex-shrink: 0;
-  padding-left: 12rpx;
+  padding-left: 16rpx;
+  transition: transform 0.2s ease;
+}
+
+.toggle-password:active {
+  transform: scale(0.9);
 }
 
 .code-btn {
   flex-shrink: 0;
   margin-left: 20rpx;
-  padding: 0 20rpx;
-  height: 56rpx;
-  line-height: 56rpx;
+  padding: 0 28rpx;
+  height: 64rpx;
+  line-height: 64rpx;
   border: none;
-  border-radius: 28rpx;
+  border-radius: 32rpx;
   background: #2f54eb;
-  color: #fff;
-  font-size: 24rpx;
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 4rpx 12rpx rgba(47, 84, 235, 0.2);
+}
+
+.code-btn:active {
+  transform: scale(0.96);
 }
 
 .code-btn[disabled] {
-  background: #ccc;
-  color: #fff;
+  background: #c9cdd4;
+  box-shadow: none;
+  transform: none;
 }
 
 .error-tip {
   font-size: 24rpx;
-  color: #f56c6c;
-  margin-bottom: 20rpx;
-  padding-left: 44rpx;
+  color: #ff4d4f;
+  margin: 0 0 20rpx 16rpx;
   line-height: 1.4;
 }
 
 .role-wrap {
   display: flex;
-  margin: 40rpx 0 20rpx;
+  margin: 48rpx 0 32rpx;
+  gap: 24rpx;
 }
+
 .role-item {
   flex: 1;
   text-align: center;
-  padding: 20rpx 15rpx;
-  border: 1px solid #eee;
-  border-radius: 8rpx;
-  margin: 0 10rpx;
-  font-size: 28rpx;
-  color: #666;
-  transition: all 0.3s;
+  padding: 24rpx 20rpx;
+  border: 2rpx solid #e5e6eb;
+  border-radius: 20rpx;
+  font-size: 30rpx;
+  color: #666666;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8rpx;
+  font-weight: 500;
 }
+
 .role-item.active {
   border-color: #2f54eb;
   color: #2f54eb;
   background: #f0f5ff;
   font-weight: 600;
+  transform: translateY(-4rpx);
+  box-shadow: 0 6rpx 16rpx rgba(47, 84, 235, 0.15);
+}
+
+.role-item:active {
+  transform: scale(0.96);
 }
 
 .submit-btn {
   width: 100%;
-  height: 80rpx;
-  line-height: 80rpx;
+  height: 88rpx;
+  line-height: 88rpx;
   background: #2f54eb;
-  color: #fff;
-  border-radius: 40rpx;
-  font-size: 30rpx;
+  color: #ffffff;
+  border-radius: 44rpx;
+  font-size: 34rpx;
+  font-weight: 600;
   margin-top: 40rpx;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
+  gap: 12rpx;
+  transition: all 0.3s ease;
+  box-shadow: 0 8rpx 24rpx rgba(47, 84, 235, 0.3);
 }
+
+.submit-btn:active {
+  transform: translateY(4rpx);
+  box-shadow: 0 4rpx 12rpx rgba(47, 84, 235, 0.2);
+}
+
 .submit-btn.disabled {
-  background: #ccc;
-  color: #fff;
+  background: #c9cdd4;
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
 }
+
 .loading-icon {
   animation: spin 1s linear infinite;
 }
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+@keyframes formFade {
+  0% { opacity: 0; transform: translateY(20rpx); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 </style>

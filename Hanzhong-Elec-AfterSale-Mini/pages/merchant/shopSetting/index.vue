@@ -56,7 +56,7 @@
         <switch 
           :checked="shopInfo.isOpen" 
           @change="onStatusChange"
-          color="#2f54eb"
+          color="#10b981"
         ></switch>
       </view>
     </view>
@@ -145,125 +145,141 @@ export default {
 </script>
 
 <style scoped>
-:root {
-  --primary-color: #2f54eb;
-  --light-primary: #f0f5ff;
-  --text-color: #333;
-  --text-gray: #999;
-  --text-light: #666;
-  --bg-color: #f8f8f8;
-  --white: #fff;
-  --border-color: #eee;
-  --radius-sm: 8rpx;
-  --radius-md: 12rpx;
-  --radius-lg: 16rpx;
-  --radius-full: 999rpx;
-  --shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
-}
 .shop-setting-page {
   min-height: 100vh;
-  background-color: var(--bg-color);
-  padding-bottom: 40rpx;
+  background: #f8f9fc;
+  padding: 30rpx;
+  box-sizing: border-box;
 }
 .form-container {
-  margin: 20rpx;
-  background-color: var(--white);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.03);
   overflow: hidden;
+  margin-bottom: 48rpx;
 }
 .form-item {
   display: flex;
   align-items: center;
-  padding: 0 30rpx;
-  min-height: 90rpx;
-  border-bottom: 1px solid var(--border-color);
+  padding: 0 36rpx;
+  height: 100rpx;
+  border-bottom: 1rpx solid #f5f7fa;
+  box-sizing: border-box;
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.form-item:first-child {
+  height: 180rpx;
+  align-items: center;
+}
+.form-item:active {
+  background: #fafbfc;
 }
 .form-item:last-child {
   border-bottom: none;
 }
 .label {
-  font-size: 30rpx;
-  color: var(--text-color);
-  width: 180rpx;
+  font-size: 28rpx;
+  color: #2c3e50;
+  width: 200rpx;
   flex-shrink: 0;
+  font-weight: 500;
 }
 .logo-upload {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 20rpx 0;
+  gap: 16rpx;
 }
 .logo-img {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: var(--radius-md);
-  border: 1px dashed var(--border-color);
-  margin-bottom: 10rpx;
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  background: #f5f7fa;
+  border: 4rpx solid #eaf0ff;
+  object-fit: cover;
+  transition: all 0.25s ease;
+}
+.logo-upload:active .logo-img {
+  transform: scale(0.96);
+  border-color: #d4e0ff;
 }
 .upload-tips {
   font-size: 24rpx;
-  color: var(--text-gray);
+  color: #95a3b8;
 }
 .input-content {
   flex: 1;
+  min-width: 0;
   font-size: 28rpx;
-  color: var(--text-color);
-  padding: 10rpx 0;
+  color: #2c3e50;
+  padding: 0;
+  border: none;
+  outline: none;
 }
 .input-content::placeholder {
-  color: var(--text-gray);
+  color: #95a3b8;
+}
+.input-content:focus {
+  color: #3b82f6;
 }
 .textarea-item {
   align-items: flex-start;
-  padding: 20rpx 30rpx;
+  padding: 32rpx 36rpx;
+  height: auto;
 }
 .textarea-content {
   flex: 1;
+  min-width: 0;
   font-size: 28rpx;
-  color: var(--text-color);
-  min-height: 120rpx;
-  line-height: 1.6;
+  color: #2c3e50;
+  min-height: 150rpx;
+  line-height: 1.7;
+  padding: 0;
+  border: none;
+  outline: none;
 }
 .textarea-content::placeholder {
-  color: var(--text-gray);
+  color: #95a3b8;
 }
 .time-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 28rpx;
-  color: var(--text-gray);
+  color: #95a3b8;
 }
 .arrow-icon {
-  font-size: 24rpx;
-  color: var(--text-gray);
+  font-size: 28rpx;
+  color: #95a3b8;
+  font-weight: 600;
 }
 .switch-item {
   justify-content: space-between;
 }
 .save-btn {
-  margin: 30rpx 20rpx;
-  height: 88rpx;
-  line-height: 88rpx;
-  background-color: var(--primary-color);
-  color: var(--white);
-  border-radius: var(--radius-full);
+  height: 100rpx;
+  line-height: 100rpx;
+  background: linear-gradient(135deg, #4d8cf7, #3b82f6);
+  color: #fff;
+  border-radius: 50rpx;
   text-align: center;
   font-size: 32rpx;
-  box-shadow: var(--shadow);
+  font-weight: 500;
+  box-shadow: 0 12rpx 32rpx rgba(59, 130, 246, 0.15);
+  transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
 }
 .save-btn.disabled {
-  background-color: #999;
+  background: #e4e7ed;
   pointer-events: none;
+  box-shadow: none;
 }
 .save-btn:active {
-  background-color: #1e42c8;
-  transform: scale(0.98);
+  transform: scale(0.95);
+  box-shadow: 0 6rpx 20rpx rgba(59, 130, 246, 0.2);
 }
 .btn-text {
-  color: var(--white);
-  font-weight: 500;
+  color: #fff;
 }
 </style>
