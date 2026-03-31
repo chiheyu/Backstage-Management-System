@@ -12,6 +12,7 @@ import { session } from '@/lib/session'
 const router = useRouter()
 
 const productHints = ['手机', '平板', '笔记本电脑', '显示器', '路由器', '电池配件']
+const serviceTypeOptions = ['退货', '换货']
 const saving = ref(false)
 const uploading = ref(false)
 const addressList = ref([])
@@ -20,6 +21,7 @@ const imageInput = ref(null)
 const imageList = ref([])
 
 const form = reactive({
+  serviceType: '',
   productName: '',
   productModel: '',
   faultDesc: '',
@@ -59,6 +61,7 @@ function consumePrefill() {
 
   form.productName = prefill.productName || form.productName
   form.productModel = prefill.productModel || form.productModel
+  form.serviceType = prefill.serviceType || form.serviceType
   form.contactName = prefill.name || form.contactName
   form.contactPhone = prefill.phone || form.contactPhone
   form.address = prefill.receiverAddress || form.address
@@ -66,6 +69,10 @@ function consumePrefill() {
 
 function fillHint(name) {
   form.productName = name
+}
+
+function selectServiceType(type) {
+  form.serviceType = type
 }
 
 function openImagePicker() {
@@ -125,8 +132,12 @@ function validateForm() {
     pushNotice('请填写产品名称', 'danger')
     return false
   }
+  if (!form.serviceType.trim()) {
+    pushNotice('请选择售后类型', 'danger')
+    return false
+  }
   if (!form.productModel.trim()) {
-    pushNotice('请填写产品型号', 'danger')
+    pushNotice('请填写订单号', 'danger')
     return false
   }
   if (!form.faultDesc.trim()) {
@@ -157,7 +168,7 @@ async function submitForm() {
   try {
     const imageUrls = await uploadImages()
     await userApi.createAfterSalesOrder({
-      productType: `${form.productName.trim()} / ${form.productModel.trim()}`,
+      productType: [form.serviceType.trim(), form.productName.trim(), form.productModel.trim()].filter(Boolean).join(' / '),
       faultDesc: form.faultDesc.trim(),
       faultImages: imageUrls.join(','),
       contactName: form.contactName.trim(),
@@ -199,15 +210,6 @@ onMounted(() => {
         <div>
           <span class="eyebrow">售后申请</span>
           <h1>提交设备报修与售后需求</h1>
-          <p>补充产品、故障、地址和图片信息后，商家可更快判断处理方式并更新进度。</p>
-        </div>
-
-        <div class="surface-card apply-side-card">
-          <strong>处理流程</strong>
-          <span>待接单</span>
-          <span>已接单</span>
-          <span>维修中</span>
-          <span>已完成 / 已取消</span>
         </div>
       </section>
 
@@ -228,10 +230,26 @@ onMounted(() => {
                 <input v-model.trim="form.productName" class="field" placeholder="例如 手机、显示器、路由器" />
               </label>
               <label>
-                <span>产品型号</span>
-                <input v-model.trim="form.productModel" class="field" placeholder="例如 Mate 60、ThinkPad X1" />
+                <span>订单号</span>
+                <input v-model.trim="form.productModel" class="field" placeholder="请输入订单号" />
               </label>
             </div>
+
+            <label>
+              <span>售后类型</span>
+              <div class="chip-row">
+                <button
+                  v-for="item in serviceTypeOptions"
+                  :key="item"
+                  type="button"
+                  class="chip"
+                  :class="{ active: form.serviceType === item }"
+                  @click="selectServiceType(item)"
+                >
+                  {{ item }}
+                </button>
+              </div>
+            </label>
 
             <div class="chip-row">
               <button v-for="item in productHints" :key="item" type="button" class="chip" @click="fillHint(item)">
@@ -305,7 +323,6 @@ onMounted(() => {
             <div>
               <span class="eyebrow">常用入口</span>
               <h2>相关入口</h2>
-              <p>申请前后常用的几个操作集中在这里。</p>
             </div>
           </div>
 

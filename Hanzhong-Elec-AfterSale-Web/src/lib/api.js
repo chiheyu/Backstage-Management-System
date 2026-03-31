@@ -245,6 +245,11 @@ export const commonApi = {
       method: 'GET'
     })
   },
+  listMerchantReviews(merchantId) {
+    return apiRequest(`/app/common/merchant/${merchantId}/review/list`, {
+      method: 'GET'
+    })
+  },
   uploadFile(file) {
     return apiUpload('/common/upload', file)
   }
@@ -308,6 +313,12 @@ export const userApi = {
     return apiRequest(`/app/user/accessoryOrder/${accessoryOrderId}`, {
       method: 'GET'
     })
+  },
+  createMerchantReview(payload) {
+    return apiRequest('/app/user/merchantReview', {
+      method: 'POST',
+      body: payload
+    })
   }
 }
 
@@ -319,6 +330,11 @@ export const merchantApi = {
     return apiRequest('/app/merchant/info', {
       method: 'PUT',
       body: payload
+    })
+  },
+  stats() {
+    return apiRequest('/app/merchant/stats', {
+      method: 'GET'
     })
   },
   listPendingOrders(params = {}) {

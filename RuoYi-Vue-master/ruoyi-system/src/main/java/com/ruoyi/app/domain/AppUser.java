@@ -32,7 +32,7 @@ public class AppUser extends BaseEntity
     @Excel(name = "昵称")
     private String nickName;
 
-    /** 业务角色：0 待审核商家、1 用户、2 商家。 */
+    /** 业务角色：1 用户、2 商家；0 仅兼容历史待审核数据。 */
     @Excel(name = "业务角色")
     private String roleType;
 

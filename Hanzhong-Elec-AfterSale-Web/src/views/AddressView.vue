@@ -103,11 +103,10 @@ resetForm()
       <div>
         <span class="eyebrow">地址簿</span>
         <h1>管理收货地址</h1>
-        <p>购物车结算和售后申请都会优先读取默认地址。</p>
       </div>
       <div class="surface-card address-hero__side">
+        <span class="eyebrow">当前已添加：</span>
         <strong>{{ addressList.length }} 条地址</strong>
-        <span>默认地址会自动带入购物车结算与售后申请。</span>
       </div>
     </section>
 
@@ -149,7 +148,6 @@ resetForm()
           <div>
             <span class="eyebrow">地址表单</span>
             <h2>{{ isEditing ? '编辑地址' : '新增地址' }}</h2>
-            <p>与小程序一致，地址暂存于当前网页端本地。</p>
           </div>
         </div>
 

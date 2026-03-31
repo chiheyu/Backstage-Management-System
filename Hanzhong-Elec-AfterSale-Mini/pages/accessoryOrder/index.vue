@@ -38,6 +38,9 @@
           <text class="create-time">{{ formatTime(item.createTime) }}</text>
           <view class="footer-actions" v-if="canApplyAfterSale(item)">
             <button class="after-sale-btn" size="mini" @tap="goAfterSale(item)">售后</button>
+            <button class="review-btn" size="mini" :disabled="isReviewed(item)" @tap="openReviewPopup(item)">
+              {{ isReviewed(item) ? '已评价' : '评价' }}
+            </button>
           </view>
         </view>
       </view>
@@ -52,11 +55,40 @@
         <text v-if="total > 0" class="load-more-total">已加载 {{ orderList.length }} / {{ total }}</text>
       </view>
     </view>
+
+    <view v-if="showReviewPopup" class="review-mask" @tap="closeReviewPopup">
+      <view class="review-popup" @tap.stop>
+        <view class="review-header">
+          <text class="review-title">评价</text>
+          <text class="review-close" @tap="closeReviewPopup">×</text>
+        </view>
+        <view class="review-body">
+          <text class="review-goods-name">{{ currentReviewOrder ? currentReviewOrder.accessoryName : '' }}</text>
+          <view class="review-rate-row">
+            <text class="review-label">星级评分</text>
+            <uni-rate :value="reviewForm.rating" :max="5" :size="28" @change="handleRateChange"></uni-rate>
+          </view>
+          <view class="review-text-wrap">
+            <text class="review-label">评价内容</text>
+            <textarea
+              v-model="reviewForm.content"
+              class="review-textarea"
+              placeholder="请输入评价内容"
+              maxlength="300"
+            ></textarea>
+          </view>
+          <button class="review-submit-btn" :disabled="!trimmedReviewContent" @tap="submitReview">
+            完成
+          </button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script>
 import {
+  createMerchantReview,
   getAccessoryOrderList,
   normalizeAccessoryOrder,
   isPendingAccessoryOrder,
@@ -68,7 +100,6 @@ import {
 const DEFAULT_PAGE_SIZE = 20
 const AFTER_SALE_PREFILL_KEY = 'afterSalePrefill'
 const COMPLETED_STATUS = '2'
-
 export default {
   data() {
     return {
@@ -80,7 +111,13 @@ export default {
       hasMore: true,
       isLoading: false,
       isLoadingMore: false,
-      LOGIN_PATH: '/pages/profile/login'
+      LOGIN_PATH: '/pages/profile/login',
+      showReviewPopup: false,
+      currentReviewOrder: null,
+      reviewForm: {
+        rating: 5,
+        content: ''
+      }
     }
   },
   computed: {
@@ -116,6 +153,9 @@ export default {
         return '点击加载更多'
       }
       return '没有更多订单了'
+    },
+    trimmedReviewContent() {
+      return (this.reviewForm.content || '').trim()
     }
   },
   onLoad(options = {}) {
@@ -246,6 +286,9 @@ export default {
     canApplyAfterSale(item) {
       return String(item.status) === COMPLETED_STATUS
     },
+    isReviewed(item) {
+      return !!item.reviewed
+    },
     buildAfterSalePrefill(order) {
       const orderNo = order.orderNo || ''
       return {
@@ -260,9 +303,68 @@ export default {
       }
     },
     goAfterSale(item) {
-      uni.setStorageSync(AFTER_SALE_PREFILL_KEY, this.buildAfterSalePrefill(item))
-      uni.switchTab({
-        url: '/pages/applyAfterSale/index'
+      uni.showActionSheet({
+        itemList: ['退货', '换货'],
+        success: ({ tapIndex }) => {
+          const serviceType = tapIndex === 0 ? '退货' : '换货'
+          uni.setStorageSync(AFTER_SALE_PREFILL_KEY, {
+            ...this.buildAfterSalePrefill(item),
+            serviceType
+          })
+          uni.switchTab({
+            url: '/pages/applyAfterSale/index'
+          })
+        }
+      })
+    },
+    openReviewPopup(item) {
+      if (this.isReviewed(item)) {
+        return
+      }
+      this.currentReviewOrder = item
+      this.reviewForm = {
+        rating: 5,
+        content: ''
+      }
+      this.showReviewPopup = true
+    },
+    closeReviewPopup() {
+      this.showReviewPopup = false
+      this.currentReviewOrder = null
+      this.reviewForm = {
+        rating: 5,
+        content: ''
+      }
+    },
+    handleRateChange(event) {
+      this.reviewForm.rating = Number(event.value || event.detail?.value || 5) || 5
+    },
+    submitReview() {
+      if (!this.currentReviewOrder || !this.trimmedReviewContent) {
+        return
+      }
+      uni.showLoading({
+        title: '提交中...',
+        mask: true
+      })
+      createMerchantReview({
+        accessoryOrderId: this.currentReviewOrder.accessoryOrderId,
+        rating: this.reviewForm.rating || 5,
+        reviewContent: this.trimmedReviewContent
+      }).then(() => {
+        uni.showToast({
+          title: '评价成功',
+          icon: 'success'
+        })
+        this.closeReviewPopup()
+        this.reloadOrders()
+      }).catch((error) => {
+        uni.showToast({
+          title: (error && error.msg) || '评价失败',
+          icon: 'none'
+        })
+      }).finally(() => {
+        uni.hideLoading()
       })
     },
     getAccessoryOrderStatusText,
@@ -459,6 +561,7 @@ page {
 .footer-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 16rpx;
 }
 
 .after-sale-btn {
@@ -477,6 +580,128 @@ page {
 .after-sale-btn:active {
   transform: scale(0.95);
   background: #e0ebff;
+}
+
+.review-btn {
+  min-width: 120rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  padding: 0 24rpx;
+  background: #fff7e8;
+  color: #ff7d00;
+  border: 1rpx solid #ffd591;
+  border-radius: 28rpx;
+  font-size: 24rpx;
+  transition: all 0.2s ease;
+}
+
+.review-btn:active {
+  transform: scale(0.95);
+  background: #fff1d6;
+}
+
+.review-btn[disabled] {
+  background: #f2f3f5;
+  color: #c9cdd4;
+  border-color: #e5e6eb;
+}
+
+.review-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+  z-index: 999;
+}
+
+.review-popup {
+  width: 100%;
+  background: #fff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.16);
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.review-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #333;
+}
+
+.review-close {
+  font-size: 42rpx;
+  color: #999;
+  line-height: 1;
+}
+
+.review-body {
+  padding: 32rpx;
+}
+
+.review-goods-name {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24rpx;
+}
+
+.review-rate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 28rpx;
+}
+
+.review-label {
+  font-size: 28rpx;
+  color: #666;
+  font-weight: 500;
+}
+
+.review-text-wrap {
+  margin-bottom: 32rpx;
+}
+
+.review-textarea {
+  width: 100%;
+  min-height: 220rpx;
+  margin-top: 18rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid #e5e6eb;
+  background: #fafafa;
+  font-size: 28rpx;
+  color: #333;
+  box-sizing: border-box;
+}
+
+.review-submit-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  border: none;
+  border-radius: 44rpx;
+  background: #2f54eb;
+  color: #fff;
+  font-size: 30rpx;
+}
+
+.review-submit-btn:disabled {
+  background: #c9cdd4;
+  color: #fff;
 }
 
 .load-more {

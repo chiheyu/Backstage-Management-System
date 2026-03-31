@@ -93,7 +93,7 @@ public class SysUser extends BaseEntity
     /** 角色ID */
     private Long roleId;
 
-    /** App 业务角色：0 待审核商家、1 用户、2 商家。 */
+    /** App 业务角色：1 用户、2 商家；0 仅兼容历史待审核数据。 */
     private String appRoleType;
 
     /** 关联商家名称。 */

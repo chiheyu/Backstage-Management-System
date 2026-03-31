@@ -20,16 +20,17 @@ const submitting = ref(false)
 const merchantOrders = ref([])
 const selectedOrderId = ref('')
 const receiptRemark = ref('')
+const isRejectMode = ref(false)
 
 const summaryCards = computed(() => {
-  const acceptedCount = merchantOrders.value.filter(item => String(item.status) === '1').length
-  const repairingCount = merchantOrders.value.filter(item => String(item.status) === '2').length
-  const completedCount = merchantOrders.value.filter(item => String(item.status) === '3').length
+  const unfinishedCount = merchantOrders.value.filter(item => !['3', '4'].includes(String(item.status))).length
+  const completedCount = merchantOrders.value.filter(item => ['3', '4'].includes(String(item.status))).length
+  const rejectedCount = merchantOrders.value.filter(item => String(item.serviceRemark || '').trim().startsWith('已拒绝')).length
 
   return [
-    { label: '已接单', value: acceptedCount, desc: '等待填写检测或开修回执' },
-    { label: '维修中', value: repairingCount, desc: '处理中的工单可补充完工回执' },
-    { label: '已完成', value: completedCount, desc: '已提交完工回执的工单' }
+    { label: '未完成', value: unfinishedCount },
+    { label: '已完成', value: completedCount },
+    { label: '已拒绝', value: rejectedCount }
   ]
 })
 
@@ -45,39 +46,11 @@ const imageList = computed(() => {
     .map(item => resolveImage(item, apiBaseUrl))
 })
 
-const actionConfig = computed(() => {
-  const status = String(selectedOrder.value?.status || '')
-  if (status === '1') {
-    return {
-      label: '提交回执并开始维修',
-      nextStatus: '2',
-      successMessage: '回执已提交，工单已进入维修中'
-    }
-  }
-
-  if (status === '2') {
-    return {
-      label: '提交回执并完成订单',
-      nextStatus: '3',
-      successMessage: '完工回执已提交，工单已完成'
-    }
-  }
-
-  return {
-    label: '当前状态无需提交回执',
-    nextStatus: '',
-    successMessage: ''
-  }
-})
-
 function getDefaultRemark(order) {
   if (!order) {
     return ''
   }
-  if (String(order.status) === '2') {
-    return ''
-  }
-  return order.serviceRemark || ''
+  return String(order.serviceRemark || '').trim()
 }
 
 function syncRouteOrderId(orderId) {
@@ -106,6 +79,7 @@ function applySelection(order) {
 
   selectedOrderId.value = String(order.orderId)
   receiptRemark.value = getDefaultRemark(order)
+  isRejectMode.value = false
   syncRouteOrderId(order.orderId)
 }
 
@@ -129,7 +103,7 @@ async function loadMerchantOrders() {
         pageSize: PAGE_SIZE,
         dedupeKey: 'orderId'
       })
-    ).filter(item => ['1', '2', '3'].includes(String(item.status)))
+    ).filter(item => ['0', '1', '2', '3', '4'].includes(String(item.status)))
     syncSelection()
   } catch (error) {
     merchantOrders.value = []
@@ -144,19 +118,33 @@ function selectMerchantOrder(order) {
   applySelection(order)
 }
 
+function parseOrderMeta(productType) {
+  const parts = String(productType || '')
+    .split('/')
+    .map(item => item.trim())
+    .filter(Boolean)
+
+  return {
+    serviceType: parts[0] || '',
+    productName: parts[1] || '',
+    orderNo: parts[2] || ''
+  }
+}
+
+const selectedOrderMeta = computed(() => parseOrderMeta(selectedOrder.value?.productType))
+const isReadonlyReceipt = computed(() => ['3', '4'].includes(String(selectedOrder.value?.status || '')))
+const readonlyReceiptContent = computed(() => String(selectedOrder.value?.serviceRemark || '').trim() || '暂无处理意见')
+const trimmedReceiptRemark = computed(() => receiptRemark.value.trim())
+
 async function submitReceipt() {
-  if (!selectedOrder.value || !actionConfig.value.nextStatus || submitting.value) {
+  if (!selectedOrder.value || submitting.value || isReadonlyReceipt.value) {
     return
   }
 
   const remark = receiptRemark.value.trim()
-  if (!remark) {
-    pushNotice('请先填写回执内容', 'danger')
-    return
-  }
-
-  if (actionConfig.value.nextStatus === '3' && remark === String(selectedOrder.value.serviceRemark || '').trim()) {
-    pushNotice('请填写本次完工回执后再完成工单', 'danger')
+  const finalRemark = isRejectMode.value ? `已拒绝 拒绝原因：${remark}` : '已同意售后申请'
+  if (isRejectMode.value && !remark) {
+    pushNotice('请先填写拒绝原因', 'danger')
     return
   }
 
@@ -164,16 +152,29 @@ async function submitReceipt() {
   try {
     await merchantApi.updateOrderStatus({
       orderId: selectedOrder.value.orderId,
-      status: actionConfig.value.nextStatus,
-      serviceRemark: remark
+      status: '3',
+      serviceRemark: finalRemark
     })
-    pushNotice(actionConfig.value.successMessage, 'success')
+    pushNotice('处理成功', 'success')
     emit('updated')
     await loadMerchantOrders()
   } catch (error) {
     pushNotice(error.message || '售后回执提交失败', 'danger')
   } finally {
     submitting.value = false
+  }
+}
+
+function agreeOrder() {
+  isRejectMode.value = false
+  receiptRemark.value = ''
+  submitReceipt()
+}
+
+function toggleRejectMode() {
+  isRejectMode.value = !isRejectMode.value
+  if (!isRejectMode.value) {
+    receiptRemark.value = ''
   }
 }
 
@@ -195,7 +196,6 @@ onMounted(() => {
       <div>
         <span class="eyebrow">售后回执</span>
         <h1>商家售后回执中心</h1>
-        <p>按小程序商家模式提供检测、维修进展和完工回执入口，直接推动工单状态流转。</p>
       </div>
 
       <div class="receipt-summary-grid">
@@ -213,12 +213,11 @@ onMounted(() => {
     </section>
 
     <section v-else-if="merchantOrders.length" class="receipt-grid">
-      <section class="surface-card section-card">
+      <section class="surface-card section-card receipt-list-panel">
         <div class="section-head">
           <div>
             <span class="eyebrow">工单列表</span>
             <h2>待回执工单</h2>
-            <p>只显示已接单、维修中和已完成的工单，便于商家补充回执记录。</p>
           </div>
           <button class="btn btn--ghost btn--small" @click="router.push({ name: 'after-sales-orders', query: { mode: 'mine' } })">
             返回工单页
@@ -235,7 +234,10 @@ onMounted(() => {
           >
             <div class="between-row receipt-order-item__head">
               <span class="eyebrow">{{ item.orderNo || `AS${item.orderId}` }}</span>
-              <StatusBadge v-bind="getStatusMeta(AFTER_SALES_STATUS, item.status)" />
+              <StatusBadge
+                :label="['3', '4'].includes(String(item.status)) ? '已完成' : '未完成'"
+                :tone="['3', '4'].includes(String(item.status)) ? 'success' : 'warm'"
+              />
             </div>
             <strong>{{ item.productType || '未填写产品类型' }}</strong>
             <p>{{ shortText(item.faultDesc, 66) }}</p>
@@ -247,17 +249,21 @@ onMounted(() => {
         </div>
       </section>
 
-      <section class="surface-card section-card">
+      <section class="surface-card section-card receipt-detail-panel">
         <div class="section-head">
           <div>
-            <span class="eyebrow">回执内容</span>
-            <h2>{{ selectedOrder?.productType || '选择工单后填写回执' }}</h2>
-            <p>回执会同步写入当前售后工单，网页端和小程序端都能看到同一条处理记录。</p>
+            <span class="eyebrow">工单处理</span>
+            <h2>{{ selectedOrder?.productType || '选择工单' }}</h2>
           </div>
         </div>
 
         <template v-if="selectedOrder">
           <div class="receipt-detail-grid">
+            <article class="receipt-detail-card">
+              <strong>客户诉求</strong>
+              <span>{{ selectedOrderMeta.serviceType || '未填写' }}</span>
+              <span>{{ selectedOrderMeta.productName || '未填写' }} / {{ selectedOrderMeta.orderNo || '未填写' }}</span>
+            </article>
             <article class="receipt-detail-card">
               <strong>用户信息</strong>
               <span>{{ selectedOrder.userName || '未知用户' }}</span>
@@ -269,7 +275,10 @@ onMounted(() => {
             </article>
             <article class="receipt-detail-card">
               <strong>当前状态</strong>
-              <StatusBadge v-bind="getStatusMeta(AFTER_SALES_STATUS, selectedOrder.status)" />
+              <StatusBadge
+                :label="['3', '4'].includes(String(selectedOrder.status)) ? '已完成' : '未完成'"
+                :tone="['3', '4'].includes(String(selectedOrder.status)) ? 'success' : 'warm'"
+              />
             </article>
             <article class="receipt-detail-card">
               <strong>创建时间</strong>
@@ -287,27 +296,53 @@ onMounted(() => {
           </article>
 
           <article v-if="selectedOrder.serviceRemark" class="receipt-fault-card">
-            <strong>最近回执</strong>
+            <strong>处理意见</strong>
             <p>{{ selectedOrder.serviceRemark }}</p>
           </article>
 
-          <label class="receipt-form">
-            <span>本次回执</span>
-            <textarea
-              v-model.trim="receiptRemark"
-              class="textarea"
-              placeholder="请输入检测结果、维修进展、备件更换情况或完工说明"
-            ></textarea>
-          </label>
+          <div v-if="isReadonlyReceipt" class="receipt-readonly-box">
+            <p>{{ readonlyReceiptContent }}</p>
+          </div>
+
+          <div v-else class="receipt-actions-shell">
+            <div class="action-row receipt-actions dual-action">
+              <button
+                class="btn btn--primary"
+                :disabled="submitting"
+                @click="agreeOrder"
+              >
+                {{ submitting && !isRejectMode ? '提交中...' : '同意' }}
+              </button>
+              <button
+                class="btn btn--ghost receipt-reject-btn"
+                :disabled="submitting"
+                @click="toggleRejectMode"
+              >
+                {{ isRejectMode ? '取消拒绝' : '拒绝' }}
+              </button>
+            </div>
+
+            <label v-if="isRejectMode" class="receipt-form">
+              <span>拒绝原因</span>
+              <textarea
+                v-model.trim="receiptRemark"
+                class="textarea"
+                placeholder="请输入拒绝原因"
+              ></textarea>
+            </label>
+
+            <div v-if="isRejectMode" class="action-row receipt-actions">
+              <button
+                class="btn btn--primary"
+                :disabled="submitting || !trimmedReceiptRemark"
+                @click="submitReceipt"
+              >
+                {{ submitting ? '提交中...' : '提交' }}
+              </button>
+            </div>
+          </div>
 
           <div class="action-row receipt-actions">
-            <button
-              class="btn btn--primary"
-              :disabled="!actionConfig.nextStatus || submitting"
-              @click="submitReceipt"
-            >
-              {{ submitting ? '提交中...' : actionConfig.label }}
-            </button>
             <button
               class="btn btn--ghost"
               @click="router.push({ name: 'after-sales-orders', query: { mode: 'mine' } })"
@@ -381,8 +416,13 @@ onMounted(() => {
 
 .receipt-grid {
   display: grid;
+  --receipt-order-card-height: 152px;
+  --receipt-order-gap: 14px;
+  --receipt-list-visible-height: calc((var(--receipt-order-card-height) * 4) + (var(--receipt-order-gap) * 3));
   grid-template-columns: minmax(340px, 0.95fr) minmax(0, 1.15fr);
   gap: 24px;
+  align-items: stretch;
+  min-height: 780px;
 }
 
 .receipt-card--ghost {
@@ -392,12 +432,48 @@ onMounted(() => {
   animation: receipt-pulse 1.8s linear infinite;
 }
 
+.receipt-list-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  min-height: 780px;
+  overflow: hidden;
+}
+
+.receipt-detail-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  min-height: 780px;
+}
+
 .receipt-list {
   display: grid;
   gap: 14px;
+  flex: none;
+  min-height: var(--receipt-list-visible-height);
+  max-height: var(--receipt-list-visible-height);
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.receipt-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.receipt-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(17, 117, 101, 0.18);
+}
+
+.receipt-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .receipt-order-item {
+  min-height: 152px;
   padding: 18px;
   border-radius: 24px;
   text-align: left;
@@ -474,6 +550,18 @@ onMounted(() => {
   border-radius: 18px;
 }
 
+.receipt-readonly-box {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 243, 235, 0.94));
+  border: 1px solid rgba(17, 61, 77, 0.08);
+}
+
+.receipt-readonly-box p {
+  margin: 0;
+}
+
 .receipt-fault-card {
   margin-top: 18px;
 }
@@ -497,6 +585,20 @@ onMounted(() => {
   margin-top: 18px;
 }
 
+.receipt-actions-shell {
+  margin-top: 18px;
+}
+
+.dual-action {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.receipt-reject-btn {
+  border-color: rgba(193, 75, 45, 0.16);
+  color: var(--danger);
+}
+
 @keyframes receipt-pulse {
   to {
     background-position: -200% 0;
@@ -508,6 +610,10 @@ onMounted(() => {
   .receipt-grid,
   .receipt-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .receipt-grid {
+    min-height: auto;
   }
 }
 

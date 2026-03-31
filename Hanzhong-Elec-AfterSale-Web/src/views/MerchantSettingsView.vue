@@ -62,27 +62,22 @@ function loadLocalConfig(merchantId) {
 }
 
 async function loadMerchantInfo() {
-  if (!session.token || (!roleState.value.isMerchant && !roleState.value.isPendingMerchant)) {
+  if (!session.token || !roleState.value.isMerchant) {
     return
   }
 
   loading.value = true
   try {
-    if (roleState.value.isMerchant) {
-      const merchant = await merchantApi.currentInfo()
-      session.merchant = merchant
-      saveStoredSession({
-        token: session.token,
-        appUser: session.appUser,
-        merchant: session.merchant,
-        roleType: session.roleType
-      })
-      fillForm(merchant)
-      loadLocalConfig(merchant?.merchantId)
-    } else {
-      fillForm(session.merchant)
-      loadLocalConfig(session.merchant?.merchantId)
-    }
+    const merchant = await merchantApi.currentInfo()
+    session.merchant = merchant
+    saveStoredSession({
+      token: session.token,
+      appUser: session.appUser,
+      merchant: session.merchant,
+      roleType: session.roleType
+    })
+    fillForm(merchant)
+    loadLocalConfig(merchant?.merchantId)
   } catch (error) {
     pushNotice(error.message || '商家资料加载失败', 'danger')
   } finally {
@@ -186,7 +181,7 @@ onMounted(() => {
     />
 
     <EmptyState
-      v-else-if="!roleState.isMerchant && !roleState.isPendingMerchant"
+      v-else-if="!roleState.isMerchant"
       title="当前账号不是商家"
       description="普通用户无法查看店铺设置页，请切换为商家账户。"
       action-label="返回个人中心"
@@ -197,9 +192,8 @@ onMounted(() => {
       <section class="glass-card merchant-settings-hero">
         <div>
           <span class="eyebrow">店铺设置</span>
-          <h1>{{ roleState.isMerchant ? '维护门店资料' : '查看审核中的店铺资料' }}</h1>
-          <p v-if="roleState.isMerchant">网页端这里同时维护后端门店资料和本地展示配置，后者专门用来补齐小程序端已有的店铺 Logo、营业时间和营业状态能力。</p>
-          <p v-else>当前为待审核状态，审核通过后即可编辑店铺资料和本地展示配置。</p>
+          <h1>维护门店资料</h1>
+          <p>网页端这里同时维护后端门店资料和本地展示配置，后者专门用来补齐小程序端已有的店铺 Logo、营业时间和营业状态能力。</p>
         </div>
 
         <div class="surface-card merchant-settings-side">
@@ -278,7 +272,6 @@ onMounted(() => {
             <div>
               <span class="eyebrow">本地展示配置</span>
               <h2>网页端补齐字段</h2>
-              <p>这一组字段类比小程序端店铺设置，只保存在当前浏览器，不写入后端数据库。</p>
             </div>
           </div>
 
@@ -337,9 +330,8 @@ onMounted(() => {
           </div>
 
           <div class="between-row merchant-settings-footer">
-            <p v-if="roleState.isMerchant">保存时会同时更新后端门店资料，并把网页端本地展示配置写入当前浏览器。</p>
-            <p v-else>当前阶段只能查看资料，等待后台审核通过后再进行编辑。</p>
-            <button v-if="roleState.isMerchant" class="btn btn--primary" :disabled="saving || loading">
+            <p>保存时会同时更新后端门店资料，并把网页端本地展示配置写入当前浏览器。</p>
+            <button class="btn btn--primary" :disabled="saving || loading">
               {{ saving ? '保存中...' : '保存店铺资料' }}
             </button>
           </div>

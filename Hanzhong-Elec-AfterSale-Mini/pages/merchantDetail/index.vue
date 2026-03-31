@@ -1,5 +1,12 @@
 <template>
   <view class="merchant-detail">
+    <view v-if="showMerchantSwitcher" class="merchant-switch switch-left" @tap="switchMerchant(-1)">
+      <uni-icons type="left" size="26" color="#2f54eb"></uni-icons>
+    </view>
+    <view v-if="showMerchantSwitcher" class="merchant-switch switch-right" @tap="switchMerchant(1)">
+      <uni-icons type="right" size="26" color="#2f54eb"></uni-icons>
+    </view>
+
     <view class="merchant-header">
       <image 
         class="merchant-avatar" 
@@ -104,33 +111,29 @@
 </template>
 
 <script>
-import { getCurrentMerchantInfo } from '@/api/merchant'
+import { getCurrentMerchantInfo, getMerchantDetail, getMerchantList, getMerchantReviewList } from '@/api/merchant'
+
+const DEFAULT_RATING = 4.8
 
 export default {
   data() {
     return {
       isMerchantMode: false,
+      merchantList: [],
+      currentMerchantIndex: 0,
       merchantInfo: {
+        id: null,
         name: "汉中电子售后旗舰店",
         avatar: "/static/images/hz-logo.png",
         tag: "官方认证 | 售后无忧",
-        rating: 4.8,
+        rating: DEFAULT_RATING,
         phone: "400-123-4567",
         address: "陕西省汉中市汉台区XX路XX号电子城1楼",
         businessHours: "09:00 - 21:00 (全年无休)",
         businessScope: "手机配件、电脑配件、电子设备售后、维修服务"
       },
       commentList: [],
-      allCommentList: [
-        { username: "张先生", avatar: "/static/images/avatar.png", rating: 5, content: "售后速度很快，换了个显示屏，半小时就搞定了，价格也合理！", time: "2026-03-10" },
-        { username: "李女士", avatar: "/static/images/avatar.png", rating: 4, content: "配件质量不错，商家服务态度很好，就是位置稍微有点偏。", time: "2026-03-08" },
-        { username: "王先生", avatar: "/static/images/avatar.png", rating: 5, content: "数据线用着很稳定，售后小哥很专业，点赞！", time: "2026-03-05" },
-        { username: "赵女士", avatar: "/static/images/avatar.png", rating: 5, content: "维修师傅技术很好，手机进水很快就修好了，收费透明！", time: "2026-03-02" },
-        { username: "刘先生", avatar: "/static/images/avatar.png", rating: 4, content: "店铺环境干净整洁，售后流程规范，值得推荐。", time: "2026-02-28" },
-        { username: "陈女士", avatar: "/static/images/avatar.png", rating: 5, content: "买的配件质保一年，售后有保障，非常放心。", time: "2026-02-25" },
-        { username: "周先生", avatar: "/static/images/avatar.png", rating: 4, content: "服务态度很好，就是等待时间稍微长了一点。", time: "2026-02-20" },
-        { username: "吴女士", avatar: "/static/images/avatar.png", rating: 5, content: "电子设备维修专业，价格公道，强烈推荐！", time: "2026-02-18" }
-      ],
+      allCommentList: [],
       pageNum: 1,
       pageSize: 3,
       totalCount: 0,
@@ -138,47 +141,118 @@ export default {
       noMore: false
     };
   },
+  computed: {
+    showMerchantSwitcher() {
+      return !this.isMerchantMode && this.merchantList.length > 1
+    }
+  },
   onLoad(options = {}) {
     this.isMerchantMode = options.mode === 'merchant';
     wx.setNavigationBarTitle({ title: this.isMerchantMode ? '我的店铺' : '商家详情' });
-    this.totalCount = this.allCommentList.length;
-    this.loadInitComments();
     if (this.isMerchantMode) {
       this.loadCurrentMerchantInfo();
+      return
     }
+    this.loadMerchantList(options.merchantId)
   },
   onReachBottom() {
     if (this.noMore || this.loadingMore) return;
     this.loadMoreComments();
   },
   methods: {
+    mapMerchantDetail(data = {}) {
+      return {
+        id: data.merchantId || null,
+        name: data.merchantName || '商家详情',
+        avatar: "/static/images/hz-logo.png",
+        tag: (data.auditStatus === '1' ? '官方认证' : '店铺信息') + ' | 售后无忧',
+        rating: DEFAULT_RATING,
+        phone: data.contactPhone || '未填写',
+        address: data.address || '未填写',
+        businessHours: '09:00 - 21:00 (全年无休)',
+        businessScope: data.serviceScope || '未填写',
+        desc: data.merchantDesc || '暂无店铺简介'
+      }
+    },
+    async refreshComments(merchantId) {
+      this.pageNum = 1
+      this.loadingMore = false
+      try {
+        const res = await getMerchantReviewList(merchantId)
+        const data = res.data || {}
+        const rows = Array.isArray(data.rows) ? data.rows : []
+        this.allCommentList = rows.map((item) => ({
+          username: item.userName || '匿名用户',
+          avatar: item.avatar || '/static/images/avatar.png',
+          rating: Number(item.rating || 5),
+          content: item.reviewContent || '',
+          time: item.createTime ? String(item.createTime).split(' ')[0] : ''
+        }))
+        this.totalCount = Number(data.total || this.allCommentList.length || 0)
+        this.merchantInfo.rating = Number(data.avgRating || 0) || DEFAULT_RATING
+      } catch (error) {
+        this.allCommentList = []
+        this.totalCount = 0
+        this.merchantInfo.rating = DEFAULT_RATING
+      }
+      this.commentList = this.allCommentList.slice(0, this.pageSize)
+      this.noMore = this.commentList.length >= this.totalCount
+    },
     async loadCurrentMerchantInfo() {
       try {
         const res = await getCurrentMerchantInfo();
         const data = res.data || {};
-        this.merchantInfo = {
-          name: data.merchantName || '我的店铺',
-          avatar: "/static/images/hz-logo.png",
-          tag: (data.auditStatus === '1' ? '官方认证' : '待审核') + ' | 售后无忧',
-          rating: 4.8,
-          phone: data.contactPhone || '未填写',
-          address: data.address || '未填写',
-          businessHours: '09:00 - 21:00 (全年无休)',
-          businessScope: data.serviceScope || '未填写',
-          desc: data.merchantDesc || '暂无店铺简介'
-        };
+        this.merchantInfo = this.mapMerchantDetail(data)
+        await this.refreshComments(this.merchantInfo.id)
       } catch (error) {
         wx.showToast({ title: '加载店铺信息失败', icon: "none" });
       }
     },
-    loadInitComments() {
-      this.commentList = this.allCommentList.slice(0, this.pageSize);
+    async loadMerchantList(targetMerchantId) {
+      try {
+        const res = await getMerchantList({
+          pageNum: 1,
+          pageSize: 100
+        })
+        this.merchantList = Array.isArray(res.rows) ? res.rows : []
+        if (!this.merchantList.length) {
+          this.totalCount = 0
+          this.commentList = []
+          this.noMore = true
+          return
+        }
+        const targetIndex = this.merchantList.findIndex((item) => String(item.merchantId || '') === String(targetMerchantId || ''))
+        this.currentMerchantIndex = targetIndex >= 0 ? targetIndex : 0
+        await this.loadMerchantDetailByIndex(this.currentMerchantIndex)
+      } catch (error) {
+        wx.showToast({ title: '加载商家列表失败', icon: 'none' })
+      }
+    },
+    async loadMerchantDetailByIndex(index) {
+      if (!this.merchantList.length) {
+        return
+      }
+      const normalizedIndex = (index + this.merchantList.length) % this.merchantList.length
+      const current = this.merchantList[normalizedIndex]
+      if (!current || !current.merchantId) {
+        return
+      }
+      const res = await getMerchantDetail(current.merchantId)
+      this.currentMerchantIndex = normalizedIndex
+      this.merchantInfo = this.mapMerchantDetail(res.data || current)
+      await this.refreshComments(this.merchantInfo.id)
+    },
+    switchMerchant(offset) {
+      if (!this.showMerchantSwitcher) {
+        return
+      }
+      this.loadMerchantDetailByIndex(this.currentMerchantIndex + offset)
     },
     loadMoreComments() {
       this.loadingMore = true;
       setTimeout(() => {
         this.pageNum++;
-        const start = this.pageNum * this.pageSize;
+        const start = (this.pageNum - 1) * this.pageSize;
         const newComments = this.allCommentList.slice(start, start + this.pageSize);
         this.commentList = [...this.commentList, ...newComments];
         this.loadingMore = false;
@@ -225,6 +299,36 @@ export default {
   min-height: 100vh;
   background: var(--bg-color);
   padding-bottom: 40rpx;
+  position: relative;
+}
+
+.merchant-switch {
+  position: fixed;
+  top: 50%;
+  width: 72rpx;
+  height: 72rpx;
+  margin-top: -36rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.switch-left {
+  left: 20rpx;
+}
+
+.switch-right {
+  right: 20rpx;
+}
+
+.switch-icon {
+  font-size: 34rpx;
+  color: var(--primary-color);
+  font-weight: 700;
 }
 
 .merchant-header {

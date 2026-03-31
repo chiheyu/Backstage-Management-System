@@ -77,7 +77,7 @@ public class AppMerchantServiceImpl implements IAppMerchantService
         }
         if (StringUtils.isEmpty(merchant.getAuditStatus()))
         {
-            merchant.setAuditStatus(AppConstants.MERCHANT_AUDIT_PENDING);
+            merchant.setAuditStatus(AppConstants.MERCHANT_AUDIT_APPROVED);
         }
         return merchantMapper.insertMerchant(merchant);
     }
@@ -110,7 +110,9 @@ public class AppMerchantServiceImpl implements IAppMerchantService
             throw new ServiceException("商家不存在");
         }
 
-        merchant.setAuditStatus(auditBody.getAuditStatus());
+        String targetAuditStatus = AppConstants.MERCHANT_AUDIT_DISABLED.equals(auditBody.getAuditStatus())
+            ? AppConstants.MERCHANT_AUDIT_DISABLED : AppConstants.MERCHANT_AUDIT_APPROVED;
+        merchant.setAuditStatus(targetAuditStatus);
         merchant.setRemark(auditBody.getAuditRemark());
         merchant.setUpdateBy(SecurityUtils.getUsername());
         int rows = merchantMapper.updateMerchant(merchant);
@@ -127,7 +129,7 @@ public class AppMerchantServiceImpl implements IAppMerchantService
             throw new ServiceException("商家未绑定系统用户");
         }
 
-        if (AppConstants.MERCHANT_AUDIT_APPROVED.equals(auditBody.getAuditStatus()))
+        if (AppConstants.MERCHANT_AUDIT_APPROVED.equals(targetAuditStatus))
         {
             appUser.setRoleType(AppConstants.ROLE_MERCHANT);
             appUser.setStatus(AppConstants.STATUS_NORMAL);
@@ -145,7 +147,7 @@ public class AppMerchantServiceImpl implements IAppMerchantService
             sysUser.setStatus(AppConstants.STATUS_NORMAL);
             userService.updateUserStatus(sysUser);
         }
-        else if (AppConstants.MERCHANT_AUDIT_DISABLED.equals(auditBody.getAuditStatus()))
+        else if (AppConstants.MERCHANT_AUDIT_DISABLED.equals(targetAuditStatus))
         {
             appUser.setRoleType(AppConstants.ROLE_MERCHANT);
             appUser.setStatus(AppConstants.STATUS_DISABLED);
@@ -154,13 +156,6 @@ public class AppMerchantServiceImpl implements IAppMerchantService
 
             sysUser.setStatus(AppConstants.STATUS_DISABLED);
             userService.updateUserStatus(sysUser);
-        }
-        else
-        {
-            appUser.setRoleType(AppConstants.ROLE_PENDING_MERCHANT);
-            appUser.setStatus(AppConstants.STATUS_NORMAL);
-            appUser.setUpdateBy(SecurityUtils.getUsername());
-            appUserMapper.updateAppUser(appUser);
         }
         return rows;
     }

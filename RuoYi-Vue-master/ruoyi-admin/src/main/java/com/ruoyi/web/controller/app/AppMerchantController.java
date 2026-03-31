@@ -1,6 +1,11 @@
 package com.ruoyi.web.controller.app;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -57,6 +62,85 @@ public class AppMerchantController extends BaseController
     }
 
     /**
+     * 商家数据统计。
+     */
+    @PreAuthorize("@ss.hasRole('merchant')")
+    @GetMapping("/stats")
+    public AjaxResult stats()
+    {
+        Long merchantId = merchantService.selectCurrentMerchant().getMerchantId();
+
+        AppAccessoryOrder accessoryOrderQuery = new AppAccessoryOrder();
+        accessoryOrderQuery.setMerchantId(merchantId);
+        List<AppAccessoryOrder> accessoryOrders = accessoryOrderService.selectAccessoryOrderList(accessoryOrderQuery);
+
+        List<AppAfterSalesOrder> merchantVisibleAfterSalesOrders = selectMerchantVisibleAfterSalesOrders(merchantId);
+
+        LocalDate today = LocalDate.now();
+        LocalDate monthStart = today.withDayOfMonth(1);
+
+        long todayPendingShipment = accessoryOrders.stream()
+            .filter(order -> AppConstants.ACCESSORY_ORDER_PENDING.equals(order.getStatus()))
+            .filter(order -> isWithinDay(getEffectiveTime(order.getCreateTime(), order.getUpdateTime()), today))
+            .count();
+
+        long todayShipped = accessoryOrders.stream()
+            .filter(order -> AppConstants.ACCESSORY_ORDER_SHIPPED.equals(order.getStatus())
+                || AppConstants.ACCESSORY_ORDER_COMPLETED.equals(order.getStatus()))
+            .filter(order -> isWithinDay(getEffectiveTime(order.getUpdateTime(), order.getCreateTime()), today))
+            .count();
+
+        long todayPendingAfterSale = merchantVisibleAfterSalesOrders.stream()
+            .filter(this::isAfterSalesUnfinished)
+            .filter(order -> isWithinDay(getEffectiveTime(order.getCreateTime(), order.getUpdateTime()), today))
+            .count();
+
+        long todayCompletedAfterSale = merchantVisibleAfterSalesOrders.stream()
+            .filter(this::isAfterSalesFinished)
+            .filter(order -> isWithinDay(getEffectiveTime(order.getFinishTime(), order.getUpdateTime(), order.getCreateTime()), today))
+            .count();
+
+        long monthlyShipmentCount = accessoryOrders.stream()
+            .filter(order -> AppConstants.ACCESSORY_ORDER_SHIPPED.equals(order.getStatus())
+                || AppConstants.ACCESSORY_ORDER_COMPLETED.equals(order.getStatus()))
+            .filter(order -> isWithinMonth(getEffectiveTime(order.getUpdateTime(), order.getCreateTime()), monthStart))
+            .count();
+
+        long monthlyAfterSalesCount = merchantVisibleAfterSalesOrders.stream()
+            .filter(order -> isWithinMonth(getEffectiveTime(order.getFinishTime(), order.getUpdateTime(), order.getCreateTime()), monthStart))
+            .count();
+
+        Map<String, Long> typeCountMap = new LinkedHashMap<>();
+        typeCountMap.put("退货", 0L);
+        typeCountMap.put("换货", 0L);
+
+        merchantVisibleAfterSalesOrders.forEach(order -> {
+            String typeName = parseAfterSalesType(order.getProductType());
+            if (typeCountMap.containsKey(typeName))
+            {
+                typeCountMap.put(typeName, typeCountMap.get(typeName) + 1L);
+            }
+        });
+
+        long typeTotal = typeCountMap.values().stream().mapToLong(Long::longValue).sum();
+        List<Map<String, Object>> typeRatio = typeCountMap.entrySet().stream()
+            .map(entry -> buildTypeRatioItem(entry.getKey(), entry.getValue(), typeTotal))
+            .collect(Collectors.toList());
+
+        List<Map<String, Object>> weekTrend = buildWeekTrend(accessoryOrders, merchantVisibleAfterSalesOrders, today);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("todayPendingShipment", todayPendingShipment);
+        data.put("todayShipped", todayShipped);
+        data.put("todayPendingAfterSale", todayPendingAfterSale);
+        data.put("todayCompletedAfterSale", todayCompletedAfterSale);
+        data.put("monthTotal", monthlyShipmentCount + monthlyAfterSalesCount);
+        data.put("typeRatio", typeRatio);
+        data.put("weekTrend", weekTrend);
+        return AjaxResult.success(data);
+    }
+
+    /**
      * 更新当前商家资料。
      */
     @PreAuthorize("@ss.hasRole('merchant')")
@@ -76,9 +160,10 @@ public class AppMerchantController extends BaseController
     @GetMapping("/order/pendingList")
     public TableDataInfo pendingOrderList(AppAfterSalesOrder order)
     {
-        startPage();
-        order.setStatus(AppConstants.AFTER_SALES_WAIT_ACCEPT);
-        List<AppAfterSalesOrder> list = afterSalesOrderService.selectAfterSalesOrderList(order);
+        Long merchantId = merchantService.selectCurrentMerchant().getMerchantId();
+        List<AppAfterSalesOrder> list = selectMerchantVisibleAfterSalesOrders(merchantId).stream()
+            .filter(this::isAfterSalesUnfinished)
+            .collect(Collectors.toList());
         return getDataTable(list);
     }
 
@@ -99,9 +184,8 @@ public class AppMerchantController extends BaseController
     @GetMapping("/order/list")
     public TableDataInfo myOrderList(AppAfterSalesOrder order)
     {
-        startPage();
-        order.setMerchantId(merchantService.selectCurrentMerchant().getMerchantId());
-        List<AppAfterSalesOrder> list = afterSalesOrderService.selectAfterSalesOrderList(order);
+        Long merchantId = merchantService.selectCurrentMerchant().getMerchantId();
+        List<AppAfterSalesOrder> list = selectMerchantVisibleAfterSalesOrders(merchantId);
         return getDataTable(list);
     }
 
@@ -222,5 +306,118 @@ public class AppMerchantController extends BaseController
     public AjaxResult removeAccessory(@PathVariable Long accessoryId)
     {
         return toAjax(accessoryService.deleteAccessoryById(accessoryId));
+    }
+
+    private List<AppAfterSalesOrder> selectMerchantVisibleAfterSalesOrders(Long merchantId)
+    {
+        AppAfterSalesOrder query = new AppAfterSalesOrder();
+        List<AppAfterSalesOrder> allOrders = afterSalesOrderService.selectAfterSalesOrderList(query);
+        return allOrders.stream()
+            .filter(order -> {
+                if (isAfterSalesFinished(order))
+                {
+                    return order.getMerchantId() != null && merchantId.equals(order.getMerchantId());
+                }
+                return order.getMerchantId() == null || merchantId.equals(order.getMerchantId());
+            })
+            .collect(Collectors.toList());
+    }
+
+    private boolean isAfterSalesUnfinished(AppAfterSalesOrder order)
+    {
+        String status = order == null ? "" : order.getStatus();
+        return AppConstants.AFTER_SALES_WAIT_ACCEPT.equals(status)
+            || AppConstants.AFTER_SALES_ACCEPTED.equals(status)
+            || AppConstants.AFTER_SALES_REPAIRING.equals(status);
+    }
+
+    private boolean isAfterSalesFinished(AppAfterSalesOrder order)
+    {
+        String status = order == null ? "" : order.getStatus();
+        return AppConstants.AFTER_SALES_COMPLETED.equals(status)
+            || AppConstants.AFTER_SALES_CANCELED.equals(status);
+    }
+
+    private java.util.Date getEffectiveTime(java.util.Date... candidates)
+    {
+        for (java.util.Date candidate : candidates)
+        {
+            if (candidate != null)
+            {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private boolean isWithinDay(java.util.Date date, LocalDate targetDay)
+    {
+        if (date == null)
+        {
+            return false;
+        }
+        LocalDate localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        return targetDay.equals(localDate);
+    }
+
+    private boolean isWithinMonth(java.util.Date date, LocalDate monthStart)
+    {
+        if (date == null)
+        {
+            return false;
+        }
+        LocalDate localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        return !localDate.isBefore(monthStart);
+    }
+
+    private String parseAfterSalesType(String productType)
+    {
+        if (productType == null)
+        {
+            return "";
+        }
+        if (productType.startsWith("退货"))
+        {
+            return "退货";
+        }
+        if (productType.startsWith("换货"))
+        {
+            return "换货";
+        }
+        return "";
+    }
+
+    private Map<String, Object> buildTypeRatioItem(String name, Long count, long total)
+    {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("name", name);
+        item.put("count", count);
+        item.put("ratio", total <= 0 ? "0%" : Math.round((count * 100.0D) / total) + "%");
+        item.put("color", "退货".equals(name) ? "#2f54eb" : "#fa8c16");
+        return item;
+    }
+
+    private List<Map<String, Object>> buildWeekTrend(List<AppAccessoryOrder> accessoryOrders, List<AppAfterSalesOrder> afterSalesOrders, LocalDate today)
+    {
+        List<Map<String, Object>> trend = new java.util.ArrayList<>();
+        for (int offset = 6; offset >= 0; offset--)
+        {
+            LocalDate targetDay = today.minusDays(offset);
+            long shipmentCount = accessoryOrders.stream()
+                .filter(order -> AppConstants.ACCESSORY_ORDER_SHIPPED.equals(order.getStatus())
+                    || AppConstants.ACCESSORY_ORDER_COMPLETED.equals(order.getStatus()))
+                .filter(order -> isWithinDay(getEffectiveTime(order.getUpdateTime(), order.getCreateTime()), targetDay))
+                .count();
+            long afterSalesCount = afterSalesOrders.stream()
+                .filter(this::isAfterSalesFinished)
+                .filter(order -> isWithinDay(getEffectiveTime(order.getFinishTime(), order.getUpdateTime(), order.getCreateTime()), targetDay))
+                .count();
+
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("date", targetDay.getMonthValue() + "/" + targetDay.getDayOfMonth());
+            item.put("value", shipmentCount + afterSalesCount);
+            trend.add(item);
+        }
+        return trend;
     }
 }

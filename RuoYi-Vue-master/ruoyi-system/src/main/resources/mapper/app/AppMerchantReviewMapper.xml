@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.app.mapper.AppMerchantReviewMapper">
+
+    <resultMap type="AppMerchantReview" id="AppMerchantReviewResult">
+        <id property="reviewId" column="review_id"/>
+        <result property="merchantId" column="merchant_id"/>
+        <result property="accessoryOrderId" column="accessory_order_id"/>
+        <result property="appUserId" column="app_user_id"/>
+        <result property="rating" column="rating"/>
+        <result property="reviewContent" column="review_content"/>
+        <result property="userName" column="user_name"/>
+        <result property="avatar" column="avatar"/>
+        <result property="accessoryName" column="accessory_name"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectMerchantReviewVo">
+        select amr.review_id, amr.merchant_id, amr.accessory_order_id, amr.app_user_id, amr.rating,
+               amr.review_content, amr.create_by, amr.create_time, amr.update_by, amr.update_time, amr.remark,
+               au.nick_name as user_name, su.avatar, aa.accessory_name
+        from app_merchant_review amr
+        left join app_user au on au.app_user_id = amr.app_user_id
+        left join sys_user su on su.user_id = au.sys_user_id
+        left join app_accessory_order aao on aao.accessory_order_id = amr.accessory_order_id
+        left join app_accessory aa on aa.accessory_id = aao.accessory_id
+    </sql>
+
+    <select id="selectReviewByAccessoryOrderId" parameterType="Long" resultMap="AppMerchantReviewResult">
+        <include refid="selectMerchantReviewVo"/>
+        where amr.accessory_order_id = #{accessoryOrderId}
+    </select>
+
+    <select id="selectMerchantReviewList" parameterType="AppMerchantReview" resultMap="AppMerchantReviewResult">
+        <include refid="selectMerchantReviewVo"/>
+        <where>
+            <if test="merchantId != null">
+                and amr.merchant_id = #{merchantId}
+            </if>
+            <if test="appUserId != null">
+                and amr.app_user_id = #{appUserId}
+            </if>
+        </where>
+        order by amr.review_id desc
+    </select>
+
+    <insert id="insertMerchantReview" parameterType="AppMerchantReview" useGeneratedKeys="true" keyProperty="reviewId">
+        insert into app_merchant_review
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="merchantId != null">merchant_id,</if>
+            <if test="accessoryOrderId != null">accessory_order_id,</if>
+            <if test="appUserId != null">app_user_id,</if>
+            <if test="rating != null">rating,</if>
+            <if test="reviewContent != null and reviewContent != ''">review_content,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time,
+            remark
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="merchantId != null">#{merchantId},</if>
+            <if test="accessoryOrderId != null">#{accessoryOrderId},</if>
+            <if test="appUserId != null">#{appUserId},</if>
+            <if test="rating != null">#{rating},</if>
+            <if test="reviewContent != null and reviewContent != ''">#{reviewContent},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate(),
+            #{remark}
+        </trim>
+    </insert>
+</mapper>

@@ -24,8 +24,8 @@
         </view>
         <view class="workbench-item" @tap="goReceiptPage">
           <uni-icons type="compose" size="34" color="#18a058"></uni-icons>
-          <text class="workbench-item-title">售后回执</text>
-          <text class="workbench-item-desc">填写维修回执并推进状态</text>
+          <text class="workbench-item-title">售后处理</text>
+          <text class="workbench-item-desc">处理工单并完成售后</text>
         </view>
       </view>
       <view class="workbench-bottom" @tap="goProfile">

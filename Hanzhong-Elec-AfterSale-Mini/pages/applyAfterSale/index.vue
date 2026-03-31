@@ -1,5 +1,5 @@
 <template>
-  <merchant-receipt-panel v-if="isMerchant" />
+  <merchant-receipt-panel v-if="isMerchant" ref="merchantReceiptPanel" />
 
   <view v-else class="aftersale-page">
     <view class="form-container">
@@ -27,6 +27,27 @@
           class="input"
           placeholder-class="input-placeholder"
         />
+      </view>
+
+      <view class="form-item">
+        <view class="label-wrap">
+          <text class="label">售后类型</text>
+          <text class="required">*</text>
+        </view>
+        <picker
+          class="type-picker"
+          mode="selector"
+          :range="serviceTypeOptions"
+          :value="serviceTypeIndex"
+          @change="handleServiceTypeChange"
+        >
+          <view class="picker-value">
+            <text :class="form.serviceType ? 'picker-text' : 'picker-placeholder'">
+              {{ form.serviceType || '请选择退货或换货' }}
+            </text>
+            <uni-icons type="arrowdown" size="20" color="#999"></uni-icons>
+          </view>
+        </picker>
       </view>
 
       <view class="form-item">
@@ -107,6 +128,7 @@ import MerchantReceiptPanel from '@/components/MerchantReceiptPanel.vue'
 import { syncRoleTabBar } from '@/utils/tabbar'
 
 const EMPTY_FORM = {
+  serviceType: '',
   productName: '',
   productModel: '',
   faultDesc: '',
@@ -131,13 +153,19 @@ export default {
       addressInfo: null,
       isSubmitting: false,
       maxImageCount: 3,
+      serviceTypeOptions: ['退货', '换货'],
       ADDRESS_PATH: '/pages/address/index',
       LOGIN_PATH: '/pages/profile/login'
     }
   },
   computed: {
+    serviceTypeIndex() {
+      const index = this.serviceTypeOptions.indexOf(this.form.serviceType)
+      return index >= 0 ? index : 0
+    },
     isFormValid() {
       return (
+        this.form.serviceType.trim().length > 0 &&
         this.form.productName.trim().length > 0 &&
         this.form.productModel.trim().length > 0 &&
         this.form.faultDesc.trim().length > 0 &&
@@ -153,16 +181,26 @@ export default {
     syncRoleTabBar(userInfo)
 
     uni.setNavigationBarTitle({
-      title: this.isMerchant ? '售后回执' : '申请售后'
+      title: this.isMerchant ? '售后处理' : '申请售后'
     })
 
     if (this.isMerchant) {
+      this.$nextTick(() => {
+        const panel = this.$refs.merchantReceiptPanel
+        if (panel && typeof panel.loadMerchantOrders === 'function') {
+          panel.loadMerchantOrders()
+        }
+      })
       return
     }
     this.loadDefaultAddress()
     this.consumeAfterSalePrefill()
   },
   methods: {
+    handleServiceTypeChange(event) {
+      const index = Number(event.detail.value)
+      this.form.serviceType = this.serviceTypeOptions[index] || ''
+    },
     consumeAfterSalePrefill() {
       const prefill = uni.getStorageSync(AFTER_SALE_PREFILL_KEY)
       if (!prefill || typeof prefill !== 'object') {
@@ -173,6 +211,7 @@ export default {
 
       this.form.productName = prefill.productName || this.form.productName
       this.form.productModel = prefill.productModel || this.form.productModel
+      this.form.serviceType = prefill.serviceType || this.form.serviceType
 
       this.form.name = prefill.name || this.form.name
       this.form.phone = prefill.phone || this.form.phone
@@ -299,7 +338,7 @@ export default {
       const address = [region, detail].filter(Boolean).join(' ')
 
       return {
-        productType: `${productName} / ${productModel}`,
+        productType: [this.form.serviceType.trim(), productName, productModel].filter(Boolean).join(' / '),
         faultDesc: this.form.faultDesc.trim(),
         faultImages: imageUrls.join(','),
         contactName: this.form.name.trim(),
@@ -438,6 +477,7 @@ export default {
 }
 
 .input,
+.type-picker,
 .textarea,
 .address-select {
   width: 100%;
@@ -449,6 +489,7 @@ export default {
 }
 
 .input,
+.type-picker,
 .address-select {
   height: 88rpx;
   padding: 0 20rpx;
@@ -476,6 +517,23 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.picker-value {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.picker-text {
+  font-size: 28rpx;
+  color: var(--text-color);
+}
+
+.picker-placeholder {
+  font-size: 26rpx;
+  color: var(--text-gray);
 }
 
 .address-select-hover {

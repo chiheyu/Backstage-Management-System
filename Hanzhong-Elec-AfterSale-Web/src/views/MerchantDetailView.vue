@@ -21,6 +21,10 @@ const router = useRouter()
 const loading = ref(true)
 const merchant = ref(null)
 const merchantLocalConfig = ref(loadMerchantShopMeta(''))
+const reviewsLoading = ref(false)
+const reviewList = ref([])
+const reviewTotal = ref(0)
+const reviewAvgRating = ref(0)
 
 const merchantInitial = computed(() => {
   const name = merchant.value?.merchantName || '?'
@@ -51,8 +55,46 @@ const businessStatus = computed(() => (
     : { label: '暂停营业', tone: 'muted' }
 ))
 
+const reviewSummary = computed(() => {
+  const avgRating = Number(reviewAvgRating.value || 0)
+  if (avgRating <= 0) {
+    return '暂无评分'
+  }
+  return `${avgRating.toFixed(1)} 分`
+})
+
+const reviewStars = computed(() => {
+  const avgRating = Math.round(Number(reviewAvgRating.value || 0))
+  return Array.from({ length: 5 }, (_, index) => index < avgRating)
+})
+
 function syncMerchantLocalConfig(merchantId) {
   merchantLocalConfig.value = loadMerchantShopMeta(merchantId)
+}
+
+async function loadMerchantReviews(merchantId) {
+  if (!merchantId) {
+    reviewList.value = []
+    reviewTotal.value = 0
+    reviewAvgRating.value = 0
+    return
+  }
+
+  reviewsLoading.value = true
+  try {
+    const reviewPayload = await commonApi.listMerchantReviews(merchantId)
+    const rows = Array.isArray(reviewPayload?.rows) ? reviewPayload.rows : []
+    reviewList.value = rows
+    reviewTotal.value = Number(reviewPayload?.total || rows.length || 0)
+    reviewAvgRating.value = Number(reviewPayload?.avgRating || 0)
+  } catch (error) {
+    reviewList.value = []
+    reviewTotal.value = 0
+    reviewAvgRating.value = 0
+    pushNotice(error.message || '商家评价加载失败', 'danger')
+  } finally {
+    reviewsLoading.value = false
+  }
 }
 
 async function loadMerchant() {
@@ -60,9 +102,13 @@ async function loadMerchant() {
   try {
     merchant.value = await commonApi.getMerchant(props.id)
     syncMerchantLocalConfig(merchant.value?.merchantId)
+    await loadMerchantReviews(merchant.value?.merchantId)
   } catch (error) {
     merchant.value = null
     merchantLocalConfig.value = loadMerchantShopMeta('')
+    reviewList.value = []
+    reviewTotal.value = 0
+    reviewAvgRating.value = 0
     pushNotice(error.message || '商家详情加载失败', 'danger')
   } finally {
     loading.value = false
@@ -114,6 +160,20 @@ onMounted(() => {
           <h1>{{ merchant.merchantName }}</h1>
           <p>{{ merchant.merchantDesc || '提供电子产品检测、维修、保养和配件更换服务。' }}</p>
 
+          <div class="merchant-rating-inline">
+            <div class="merchant-rating-stars">
+              <span
+                v-for="(filled, index) in reviewStars"
+                :key="`star-${index}`"
+                :class="['merchant-rating-star', { filled }]"
+              >
+                ★
+              </span>
+            </div>
+            <strong>{{ reviewSummary }}</strong>
+            <span>{{ reviewTotal }} 条评价</span>
+          </div>
+
           <div class="merchant-detail-actions">
             <a class="btn btn--primary" :href="`tel:${merchant.contactPhone || ''}`">拨打电话</a>
             <RouterLink
@@ -139,7 +199,6 @@ onMounted(() => {
             <div>
               <span class="eyebrow">门店资料</span>
               <h2>服务信息</h2>
-              <p>查看联系人、电话、地址和门店基础信息。</p>
             </div>
           </div>
 
@@ -176,7 +235,6 @@ onMounted(() => {
             <div>
               <span class="eyebrow">服务范围</span>
               <h2>服务范围</h2>
-              <p>了解门店擅长的维修项目和服务方向。</p>
             </div>
           </div>
 
@@ -191,13 +249,52 @@ onMounted(() => {
                 <strong>处理方式</strong>
                 <span>提交售后申请后，门店可接单并持续更新维修进度。</span>
               </article>
-              <article v-if="hasLocalDisplayConfig || isOwnMerchant">
-                <strong>网页端补齐信息</strong>
-                <span>当前浏览器已保存店铺 Logo、营业时间或营业状态，和网页端店铺设置页保持一致。</span>
-              </article>
             </div>
           </div>
         </section>
+      </section>
+
+      <section class="surface-card section-card review-section">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">用户评价</span>
+            <h2>用户评价</h2>
+            <p>这里展示当前商家在已完成配件订单上的真实评价记录。</p>
+          </div>
+          <div class="review-summary-chip">
+            <strong>{{ reviewSummary }}</strong>
+            <span>{{ reviewTotal }} 条</span>
+          </div>
+        </div>
+
+        <div v-if="reviewsLoading" class="review-loading">正在同步评价列表...</div>
+
+        <div v-else-if="reviewList.length" class="review-list">
+          <article v-for="item in reviewList" :key="item.reviewId" class="review-card">
+            <div class="review-card__head">
+              <div>
+                <strong>{{ item.userName || '匿名用户' }}</strong>
+                <div class="review-card__stars">
+                  <span
+                    v-for="starIndex in 5"
+                    :key="`${item.reviewId}-${starIndex}`"
+                    :class="['merchant-rating-star', { filled: starIndex <= Number(item.rating || 0) }]"
+                  >
+                    ★
+                  </span>
+                </div>
+              </div>
+              <span>{{ formatDateTime(item.createTime) }}</span>
+            </div>
+            <p>{{ item.reviewContent || '用户未填写评价内容。' }}</p>
+          </article>
+        </div>
+
+        <EmptyState
+          v-else
+          title="暂无用户评价"
+          description="当前商家还没有已公开展示的评价记录。"
+        />
       </section>
     </template>
   </section>
@@ -264,6 +361,31 @@ onMounted(() => {
   margin-top: 24px;
 }
 
+.merchant-rating-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  color: var(--muted);
+}
+
+.merchant-rating-stars,
+.review-card__stars {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.merchant-rating-star {
+  color: rgba(200, 128, 36, 0.26);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.merchant-rating-star.filled {
+  color: var(--accent);
+}
+
 .merchant-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
@@ -300,11 +422,68 @@ onMounted(() => {
   gap: 14px;
 }
 
+.review-section {
+  display: grid;
+  gap: 18px;
+}
+
+.review-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(17, 117, 101, 0.08);
+  color: var(--primary-deep);
+}
+
+.review-summary-chip strong {
+  color: var(--accent-deep);
+}
+
+.review-loading {
+  color: var(--muted);
+}
+
+.review-list {
+  display: grid;
+  gap: 14px;
+}
+
+.review-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 243, 235, 0.94));
+  border: 1px solid rgba(17, 61, 77, 0.08);
+}
+
+.review-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.review-card__head strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.review-card__head span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 @media (max-width: 900px) {
   .merchant-detail-hero,
   .merchant-detail-grid,
   .merchant-detail-cards {
     grid-template-columns: 1fr;
+  }
+
+  .review-card__head {
+    display: grid;
   }
 }
 

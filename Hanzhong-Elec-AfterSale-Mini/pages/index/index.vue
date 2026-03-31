@@ -70,13 +70,13 @@
 
     <view class="hot-accessory">
       <view class="title-wrap">
-        <text class="title">热门配件</text>
+        <text class="title">{{ hotAccessoryTitle }}</text>
         <text class="more-text" @click="toAccessoryMall">更多 ></text>
       </view>
       
       <view class="empty-wrap" v-if="!hotAccessoryList.length">
         <uni-icons type="shop" size="60" color="#ccc"></uni-icons>
-        <text class="empty-text">暂无热门配件</text>
+        <text class="empty-text">{{ hotAccessoryEmptyText }}</text>
       </view>
 
       <swiper 
@@ -100,13 +100,13 @@
                 lazy-load
                 @error="imgError($event)"
               ></image>
-              <view class="price-tag" v-if="item.originalPrice > item.price">
-                <text>省¥{{ item.originalPrice - item.price }}</text>
+              <view class="price-tag">
+                <text>销量 {{ item.salesCount || 0 }}</text>
               </view>
             </view>
             <text class="item-name" :title="item.name">{{ item.name }}</text>
             <view class="price-wrap">
-              <text class="item-price">¥{{ item.price }}</text>
+              <text class="item-price">¥{{ Number(item.price || 0).toFixed(2) }}</text>
               <text class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</text>
             </view>
           </view>
@@ -117,6 +117,11 @@
 </template>
 
 <script>
+import { getAccessoryList, normalizeAccessory } from '@/api/accessory'
+import { getMerchantAccessoryList } from '@/api/merchantAccessory'
+
+const HOT_ACCESSORY_LIMIT = 5
+
 export default {
   data() {
     return {
@@ -140,35 +145,72 @@ export default {
       role: 'user'
     }
   },
+  computed: {
+    hotAccessoryTitle() {
+      return this.role === 'merchant' ? '我的配件' : '热门配件'
+    },
+    hotAccessoryEmptyText() {
+      return this.role === 'merchant' ? '暂无已上架的我的配件' : '暂无热门配件'
+    }
+  },
   onShow() {
     this.getUserRole();
-  },
-  onLoad() {
-    setTimeout(() => {
-      this.hotAccessoryList = [
-        { id: 1, name: "电源适配器", price: 89, originalPrice: 129, image: "/static/images/accessory/adapter.png" },
-        { id: 2, name: "手机电池", price: 129, originalPrice: 169, image: "/static/images/accessory/battery.png" },
-        { id: 3, name: "手机壳", price: 39, originalPrice: 59, image: "/static/images/accessory/case.png" },
-        { id: 4, name: "充电口", price: 49, originalPrice: 69, image: "/static/images/accessory/charging_port.png" },
-        { id: 6, name: "耳机", price: 199, originalPrice: 259, image: "/static/images/accessory/earphone.png" },
-        { id: 7, name: "手机膜", price: 29, originalPrice: 49, image: "/static/images/accessory/glass.png" },
-        { id: 8, name: "笔记本适配器", price: 129, originalPrice: 169, image: "/static/images/accessory/laptop_adapter.png" },
-        { id: 9, name: "笔记本电池", price: 299, originalPrice: 399, image: "/static/images/accessory/laptop_battery.png" },
-        { id: 10, name: "笔记本屏幕", price: 599, originalPrice: 799, image: "/static/images/accessory/laptop_screen.png" },
-        { id: 11, name: "手机屏幕", price: 399, originalPrice: 499, image: "/static/images/accessory/phone_screen.png" },
-        { id: 12, name: "扬声器", price: 89, originalPrice: 119, image: "/static/images/accessory/speaker.png" },
-        { id: 13, name: "固态硬盘", price: 399, originalPrice: 499, image: "/static/images/accessory/ssd.png" },
-        { id: 14, name: "平板电池", price: 199, originalPrice: 259, image: "/static/images/accessory/tablet_battery.png" },
-        { id: 15, name: "平板屏幕", price: 499, originalPrice: 649, image: "/static/images/accessory/tablet_screen.png" },
-        { id: 16, name: "Type-C数据线", price: 29, originalPrice: 49, image: "/static/images/accessory/typec_cable.png" },
-        { id: 17, name: "无线充电器", price: 129, originalPrice: 169, image: "/static/images/accessory/wireless_charger.png" }
-      ]
-    }, 300);
+    this.loadHotAccessories();
   },
   methods: {
     getUserRole() {
       const userInfo = wx.getStorageSync('userInfo');
-      this.role = userInfo ? userInfo.role : 'user';
+      this.role = userInfo?.role || (userInfo?.roleType === '2' ? 'merchant' : 'user');
+    },
+    shuffleList(list = []) {
+      const clonedList = [...list]
+      for (let i = clonedList.length - 1; i > 0; i -= 1) {
+        const randomIndex = Math.floor(Math.random() * (i + 1))
+        const currentItem = clonedList[i]
+        clonedList[i] = clonedList[randomIndex]
+        clonedList[randomIndex] = currentItem
+      }
+      return clonedList
+    },
+    formatHotAccessory(accessory = {}) {
+      const normalizedAccessory = normalizeAccessory(accessory)
+      return {
+        ...normalizedAccessory,
+        originalPrice: normalizedAccessory.originalPrice || '',
+        image: normalizedAccessory.image,
+        accessoryId: normalizedAccessory.accessoryId || normalizedAccessory.id,
+        id: normalizedAccessory.id || normalizedAccessory.accessoryId
+      }
+    },
+    async loadHotAccessories() {
+      try {
+        const accessoryRows = this.role === 'merchant'
+          ? await this.loadMerchantHotAccessories()
+          : await this.loadUserHotAccessories()
+        this.hotAccessoryList = accessoryRows.map((item) => this.formatHotAccessory(item))
+      } catch (error) {
+        this.hotAccessoryList = []
+        wx.showToast({
+          title: (error && error.msg) || '加载热门配件失败',
+          icon: 'none'
+        })
+      }
+    },
+    async loadMerchantHotAccessories() {
+      const res = await getMerchantAccessoryList({
+        status: '0'
+      })
+      const rows = Array.isArray(res.rows) ? res.rows : []
+      return [...rows]
+        .sort((left, right) => Number(right.salesCount || 0) - Number(left.salesCount || 0))
+        .slice(0, HOT_ACCESSORY_LIMIT)
+    },
+    async loadUserHotAccessories() {
+      const res = await getAccessoryList({
+        status: '0'
+      })
+      const rows = Array.isArray(res.rows) ? res.rows : []
+      return this.shuffleList(rows).slice(0, HOT_ACCESSORY_LIMIT)
     },
     imgError(e) {
       e.target.src = 'https://picsum.photos/750/300?random=3';
@@ -193,7 +235,20 @@ export default {
         : '/pages/merchantDetail/index'
       wx.navigateTo({ url });
     },
-    toAccessoryDetail(item) {}
+    toAccessoryDetail(item) {
+      const accessoryId = item.accessoryId || item.id
+      if (!accessoryId) {
+        wx.showToast({
+          title: '缺少配件编号',
+          icon: 'none'
+        })
+        return
+      }
+
+      wx.navigateTo({
+        url: `/pages/accessoryDetail/index?id=${accessoryId}`
+      })
+    }
   }
 }
 </script>

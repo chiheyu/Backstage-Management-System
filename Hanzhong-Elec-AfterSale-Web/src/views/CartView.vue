@@ -36,13 +36,12 @@ const merchantStoreLink = computed(() => {
 const merchantCards = computed(() => {
   const counts = merchantSummary.value?.counts || {}
   return [
-    { label: '待接售后', value: counts.pendingAfterSales || 0, desc: '等待当前商家接单的售后工单' },
-    { label: '处理中售后', value: counts.activeAfterSales || 0, desc: '已接单或维修中的工单' },
-    { label: '已完成工单', value: counts.completedAfterSales || 0, desc: '已经完工并提交回执的工单' },
+    { label: '待接售后', value: counts.pendingAfterSales || 0 },
+    { label: '处理中售后', value: counts.activeAfterSales || 0 },
+    { label: '已完成工单', value: counts.completedAfterSales || 0 },
     {
       label: '店铺状态',
       value: getStatusMeta(MERCHANT_AUDIT_STATUS, merchantSummary.value?.merchant?.auditStatus).label,
-      desc: '当前网页端仅接入后端已开放的商家售后能力'
     }
   ]
 })
@@ -168,7 +167,6 @@ onMounted(() => {
         <div>
           <span class="eyebrow">商家工作台</span>
           <h1>{{ merchantSummary?.merchant?.merchantName || '商家工作台' }}</h1>
-          <p>工作台已经补齐商家售后、配件订单和商品管理入口，网页端现在可以直接处理完整的商家日常操作。</p>
         </div>
         <div class="surface-card workbench-hero__side">
           <strong>{{ merchantSummary?.merchant?.contactPhone || '--' }}</strong>
@@ -218,27 +216,6 @@ onMounted(() => {
           <strong>个人中心</strong>
           <span>查看账号概览和商家快捷入口</span>
         </button>
-      </section>
-
-      <section class="surface-card section-card">
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">接口适配</span>
-            <h2>当前工作台已接入完整商家链路</h2>
-            <p>商家售后、配件订单、商品管理和店铺资料维护都已接到现有后端接口。</p>
-          </div>
-        </div>
-
-        <div class="workbench-grid">
-          <article class="workbench-card">
-            <strong>已接入</strong>
-            <span>商家信息、待接售后、我的工单、售后回执、配件订单、商品管理、店铺资料维护。</span>
-          </article>
-          <article class="workbench-card">
-            <strong>共享数据</strong>
-            <span>网页端和小程序端继续共用同一套商家订单、商品、售后和店铺资料数据，不改动后端结构。</span>
-          </article>
-        </div>
       </section>
     </template>
 

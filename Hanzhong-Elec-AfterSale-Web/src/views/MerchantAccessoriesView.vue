@@ -325,7 +325,7 @@ onMounted(() => {
     <EmptyState
       v-else-if="!roleState.isMerchant"
       title="当前账号不是商家"
-      description="普通用户和待审核商家不能进入商品管理页。"
+      description="普通用户不能进入商品管理页。"
       action-label="返回个人中心"
       @action="router.push({ name: 'profile' })"
     />
@@ -335,7 +335,6 @@ onMounted(() => {
         <div>
           <span class="eyebrow">商品管理</span>
           <h1>维护商家配件商品</h1>
-          <p>这里接入了网页端商家商品列表、图片上传、新增、编辑和删除能力，数据直接写入现有后端接口。</p>
         </div>
 
         <div class="catalog-hero__actions">
@@ -348,22 +347,18 @@ onMounted(() => {
         <article class="surface-card summary-card">
           <span>商品总数</span>
           <strong>{{ summary.total }}</strong>
-          <p>当前商家可见的全部配件商品。</p>
         </article>
         <article class="surface-card summary-card">
           <span>上架商品</span>
           <strong>{{ summary.onShelf }}</strong>
-          <p>正在对外展示、可下单的商品数量。</p>
         </article>
         <article class="surface-card summary-card">
           <span>下架商品</span>
           <strong>{{ summary.offShelf }}</strong>
-          <p>暂不展示给用户的商品数量。</p>
         </article>
         <article class="surface-card summary-card">
           <span>低库存</span>
           <strong>{{ summary.lowStock }}</strong>
-          <p>库存大于 0 且不超过 10 的商品。</p>
         </article>
       </section>
 
@@ -665,6 +660,29 @@ onMounted(() => {
 .catalog-card__content h2 {
   margin: 0;
   font-size: 24px;
+}
+
+.catalog-card__content p {
+  margin: 0;
+  min-height: calc(1.7em * 2);
+  max-height: calc(1.7em * 2);
+  overflow-y: auto;
+  padding-right: 4px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.catalog-card__content p::-webkit-scrollbar {
+  width: 6px;
+}
+
+.catalog-card__content p::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(17, 117, 101, 0.18);
+}
+
+.catalog-card__content p::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .catalog-card__meta {

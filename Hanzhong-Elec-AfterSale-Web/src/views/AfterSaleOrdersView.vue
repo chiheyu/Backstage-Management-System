@@ -17,14 +17,16 @@ import { fetchAllPagedRows } from '@/lib/pagination'
 import { session } from '@/lib/session'
 
 const PAGE_SIZE = 50
+const MERCHANT_TAB_PENDING = 'pending'
+const MERCHANT_TAB_FINISHED = 'finished'
+const MERCHANT_TAB_ALL = 'all'
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
-const merchantTab = ref(route.query.mode === 'mine' ? 'mine' : 'pending')
+const merchantTab = ref(resolveMerchantTab(route.query))
 const userOrders = ref([])
-const pendingOrders = ref([])
 const merchantOrders = ref([])
 
 const filters = reactive({
@@ -42,25 +44,38 @@ const roleState = computed(() => getRoleState(session.roleType))
 
 const pageTitle = computed(() => {
   if (roleState.value.isMerchant) {
-    return merchantTab.value === 'pending' ? '待接单售后工单' : '我的售后工单'
+    const titleMap = {
+      [MERCHANT_TAB_PENDING]: '未完成售后工单',
+      [MERCHANT_TAB_FINISHED]: '已完成售后工单',
+      [MERCHANT_TAB_ALL]: '售后订单'
+    }
+    return titleMap[merchantTab.value] || titleMap[MERCHANT_TAB_PENDING]
   }
   return '我的售后订单'
 })
 
 const activeList = computed(() => {
   if (roleState.value.isMerchant) {
-    return merchantTab.value === 'pending' ? pendingOrders.value : merchantOrders.value
+    if (merchantTab.value === MERCHANT_TAB_PENDING) {
+      return merchantOrders.value.filter(item => isUnfinishedStatus(item.status))
+    }
+    if (merchantTab.value === MERCHANT_TAB_FINISHED) {
+      return merchantOrders.value.filter(item => isFinishedStatus(item.status))
+    }
+    return merchantOrders.value
   }
   return userOrders.value
 })
 
 const summaryCards = computed(() => {
   if (roleState.value.isMerchant) {
-    const completedCount = merchantOrders.value.filter(item => String(item.status) === '3').length
+    const unfinishedCount = merchantOrders.value.filter(item => isUnfinishedStatus(item.status)).length
+    const finishedCount = merchantOrders.value.filter(item => isFinishedStatus(item.status)).length
+    const rejectedCount = merchantOrders.value.filter(item => isRejectedOrder(item)).length
     return [
-      { label: '待接单', value: pendingOrders.value.length, desc: '等待当前商家接单处理' },
-      { label: '处理中', value: merchantOrders.value.filter(item => ['1', '2'].includes(String(item.status))).length, desc: '已接单或维修中的工单' },
-      { label: '已完成', value: completedCount, desc: '已提交完工回执的工单' }
+      { label: '未完成', value: unfinishedCount, desc: '仍待商家给出处理意见的工单' },
+      { label: '已完成', value: finishedCount, desc: '商家已经给出处理结果的工单' },
+      { label: '已拒绝', value: rejectedCount, desc: '处理备注中明确写明已拒绝的工单' }
     ]
   }
 
@@ -70,6 +85,20 @@ const summaryCards = computed(() => {
     { label: '已结束', value: userOrders.value.filter(item => ['3', '4'].includes(String(item.status))).length, desc: '已完成或已取消的售后订单' }
   ]
 })
+
+function resolveMerchantTab(query = {}) {
+  const rawType = String(query.type || '')
+  if ([MERCHANT_TAB_PENDING, MERCHANT_TAB_FINISHED, MERCHANT_TAB_ALL].includes(rawType)) {
+    return rawType
+  }
+
+  const rawMode = String(query.mode || '')
+  if (rawMode === 'mine') {
+    return MERCHANT_TAB_ALL
+  }
+
+  return MERCHANT_TAB_PENDING
+}
 
 function parseImages(value) {
   return String(value || '')
@@ -86,6 +115,18 @@ function buildBaseFilters() {
   }
 }
 
+function isUnfinishedStatus(status) {
+  return ['0', '1', '2'].includes(String(status))
+}
+
+function isFinishedStatus(status) {
+  return ['3', '4'].includes(String(status))
+}
+
+function isRejectedOrder(order) {
+  return String(order?.serviceRemark || '').trim().startsWith('已拒绝')
+}
+
 async function loadOrders() {
   if (!session.token) {
     return
@@ -94,23 +135,14 @@ async function loadOrders() {
   loading.value = true
   try {
     if (roleState.value.isMerchant) {
-      const [pendingRows, mineRows] = await Promise.all([
-        fetchAllPagedRows(params => merchantApi.listPendingOrders(params), {
-          params: buildBaseFilters(),
-          pageSize: PAGE_SIZE,
-          dedupeKey: 'orderId'
-        }),
-        fetchAllPagedRows(params => merchantApi.listOrders(params), {
-          params: {
-            ...buildBaseFilters(),
-            status: filters.status
-          },
-          pageSize: PAGE_SIZE,
-          dedupeKey: 'orderId'
-        })
-      ])
-      pendingOrders.value = pendingRows
-      merchantOrders.value = mineRows
+      merchantOrders.value = await fetchAllPagedRows(params => merchantApi.listOrders(params), {
+        params: {
+          ...buildBaseFilters(),
+          status: filters.status
+        },
+        pageSize: PAGE_SIZE,
+        dedupeKey: 'orderId'
+      })
       return
     }
 
@@ -132,26 +164,11 @@ async function loadOrders() {
 }
 
 function canUserCancel(order) {
-  return !['3', '4'].includes(String(order.status))
+  return isUnfinishedStatus(order.status)
 }
 
 function canOpenReceipt(order) {
-  return ['1', '2'].includes(String(order.status))
-}
-
-function canMerchantCancel(order) {
-  return ['1', '2'].includes(String(order.status))
-}
-
-async function handleTakeOrder(orderId) {
-  try {
-    await merchantApi.takeOrder(orderId)
-    pushNotice('接单成功，已进入我的售后工单', 'success')
-    merchantTab.value = 'mine'
-    await loadOrders()
-  } catch (error) {
-    pushNotice(error.message || '接单失败', 'danger')
-  }
+  return roleState.value.isMerchant && isUnfinishedStatus(order.status)
 }
 
 function openReceipt(order) {
@@ -159,20 +176,6 @@ function openReceipt(order) {
     name: 'after-sales-apply',
     query: { orderId: order.orderId }
   })
-}
-
-async function handleMerchantCancel(order) {
-  try {
-    await merchantApi.updateOrderStatus({
-      orderId: order.orderId,
-      status: '4',
-      serviceRemark: order.serviceRemark || '商家取消接单'
-    })
-    pushNotice('工单已取消', 'success')
-    await loadOrders()
-  } catch (error) {
-    pushNotice(error.message || '工单取消失败', 'danger')
-  }
 }
 
 async function handleUserCancel(orderId) {
@@ -192,11 +195,19 @@ function resetFilters() {
   loadOrders()
 }
 
+function setMerchantTab(tab) {
+  merchantTab.value = tab
+  router.replace({
+    name: 'after-sales-orders',
+    query: tab === MERCHANT_TAB_PENDING ? {} : { type: tab }
+  })
+}
+
 watch(
-  () => route.query.mode,
-  value => {
+  () => [route.query.mode, route.query.type],
+  () => {
     if (roleState.value.isMerchant) {
-      merchantTab.value = value === 'mine' ? 'mine' : 'pending'
+      merchantTab.value = resolveMerchantTab(route.query)
     }
   }
 )
@@ -221,24 +232,29 @@ onMounted(() => {
         <div>
           <span class="eyebrow">售后工单</span>
           <h1>{{ pageTitle }}</h1>
-          <p v-if="roleState.isMerchant">商家模式下拆分为待接单和我的工单，回执统一进入独立的售后回执页处理。</p>
-          <p v-else>跟踪售后申请状态，必要时可在未完成前取消订单。</p>
         </div>
 
         <div v-if="roleState.isMerchant" class="status-filter">
           <button
             class="status-filter__item"
-            :class="{ active: merchantTab === 'pending' }"
-            @click="merchantTab = 'pending'"
+            :class="{ active: merchantTab === MERCHANT_TAB_PENDING }"
+            @click="setMerchantTab(MERCHANT_TAB_PENDING)"
           >
-            待接单
+            未完成
           </button>
           <button
             class="status-filter__item"
-            :class="{ active: merchantTab === 'mine' }"
-            @click="merchantTab = 'mine'"
+            :class="{ active: merchantTab === MERCHANT_TAB_FINISHED }"
+            @click="setMerchantTab(MERCHANT_TAB_FINISHED)"
           >
-            我的工单
+            已完成
+          </button>
+          <button
+            class="status-filter__item"
+            :class="{ active: merchantTab === MERCHANT_TAB_ALL }"
+            @click="setMerchantTab(MERCHANT_TAB_ALL)"
+          >
+            全部工单
           </button>
         </div>
       </section>
@@ -317,6 +333,10 @@ onMounted(() => {
               <strong>{{ roleState.isMerchant ? '用户昵称' : '接单商家' }}</strong>
               <span>{{ roleState.isMerchant ? order.userName || '--' : order.merchantName || '待接单' }}</span>
             </article>
+            <article>
+              <strong>{{ roleState.isMerchant ? '用户诉求' : '售后类型' }}</strong>
+              <span>{{ String(order.productType || '').split('/')[0]?.trim() || '未填写' }}</span>
+            </article>
           </div>
 
           <p v-if="order.serviceRemark" class="order-service-remark">
@@ -324,28 +344,13 @@ onMounted(() => {
           </p>
 
           <div class="action-row">
-            <button
-              v-if="roleState.isMerchant && merchantTab === 'pending'"
-              class="btn btn--primary btn--small"
-              @click="handleTakeOrder(order.orderId)"
-            >
-              立即接单
-            </button>
-
-            <template v-if="roleState.isMerchant && merchantTab === 'mine'">
+            <template v-if="roleState.isMerchant">
               <button
                 v-if="canOpenReceipt(order)"
                 class="btn btn--primary btn--small"
                 @click="openReceipt(order)"
               >
-                售后回执
-              </button>
-              <button
-                v-if="canMerchantCancel(order)"
-                class="btn btn--ghost btn--small"
-                @click="handleMerchantCancel(order)"
-              >
-                取消工单
+                售后处理
               </button>
             </template>
 

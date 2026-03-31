@@ -143,11 +143,7 @@ onMounted(() => {
       <div>
         <span class="eyebrow">{{ roleState.isMerchant ? '配件浏览' : '配件商城' }}</span>
         <h1>{{ roleState.isMerchant ? '商家浏览公共配件数据' : '筛选在售配件' }}</h1>
-        <p>
-          {{ roleState.isMerchant
-            ? '这里是用户侧公开商城视图，商家可在这里预览公开商品展示效果；真正的商品维护请前往商品管理页。'
-            : '按名称、分类和价格区间筛选，快速找到合适的维修配件。' }}
-        </p>
+        
       </div>
       <div class="merchant-mall-stats">
         <article class="surface-card merchant-mall-stat">

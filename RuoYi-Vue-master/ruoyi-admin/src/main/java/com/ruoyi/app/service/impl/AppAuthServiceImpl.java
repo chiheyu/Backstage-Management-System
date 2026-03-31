@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -124,8 +125,17 @@ public class AppAuthServiceImpl implements IAppAuthService
         {
             throw new ServiceException("该手机号已注册");
         }
+        AppUser existAppUser = appUserMapper.selectAppUserByPhone(registerBody.getPhone());
+        if (StringUtils.isNotNull(existAppUser))
+        {
+            throw new ServiceException("该手机号已注册");
+        }
 
-        String username = transactionTemplate.execute((status) -> {
+        String username;
+        try
+        {
+            username = transactionTemplate.execute((status) -> {
+            ensurePhoneAvailable(registerBody.getPhone());
             String loginUsername = registerBody.getPhone();
             SysUser sysUser = new SysUser();
             sysUser.setUserName(loginUsername);
@@ -143,7 +153,7 @@ public class AppAuthServiceImpl implements IAppAuthService
             }
 
             String roleType = AppConstants.ROLE_MERCHANT.equals(registerBody.getRoleType())
-                ? AppConstants.ROLE_PENDING_MERCHANT : AppConstants.ROLE_USER;
+                ? AppConstants.ROLE_MERCHANT : AppConstants.ROLE_USER;
 
             AppUser appUser = new AppUser();
             appUser.setSysUserId(savedUser.getUserId());
@@ -154,7 +164,7 @@ public class AppAuthServiceImpl implements IAppAuthService
             appUser.setCreateBy(loginUsername);
             appUserMapper.insertAppUser(appUser);
 
-            if (AppConstants.ROLE_PENDING_MERCHANT.equals(roleType))
+            if (AppConstants.ROLE_MERCHANT.equals(roleType))
             {
                 AppMerchant merchant = new AppMerchant();
                 merchant.setAppUserId(appUser.getAppUserId());
@@ -165,7 +175,7 @@ public class AppAuthServiceImpl implements IAppAuthService
                 merchant.setAddress(registerBody.getAddress());
                 merchant.setServiceScope(registerBody.getServiceScope());
                 merchant.setCityName("汉中市");
-                merchant.setAuditStatus(AppConstants.MERCHANT_AUDIT_PENDING);
+                merchant.setAuditStatus(AppConstants.MERCHANT_AUDIT_APPROVED);
                 merchant.setCreateBy(loginUsername);
                 merchantMapper.insertMerchant(merchant);
 
@@ -174,9 +184,16 @@ public class AppAuthServiceImpl implements IAppAuthService
                 appUserMapper.updateAppUser(appUser);
             }
 
-            userService.insertUserAuth(savedUser.getUserId(), new Long[] { getRoleIdByKey("user") });
+            String roleKey = AppConstants.ROLE_MERCHANT.equals(roleType) ? "merchant" : "user";
+            userService.insertUserAuth(savedUser.getUserId(), new Long[] { getRoleIdByKey(roleKey) });
             return loginUsername;
-        });
+            });
+        }
+        catch (DuplicateKeyException exception)
+        {
+            log.warn("App register duplicate phone, phone={}", registerBody.getPhone(), exception);
+            throw new ServiceException("该手机号已注册，请直接登录");
+        }
 
         if (StringUtils.isEmpty(username))
         {
@@ -196,6 +213,15 @@ public class AppAuthServiceImpl implements IAppAuthService
     /**
      * App 登录。
      */
+    private void ensurePhoneAvailable(String phone)
+    {
+        if (StringUtils.isNotNull(sysUserMapper.checkPhoneUnique(phone))
+            || StringUtils.isNotNull(appUserMapper.selectAppUserByPhone(phone)))
+        {
+            throw new ServiceException("该手机号已注册，请直接登录");
+        }
+    }
+
     @Override
     public AppLoginVo login(AppLoginBody loginBody)
     {
@@ -264,6 +290,11 @@ public class AppAuthServiceImpl implements IAppAuthService
         AppUser appUser = appUserMapper.selectAppUserBySysUserId(loginUser.getUserId());
         AppMerchant merchant = StringUtils.isNotNull(appUser) && StringUtils.isNotNull(appUser.getMerchantId())
             ? merchantMapper.selectMerchantById(appUser.getMerchantId()) : null;
+        if (StringUtils.isNotNull(appUser) && AppConstants.ROLE_PENDING_MERCHANT.equals(appUser.getRoleType()))
+        {
+            merchant = normalizeLegacyPendingMerchant(loginUser, appUser, merchant, username);
+            appUser = appUserMapper.selectAppUserBySysUserId(loginUser.getUserId());
+        }
 
         AppLoginVo loginVo = new AppLoginVo();
         loginVo.setToken(token);
@@ -329,6 +360,40 @@ public class AppAuthServiceImpl implements IAppAuthService
             throw new ServiceException("请先在系统中初始化角色：" + roleKey);
         }
         return role.getRoleId();
+    }
+
+    private AppMerchant normalizeLegacyPendingMerchant(LoginUser loginUser, AppUser appUser, AppMerchant merchant, String username)
+    {
+        if (StringUtils.isNull(merchant))
+        {
+            return null;
+        }
+
+        boolean merchantChanged = false;
+        if (!AppConstants.MERCHANT_AUDIT_APPROVED.equals(merchant.getAuditStatus()))
+        {
+            merchant.setAuditStatus(AppConstants.MERCHANT_AUDIT_APPROVED);
+            merchant.setUpdateBy(username);
+            merchantMapper.updateMerchant(merchant);
+            merchantChanged = true;
+        }
+
+        appUser.setRoleType(AppConstants.ROLE_MERCHANT);
+        appUser.setStatus(AppConstants.STATUS_NORMAL);
+        appUser.setMerchantId(merchant.getMerchantId());
+        appUser.setUpdateBy(username);
+        appUserMapper.updateAppUser(appUser);
+
+        userService.insertUserAuth(loginUser.getUserId(), new Long[] { getRoleIdByKey("merchant") });
+
+        SysUser sysUser = userService.selectUserById(loginUser.getUserId());
+        if (StringUtils.isNotNull(sysUser) && !AppConstants.STATUS_NORMAL.equals(sysUser.getStatus()))
+        {
+            sysUser.setStatus(AppConstants.STATUS_NORMAL);
+            userService.updateUserStatus(sysUser);
+        }
+
+        return merchantChanged ? merchantMapper.selectMerchantById(merchant.getMerchantId()) : merchant;
     }
 
     /**

@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
-import { userApi } from '@/lib/api'
+import { merchantApi, userApi } from '@/lib/api'
 import {
   MERCHANT_AUDIT_STATUS,
   getRoleLabel,
@@ -19,6 +19,7 @@ const router = useRouter()
 const loading = ref(false)
 const metrics = ref([])
 const merchantSummary = ref(null)
+const merchantStats = ref(null)
 
 const roleState = computed(() => getRoleState(session.roleType))
 const merchantInfo = computed(() => merchantSummary.value?.merchant || session.merchant || null)
@@ -34,9 +35,9 @@ const metricCards = computed(() => {
   if (roleState.value.isMerchant) {
     const counts = merchantSummary.value?.counts || {}
     return [
-      { title: '待接售后', value: counts.pendingAfterSales || 0, desc: '等待商家接单的新售后工单' },
-      { title: '处理中售后', value: counts.activeAfterSales || 0, desc: '已接单或维修中的工单' },
-      { title: '已完成工单', value: counts.completedAfterSales || 0, desc: '已经提交回执并完工的工单' },
+      { title: '未完成工单', value: counts.pendingAfterSales || 0, desc: '等待商家给出处理意见的售后工单' },
+      { title: '已处理工单', value: counts.activeAfterSales || 0, desc: '商家已经提交同意或拒绝意见的工单' },
+      { title: '已完成工单', value: counts.completedAfterSales || 0, desc: '已经处理完成的售后工单' },
       {
         title: '审核状态',
         value: getStatusMeta(MERCHANT_AUDIT_STATUS, merchantInfo.value?.auditStatus).label,
@@ -45,32 +46,10 @@ const metricCards = computed(() => {
     ]
   }
 
-  if (roleState.value.isPendingMerchant) {
-    return [
-      {
-        title: '审核状态',
-        value: getStatusMeta(MERCHANT_AUDIT_STATUS, merchantInfo.value?.auditStatus).label,
-        desc: '审核通过前仍按普通用户模式使用网页端'
-      },
-      { title: '店铺名称', value: merchantInfo.value?.merchantName || '--', desc: '注册时提交的商家名称' },
-      { title: '联系电话', value: merchantInfo.value?.contactPhone || '--', desc: '用于平台联系和门店展示' }
-    ]
-  }
-
   return metrics.value
 })
 
 const quickLinks = computed(() => {
-  if (roleState.value.isPendingMerchant) {
-    return [
-      { label: '店铺信息', to: { name: 'merchant-settings' } },
-      { label: '购物车', to: { name: 'cart' } },
-      { label: '地址簿', to: { name: 'addresses' } },
-      { label: '浏览商家', to: { name: 'merchants' } },
-      { label: '返回首页', to: { name: 'home' } }
-    ]
-  }
-
   return [
     { label: '购物车', to: { name: 'cart' } },
     { label: '地址簿', to: { name: 'addresses' } },
@@ -81,9 +60,9 @@ const quickLinks = computed(() => {
 })
 
 const merchantAfterSalesLinks = [
-  { label: '待接售后', desc: '查看等待当前商家接单的工单', to: { name: 'after-sales-orders', query: { mode: 'pending' } } },
-  { label: '我的工单', desc: '查看已接单和处理中工单', to: { name: 'after-sales-orders', query: { mode: 'mine' } } },
-  { label: '售后回执', desc: '填写检测结果、维修进度和完工说明', to: { name: 'after-sales-apply' } }
+  { label: '未完成售后', desc: '查看仍待商家处理意见的工单', to: { name: 'after-sales-orders', query: { type: 'pending' } } },
+  { label: '全部售后工单', desc: '查看全部售后工单与处理结果', to: { name: 'after-sales-orders', query: { type: 'all' } } },
+  { label: '售后处理', desc: '进入同意 / 拒绝处理面板', to: { name: 'after-sales-apply' } }
 ]
 
 const merchantServiceLinks = computed(() => [
@@ -94,14 +73,6 @@ const merchantServiceLinks = computed(() => [
   { label: '我的店铺', desc: '查看当前门店展示详情', to: merchantStoreLink.value }
 ])
 
-const pendingMerchantMessage = computed(() => {
-  const merchantName = merchantInfo.value?.merchantName
-  if (merchantName) {
-    return `已提交 ${merchantName} 的入驻资料，审核通过前可继续按普通用户模式使用网页端。`
-  }
-  return '已提交商家入驻资料，审核通过前可继续按普通用户模式使用网页端。'
-})
-
 async function loadMetrics() {
   if (!session.token) {
     return
@@ -110,12 +81,13 @@ async function loadMetrics() {
   loading.value = true
   try {
     if (roleState.value.isMerchant) {
-      merchantSummary.value = await fetchMerchantDashboardSummary()
+      const [summary, stats] = await Promise.all([
+        fetchMerchantDashboardSummary(),
+        merchantApi.stats()
+      ])
+      merchantSummary.value = summary
+      merchantStats.value = stats
       session.merchant = merchantSummary.value?.merchant || session.merchant
-      return
-    }
-
-    if (roleState.value.isPendingMerchant) {
       return
     }
 
@@ -129,6 +101,7 @@ async function loadMetrics() {
       { title: '配件订单', value: Number(ordersPayload?.total || 0), desc: '商城下单后的订单总数' },
       { title: '商品收藏', value: Number(favoritesPayload?.total || 0), desc: '收藏夹里的配件数量' }
     ]
+    merchantStats.value = null
   } catch (error) {
     pushNotice(error.message || '个人中心数据加载失败', 'danger')
   } finally {
@@ -162,13 +135,12 @@ onMounted(() => {
             <span class="eyebrow">个人中心</span>
             <StatusBadge
               :label="getRoleLabel(session.roleType)"
-              :tone="roleState.isMerchant ? 'success' : roleState.isPendingMerchant ? 'warm' : 'brand'"
+              :tone="roleState.isMerchant ? 'success' : 'brand'"
             />
           </div>
 
           <h1>{{ session.appUser?.nickName || session.appUser?.phone || '当前用户' }}</h1>
-          <p>手机号 {{ session.appUser?.phone || '--' }}，这里会根据当前账号身份切换普通用户或商家快捷入口。</p>
-
+      
           <div v-if="merchantInfo" class="profile-merchant-inline">
             <strong>{{ merchantInfo.merchantName || '未命名门店' }}</strong>
             <span>{{ merchantInfo.contactPhone || '--' }}</span>
@@ -177,22 +149,11 @@ onMounted(() => {
         </div>
       </section>
 
-      <section v-if="roleState.isPendingMerchant" class="surface-card pending-banner">
-        <div class="between-row pending-banner__head">
-          <strong>商家入驻审核中</strong>
-          <StatusBadge v-bind="getStatusMeta(MERCHANT_AUDIT_STATUS, merchantInfo?.auditStatus)" />
-        </div>
-        <p>{{ pendingMerchantMessage }}</p>
-      </section>
-
       <section class="surface-card section-card">
         <div class="section-head">
           <div>
             <span class="eyebrow">账号概览</span>
-            <h2>{{ roleState.isMerchant ? '商家数据概览' : roleState.isPendingMerchant ? '入驻概览' : '账号概览' }}</h2>
-            <p v-if="roleState.isMerchant">这里展示网页端当前已接入的商家售后、商品、配件订单和店铺资料能力。</p>
-            <p v-else-if="roleState.isPendingMerchant">待审核商家仍可继续以普通用户模式浏览和下单。</p>
-            <p v-else>按当前普通用户账号展示售后、订单和收藏统计。</p>
+            <h2>{{ roleState.isMerchant ? '商家数据概览' : '账号概览' }}</h2>
           </div>
         </div>
 
@@ -203,88 +164,85 @@ onMounted(() => {
             <p>{{ item.desc }}</p>
           </article>
         </div>
-
-        <div v-if="loading" class="profile-loading">正在同步统计数据...</div>
       </section>
 
-      <template v-if="roleState.isMerchant">
-        <section class="profile-grid">
-          <section class="surface-card section-card">
-            <div class="section-head">
-              <div>
-                <span class="eyebrow">售后订单</span>
-                <h2>售后订单入口</h2>
-                <p>和小程序商家模式一致，保留待接单、我的工单和售后回执三个主入口。</p>
-              </div>
-            </div>
-
-            <div class="profile-links">
-              <RouterLink v-for="item in merchantAfterSalesLinks" :key="item.label" class="profile-link-card" :to="item.to">
-                <strong>{{ item.label }}</strong>
-                <span>{{ item.desc }}</span>
-              </RouterLink>
-            </div>
-          </section>
-
-          <section class="surface-card section-card">
-            <div class="section-head">
-              <div>
-                <span class="eyebrow">商家后台</span>
-                <h2>商家后台入口</h2>
-                <p>商品管理、配件订单、店铺设置、工作台和店铺展示入口都汇总在这里。</p>
-              </div>
-            </div>
-
-            <div class="profile-links">
-              <RouterLink v-for="item in merchantServiceLinks" :key="item.label" class="profile-link-card" :to="item.to">
-                <strong>{{ item.label }}</strong>
-                <span>{{ item.desc }}</span>
-              </RouterLink>
-            </div>
-          </section>
-        </section>
-
-        <section class="surface-card section-card">
-          <div class="section-head">
-            <div>
-              <span class="eyebrow">接口适配</span>
-              <h2>网页端当前已接入完整商家主流程</h2>
-              <p>商家商品管理和配件订单页已经接到现有后端接口，和小程序继续共享同一套数据。</p>
-            </div>
-          </div>
-
-          <div class="admin-grid">
-            <article class="admin-card">
-              <strong>已保留</strong>
-              <span>商家信息、待接售后、我的工单、回执提交、配件订单、商品管理、店铺资料维护。</span>
-            </article>
-            <article class="admin-card">
-              <strong>配件订单</strong>
-              <span>网页端可直接处理发货、完成、取消等商家配件订单动作。</span>
-            </article>
-            <article class="admin-card">
-              <strong>商品管理</strong>
-              <span>网页端可直接新增、编辑、删除商品，并维护图片、库存和上下架状态。</span>
-            </article>
-          </div>
-        </section>
-      </template>
-
-      <section v-else class="surface-card section-card">
+      <section v-if="roleState.isMerchant && merchantStats" class="surface-card section-card">
         <div class="section-head">
           <div>
-            <span class="eyebrow">快捷入口</span>
-            <h2>快捷入口</h2>
-            <p>常用业务入口集中在这里，方便快速切换。</p>
+            <span class="eyebrow">数据统计</span>
+            <h2>数据统计</h2>
+            <p>直接展示和小程序商家端一致的今日统计、类型占比与近 7 天趋势。</p>
           </div>
         </div>
 
-        <div class="profile-links">
-          <RouterLink v-for="item in quickLinks" :key="item.label" class="profile-link-card" :to="item.to">
-            <strong>{{ item.label }}</strong>
-            <span>进入对应业务页面</span>
-          </RouterLink>
+        <div class="profile-metrics profile-metrics--stats">
+          <article class="profile-metric-card">
+            <span>今日待发货</span>
+            <strong>{{ merchantStats.todayPendingShipment || 0 }}</strong>
+            <p>今天新增且尚未发货的配件订单</p>
+          </article>
+          <article class="profile-metric-card">
+            <span>今日已发货</span>
+            <strong>{{ merchantStats.todayShipped || 0 }}</strong>
+            <p>今天已推进到发货或完成状态的配件订单</p>
+          </article>
+          <article class="profile-metric-card">
+            <span>今日待处理售后</span>
+            <strong>{{ merchantStats.todayPendingAfterSale || 0 }}</strong>
+            <p>今天仍待给出处理意见的售后工单</p>
+          </article>
+          <article class="profile-metric-card">
+            <span>今日已处理售后</span>
+            <strong>{{ merchantStats.todayCompletedAfterSale || 0 }}</strong>
+            <p>今天已处理完成的售后工单</p>
+          </article>
         </div>
+
+        <section class="profile-stats-grid">
+          <article class="profile-stats-card">
+            <strong>本月总量</strong>
+            <span>{{ merchantStats.monthTotal || 0 }}</span>
+            <p>配件订单与售后处理合并统计</p>
+          </article>
+
+          <article class="profile-stats-card">
+            <strong>售后类型占比</strong>
+            <div class="stats-ratio-list">
+              <div v-for="item in merchantStats.typeRatio || []" :key="item.name" class="stats-ratio-item">
+                <div class="stats-ratio-left">
+                  <span class="stats-ratio-dot" :style="{ backgroundColor: item.color || '#117565' }"></span>
+                  <span>{{ item.name }}</span>
+                </div>
+                <strong>{{ item.ratio }}</strong>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="profile-trend-card">
+          <div class="section-head section-head--compact">
+            <div>
+              <span class="eyebrow">近 7 天</span>
+              <h2>处理趋势</h2>
+            </div>
+          </div>
+          <div class="profile-trend-list">
+            <div
+              v-for="item in merchantStats.weekTrend || []"
+              :key="item.date"
+              class="profile-trend-item"
+            >
+              <span class="profile-trend-date">{{ item.date }}</span>
+              <div class="profile-trend-bar-wrap">
+                <div
+                  class="profile-trend-bar"
+                  :style="{ height: `${Math.max(Number(item.value || 0) * 10, 10)}px` }"
+                ></div>
+              </div>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </div>
+        </section>
       </section>
     </template>
   </section>
@@ -365,6 +323,10 @@ onMounted(() => {
   gap: 16px;
 }
 
+.profile-metrics--stats {
+  margin-bottom: 18px;
+}
+
 .profile-metric-card {
   padding: 18px;
   border-radius: 22px;
@@ -387,6 +349,107 @@ onMounted(() => {
 .profile-loading {
   margin-top: 16px;
   color: var(--muted);
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(0, 1.3fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.profile-stats-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 244, 236, 0.94));
+  border: 1px solid rgba(17, 61, 77, 0.08);
+}
+
+.profile-stats-card strong {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--primary-deep);
+}
+
+.profile-stats-card > span {
+  display: block;
+  font-size: 30px;
+  color: var(--accent-deep);
+  font-weight: 700;
+}
+
+.profile-stats-card > p {
+  margin-top: 10px;
+  color: var(--muted);
+}
+
+.stats-ratio-list {
+  display: grid;
+  gap: 12px;
+}
+
+.stats-ratio-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stats-ratio-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+}
+
+.stats-ratio-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.profile-trend-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 244, 236, 0.94));
+  border: 1px solid rgba(17, 61, 77, 0.08);
+}
+
+.section-head--compact {
+  margin-bottom: 14px;
+}
+
+.profile-trend-list {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.profile-trend-item {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.profile-trend-date {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.profile-trend-bar-wrap {
+  width: 100%;
+  min-height: 120px;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+}
+
+.profile-trend-bar {
+  width: 32px;
+  min-height: 10px;
+  border-radius: 999px 999px 10px 10px;
+  background: linear-gradient(180deg, var(--accent), var(--primary));
 }
 
 .profile-links,
@@ -422,7 +485,8 @@ onMounted(() => {
 
 @media (max-width: 1080px) {
   .profile-metrics,
-  .admin-grid {
+  .admin-grid,
+  .profile-stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -431,7 +495,9 @@ onMounted(() => {
   .profile-hero,
   .profile-grid,
   .profile-metrics,
-  .admin-grid {
+  .admin-grid,
+  .profile-stats-grid,
+  .profile-trend-list {
     grid-template-columns: 1fr;
   }
 }

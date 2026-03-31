@@ -76,6 +76,9 @@ public class AppAccessoryOrder extends BaseEntity
     /** 商家名称。 */
     private String merchantName;
 
+    /** 是否已评价。 */
+    private Boolean reviewed;
+
     public Long getAccessoryOrderId()
     {
         return accessoryOrderId;
@@ -246,6 +249,16 @@ public class AppAccessoryOrder extends BaseEntity
         this.merchantName = merchantName;
     }
 
+    public Boolean getReviewed()
+    {
+        return reviewed;
+    }
+
+    public void setReviewed(Boolean reviewed)
+    {
+        this.reviewed = reviewed;
+    }
+
     @Override
     public String toString()
     {
@@ -267,6 +280,7 @@ public class AppAccessoryOrder extends BaseEntity
             .append("coverImage", getCoverImage())
             .append("userName", getUserName())
             .append("merchantName", getMerchantName())
+            .append("reviewed", getReviewed())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())
             .append("updateBy", getUpdateBy())

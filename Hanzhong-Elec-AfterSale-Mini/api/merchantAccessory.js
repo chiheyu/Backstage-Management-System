@@ -24,6 +24,10 @@ export function createMerchantAccessory(data) {
   })
 }
 
+export function addMerchantAccessory(data) {
+  return createMerchantAccessory(data)
+}
+
 export function updateMerchantAccessory(data) {
   return request({
     url: '/app/merchant/accessory',

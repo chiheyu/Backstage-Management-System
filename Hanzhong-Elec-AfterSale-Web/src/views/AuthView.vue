@@ -123,7 +123,7 @@ async function handleRegister() {
     await applyLogin(payload)
     pushNotice(
       isMerchantRegister.value
-        ? '注册成功，商家账号已进入待审核状态'
+        ? '注册成功，商家账号已直接开通'
         : '注册成功，已自动登录',
       'success'
     )
@@ -146,7 +146,7 @@ async function handleRegister() {
         <h1>登录后即可使用配件、售后和门店服务</h1>
         <p>
           普通用户可提交售后、购买配件并查看订单；
-          商家入驻后先完善门店资料，审核通过后即可接单处理。
+          商家入驻后可直接进入商家工作台并完善门店资料。
         </p>
 
         <div class="auth-highlight">
@@ -156,7 +156,7 @@ async function handleRegister() {
           </article>
           <article>
             <strong>商家入驻</strong>
-            <span>注册后先完善资料，再等待后台审核</span>
+            <span>注册后直接可用，立即进入商品与订单管理</span>
           </article>
         </div>
       </div>

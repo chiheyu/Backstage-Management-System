@@ -1,16 +1,16 @@
 <template>
   <view class="receipt-page">
     <view class="receipt-hero">
-      <text class="receipt-title">售后回执</text>
+      <text class="receipt-title">售后处理</text>
     </view>
 
     <view class="receipt-layout">
       <view class="receipt-list-card">
-        <view class="receipt-card-title">订单列表</view>
+        <view class="receipt-card-title">工单列表</view>
         
         <scroll-view class="order-scroll-container" scroll-y>
           <view v-if="merchantOrders.length === 0" class="receipt-empty">
-            <text class="receipt-empty-text">暂无可处理订单</text>
+            <text class="receipt-empty-text">暂无可查看工单</text>
           </view>
           <view
             v-for="item in merchantOrders"
@@ -28,47 +28,56 @@
         </scroll-view>
       </view>
 
-      <view class="receipt-form-card">
-        <view class="receipt-card-title">回执内容</view>
+        <view class="receipt-form-card">
+        <view class="receipt-card-title">处理意见</view>
         <view v-if="selectedMerchantOrder" class="receipt-form-body">
-          <text class="receipt-line">产品：{{ selectedMerchantOrder.productType || '未填写' }}</text>
+          <text class="receipt-line">客户诉求：{{ selectedOrderMeta.serviceType || '未填写' }}</text>
+          <text class="receipt-line">产品类型：{{ selectedOrderMeta.productName || '未填写' }}</text>
+          <text class="receipt-line">订单号：{{ selectedOrderMeta.orderNo || '未填写' }}</text>
           <text class="receipt-line">用户：{{ selectedMerchantOrder.userName || '未知用户' }}</text>
           <text class="receipt-line">地址：{{ selectedMerchantOrder.address || '未填写' }}</text>
           <text class="receipt-line">当前状态：{{ getMerchantStatusText(selectedMerchantOrder.status) }}</text>
-          <textarea
-            v-model="merchantReceipt.remark"
-            class="receipt-textarea"
-            placeholder="请输入本次回执，例如检测结果、维修进展、完工说明"
-            maxlength="300"
-          ></textarea>
-          <view class="receipt-action-row">
-            <button
-              v-if="selectedMerchantOrder.status === '1'"
-              class="receipt-primary-btn"
-              :disabled="isSubmittingReceipt"
-              @tap="submitMerchantReceipt('2')"
-            >
-              {{ isSubmittingReceipt ? '提交中...' : '提交回执并开始维修' }}
-            </button>
-            <button
-              v-else-if="selectedMerchantOrder.status === '2'"
-              class="receipt-primary-btn"
-              :disabled="isSubmittingReceipt"
-              @tap="submitMerchantReceipt('3')"
-            >
-              {{ isSubmittingReceipt ? '提交中...' : '提交回执并完成订单' }}
-            </button>
-            <button
-              v-else
-              class="receipt-secondary-btn"
-              disabled
-            >
-              当前状态无需提交回执
-            </button>
+          <view v-if="isReadonlyReceipt" class="receipt-readonly-box">
+            <text class="receipt-readonly-text">{{ readonlyReceiptContent }}</text>
+          </view>
+          <view v-else class="receipt-process-body">
+            <view class="receipt-action-row dual-action">
+              <button
+                class="receipt-primary-btn"
+                :disabled="isSubmittingReceipt"
+                @tap="agreeMerchantOrder"
+              >
+                {{ isSubmittingReceipt ? '提交中...' : '同意' }}
+              </button>
+              <button
+                class="receipt-reject-btn"
+                :disabled="isSubmittingReceipt"
+                @tap="toggleRejectMode"
+              >
+                {{ isRejectMode ? '取消拒绝' : '拒绝' }}
+              </button>
+            </view>
+            <view v-if="isRejectMode" class="reject-panel">
+              <textarea
+                v-model="merchantReceipt.remark"
+                class="receipt-textarea"
+                placeholder="请输入拒绝原因"
+                maxlength="300"
+              ></textarea>
+              <view class="receipt-action-row">
+                <button
+                  class="receipt-primary-btn"
+                  :disabled="isSubmittingReceipt || !trimmedReceiptRemark"
+                  @tap="submitRejectReceipt"
+                >
+                  {{ isSubmittingReceipt ? '提交中...' : '提交' }}
+                </button>
+              </view>
+            </view>
           </view>
         </view>
         <view v-else class="receipt-empty">
-          <text class="receipt-empty-text">请选择上方订单后填写回执</text>
+          <text class="receipt-empty-text">请选择上方工单后查看或处理</text>
         </view>
       </view>
     </view>
@@ -88,12 +97,26 @@ export default {
       merchantReceipt: {
         remark: ''
       },
-      isSubmittingReceipt: false
+      isSubmittingReceipt: false,
+      isLoadingOrders: false,
+      isRejectMode: false
     }
   },
   computed: {
     selectedMerchantOrder() {
       return this.merchantOrders.find((item) => item.orderId === this.selectedOrderId) || null
+    },
+    selectedOrderMeta() {
+      return this.parseOrderMeta(this.selectedMerchantOrder?.productType)
+    },
+    isReadonlyReceipt() {
+      return ['3', '4'].includes(String(this.selectedMerchantOrder?.status || ''))
+    },
+    readonlyReceiptContent() {
+      return (this.selectedMerchantOrder?.serviceRemark || '').trim() || '暂无处理意见'
+    },
+    trimmedReceiptRemark() {
+      return (this.merchantReceipt.remark || '').trim()
     }
   },
   mounted() {
@@ -105,78 +128,80 @@ export default {
     }
   },
   methods: {
-    getMerchantStatusText(status) {
-      const statusMap = {
-        '0': '待接单',
-        '1': '已接单',
-        '2': '维修中',
-        '3': '已完成',
-        '4': '已取消'
+    parseOrderMeta(productType) {
+      const parts = String(productType || '')
+        .split('/')
+        .map((item) => item.trim())
+        .filter(Boolean)
+
+      return {
+        serviceType: parts[0] || '',
+        productName: parts[1] || '',
+        orderNo: parts[2] || ''
       }
-      return statusMap[String(status)] || '未知状态'
+    },
+    getMerchantStatusText(status) {
+      return ['3', '4'].includes(String(status)) ? '已完成' : '未完成'
     },
     async loadMerchantOrders() {
+      if (this.isLoadingOrders) {
+        return
+      }
+
+      this.isLoadingOrders = true
       try {
         const res = await getMerchantOrders({
           pageNum: 1,
           pageSize: 50
         })
         const rows = Array.isArray(res.rows) ? res.rows : []
-        this.merchantOrders = rows.filter((item) => ['1', '2'].includes(String(item.status)))
+        this.merchantOrders = rows.filter((item) => ['0', '1', '2', '3', '4'].includes(String(item.status)))
         if (this.merchantOrders.length) {
           const preferredOrderId = Number(uni.getStorageSync(RECEIPT_ORDER_KEY) || 0) || null
           if (preferredOrderId) {
             uni.removeStorageSync(RECEIPT_ORDER_KEY)
           }
+          const activeOrders = this.merchantOrders.filter((item) => !['3', '4'].includes(String(item.status)))
           const selected = this.merchantOrders.find((item) => item.orderId === preferredOrderId)
             || this.merchantOrders.find((item) => item.orderId === this.selectedOrderId)
+            || activeOrders[0]
             || this.merchantOrders[0]
           this.selectedOrderId = selected.orderId
-          this.merchantReceipt.remark = this.getDefaultRemark(selected)
+          this.merchantReceipt.remark = ''
+          this.isRejectMode = false
         } else {
           this.selectedOrderId = null
           this.merchantReceipt.remark = ''
-          uni.navigateTo({
-            url: '/pages/afterSaleOrder/index'
-          })
+          this.isRejectMode = false
         }
       } catch (error) {
         this.merchantOrders = []
         this.selectedOrderId = null
         this.merchantReceipt.remark = ''
+        if (!error || !error.msg) {
+          uni.showToast({
+            title: '加载回执订单失败',
+            icon: 'none'
+          })
+        }
+      } finally {
+        this.isLoadingOrders = false
       }
-    },
-    getDefaultRemark(order) {
-      if (!order) {
-        return ''
-      }
-      if (String(order.status) === '2') {
-        return ''
-      }
-      return order.serviceRemark || ''
     },
     selectMerchantOrder(order) {
       this.selectedOrderId = order.orderId
-      this.merchantReceipt.remark = this.getDefaultRemark(order)
+      this.merchantReceipt.remark = ''
+      this.isRejectMode = false
     },
-    async submitMerchantReceipt(targetStatus) {
+    async submitMerchantReceipt(remark) {
       const selectedMerchantOrder = this.merchantOrders.find((item) => item.orderId === this.selectedOrderId)
       if (!selectedMerchantOrder || this.isSubmittingReceipt) {
         return
       }
 
-      const remark = (this.merchantReceipt.remark || '').trim()
       if (!remark) {
         uni.showToast({
-          title: '请先填写回执内容',
-          icon: 'none'
-        })
-        return
-      }
-
-      if (targetStatus === '3' && remark === (selectedMerchantOrder.serviceRemark || '').trim()) {
-        uni.showToast({
-          title: '请填写本次完工回执后再完成订单',
+          title: '请先填写处理意见',
           icon: 'none'
         })
         return
@@ -186,24 +211,14 @@ export default {
       try {
         await updateMerchantOrderStatus({
           orderId: selectedMerchantOrder.orderId,
-          status: targetStatus,
+          status: '3',
           serviceRemark: remark
         })
         uni.showToast({
-          title: '回执提交成功',
+          title: '处理成功',
           icon: 'success'
         })
         await this.loadMerchantOrders()
-        
-        if (targetStatus === '3') {
-          if (this.merchantOrders.length) {
-            this.selectedOrderId = this.merchantOrders[0].orderId
-            this.merchantReceipt.remark = this.getDefaultRemark(this.merchantOrders[0])
-          } else {
-            this.selectedOrderId = null
-            this.merchantReceipt.remark = ''
-          }
-        }
       } catch (error) {
         if (!error || !error.msg) {
           uni.showToast({
@@ -214,6 +229,19 @@ export default {
       } finally {
         this.isSubmittingReceipt = false
       }
+    },
+    agreeMerchantOrder() {
+      this.isRejectMode = false
+      this.submitMerchantReceipt('已同意售后申请')
+    },
+    toggleRejectMode() {
+      this.isRejectMode = !this.isRejectMode
+      if (!this.isRejectMode) {
+        this.merchantReceipt.remark = ''
+      }
+    },
+    submitRejectReceipt() {
+      this.submitMerchantReceipt(`已拒绝 拒绝原因：${this.trimmedReceiptRemark}`)
     }
   }
 }
@@ -355,12 +383,40 @@ page {
   box-shadow: 0 0 0 6rpx rgba(47, 84, 235, 0.1);
 }
 
+.receipt-readonly-box {
+  width: 100%;
+  min-height: 220rpx;
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border: 1rpx solid #f0f0f0;
+  border-radius: 16rpx;
+  background: #f8f9fc;
+}
+
+.receipt-readonly-text {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.receipt-process-body {
+  margin-top: 24rpx;
+}
+
 .receipt-action-row {
   margin-top: 32rpx;
 }
 
+.dual-action {
+  display: flex;
+  gap: 20rpx;
+}
+
 .receipt-primary-btn,
-.receipt-secondary-btn {
+.receipt-secondary-btn,
+.receipt-reject-btn {
   width: 100%;
   height: 88rpx;
   line-height: 88rpx;
@@ -386,9 +442,19 @@ page {
   color: #2f54eb;
 }
 
+.receipt-reject-btn {
+  background: #fff1f0;
+  color: #ff4d4f;
+}
+
 .receipt-primary-btn:disabled,
-.receipt-secondary-btn:disabled {
+.receipt-secondary-btn:disabled,
+.receipt-reject-btn:disabled {
   opacity: 0.6;
+}
+
+.reject-panel {
+  margin-top: 24rpx;
 }
 
 .receipt-empty {
