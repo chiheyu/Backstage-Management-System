@@ -329,13 +329,12 @@ export default {
     },
     getRoleMeta(roleType) {
       const normalizedRoleType = String(roleType || '1');
+      const isMerchant = normalizedRoleType === '2' || normalizedRoleType === '0';
       return {
-        roleType: normalizedRoleType,
-        role: normalizedRoleType === '2' ? 'merchant' : 'user',
-        roleLabel: normalizedRoleType === '2'
-          ? '商家用户'
-          : (normalizedRoleType === '0' ? '待审核商家' : '普通用户'),
-        isPendingMerchant: normalizedRoleType === '0'
+        roleType: isMerchant ? '2' : '1',
+        role: isMerchant ? 'merchant' : 'user',
+        roleLabel: isMerchant ? '商家用户' : '普通用户',
+        isPendingMerchant: false
       };
     },
     validateNickName(value) {
@@ -521,9 +520,8 @@ export default {
         }
 
         this.saveAuthState(data, this.registerForm.phone);
-        const roleMeta = this.getRoleMeta(data.roleType || (data.appUser && data.appUser.roleType) || '1');
         uni.showToast({
-          title: roleMeta.isPendingMerchant ? '入驻申请已提交，等待审核' : '注册成功！',
+          title: this.registerForm.role === 'merchant' ? '注册成功，商家可直接使用！' : '注册成功！',
           icon: 'success'
         });
         setTimeout(() => {

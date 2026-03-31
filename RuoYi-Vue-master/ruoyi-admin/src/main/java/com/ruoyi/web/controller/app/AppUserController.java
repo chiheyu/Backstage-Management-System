@@ -15,10 +15,12 @@ import com.ruoyi.app.domain.AppAfterSalesOrder;
 import com.ruoyi.app.domain.AppAccessoryCollection;
 import com.ruoyi.app.domain.AppAccessoryOrder;
 import com.ruoyi.app.domain.bo.AppAccessoryOrderSubmitBody;
+import com.ruoyi.app.domain.bo.AppMerchantReviewSubmitBody;
 import com.ruoyi.app.service.IAppAccessoryCollectionService;
 import com.ruoyi.app.service.IAppAccessoryOrderService;
 import com.ruoyi.app.service.IAppAfterSalesOrderService;
 import com.ruoyi.app.service.IAppAuthService;
+import com.ruoyi.app.service.IAppMerchantReviewService;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
@@ -43,6 +45,9 @@ public class AppUserController extends BaseController
 
     @Autowired
     private IAppAccessoryOrderService accessoryOrderService;
+
+    @Autowired
+    private IAppMerchantReviewService merchantReviewService;
 
     /**
      * 提交售后申请。
@@ -151,5 +156,15 @@ public class AppUserController extends BaseController
     public AjaxResult accessoryOrderDetail(@PathVariable Long accessoryOrderId)
     {
         return AjaxResult.success(accessoryOrderService.selectAccessoryOrderById(accessoryOrderId));
+    }
+
+    /**
+     * 提交商家评价。
+     */
+    @PreAuthorize("@ss.hasRole('user')")
+    @PostMapping("/merchantReview")
+    public AjaxResult createMerchantReview(@RequestBody AppMerchantReviewSubmitBody submitBody)
+    {
+        return AjaxResult.success(merchantReviewService.createReview(submitBody));
     }
 }

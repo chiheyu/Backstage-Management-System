@@ -15,12 +15,12 @@ export const ROLE_OPTIONS = [
   {
     label: '商家入驻',
     value: ROLE_TYPES.merchant,
-    desc: '注册后进入待审核状态，通过后可接单'
+    desc: '注册后可直接使用商家能力并进入工作台'
   }
 ]
 
 export const MERCHANT_AUDIT_STATUS = {
-  '0': { label: '待审核', tone: 'warm' },
+  '0': { label: '已通过', tone: 'success' },
   '1': { label: '已通过', tone: 'success' },
   '2': { label: '已停用', tone: 'danger' }
 }
@@ -41,17 +41,18 @@ export const ACCESSORY_ORDER_STATUS = {
 }
 
 export const ROLE_LABEL_MAP = {
-  [ROLE_TYPES.pendingMerchant]: '待审核商家',
+  [ROLE_TYPES.pendingMerchant]: '商家',
   [ROLE_TYPES.user]: '普通用户',
   [ROLE_TYPES.merchant]: '商家'
 }
 
 export function getRoleState(roleType) {
   const normalizedRoleType = String(roleType)
+  const isMerchant = normalizedRoleType === ROLE_TYPES.merchant || normalizedRoleType === ROLE_TYPES.pendingMerchant
   return {
-    isPendingMerchant: normalizedRoleType === ROLE_TYPES.pendingMerchant,
-    isUser: normalizedRoleType === ROLE_TYPES.user || normalizedRoleType === ROLE_TYPES.pendingMerchant,
-    isMerchant: normalizedRoleType === ROLE_TYPES.merchant
+    isPendingMerchant: false,
+    isUser: normalizedRoleType === ROLE_TYPES.user,
+    isMerchant
   }
 }
 
@@ -105,6 +106,12 @@ export function resolveImage(url, apiBaseUrl) {
   }
   if (/^https?:\/\//i.test(url)) {
     return url
+  }
+  if (url.startsWith('/static/')) {
+    return url
+  }
+  if (url.startsWith('static/')) {
+    return `/${url}`
   }
   if (!apiBaseUrl) {
     return url

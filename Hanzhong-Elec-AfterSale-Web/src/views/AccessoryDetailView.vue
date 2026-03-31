@@ -215,7 +215,7 @@ function validateOrder() {
     return false
   }
   if (!canOrder.value) {
-    pushNotice('请使用普通用户或待审核商家账号下单', 'danger')
+    pushNotice('请使用普通用户账号下单', 'danger')
     return false
   }
   if (!orderForm.receiverName.trim()) {
@@ -437,15 +437,12 @@ onMounted(() => {
           <div class="accessory-points">
             <article>
               <strong>{{ isMerchantMode ? '商品维护' : '库存透明' }}</strong>
-              <span>{{ isMerchantMode ? '网页端商品详情页现在和小程序一致，可直接修改商品名称、分类、价格、库存、图片和上下架状态。' : '下单前即可查看当前库存和销量。' }}</span>
             </article>
             <article>
               <strong>{{ isMerchantMode ? '接口复用' : '收藏便捷' }}</strong>
-              <span>{{ isMerchantMode ? '详情页直接复用现有商家商品接口，不改后端结构，也不影响小程序端。' : '常用配件可随时加入或取消收藏。' }}</span>
             </article>
             <article>
               <strong>售后衔接</strong>
-              <span>{{ isMerchantMode ? '如需继续处理商家业务，可前往商品管理、配件订单和售后工单页面。' : '购买后如需维修，可继续提交相关售后申请。' }}</span>
             </article>
           </div>
 
@@ -474,7 +471,6 @@ onMounted(() => {
               <div>
                 <span class="eyebrow">商品编辑</span>
                 <h2>直接维护当前商品</h2>
-                <p>这里按小程序商家详情页的交互补齐了商品编辑能力，支持修改、上下架、图片上传和删除。</p>
               </div>
             </div>
 
@@ -632,8 +628,6 @@ onMounted(() => {
             <div>
               <span class="eyebrow">{{ isMerchantMode ? '公开预览' : '同类推荐' }}</span>
               <h2>{{ isMerchantMode ? '商品展示信息' : '同类推荐' }}</h2>
-              <p v-if="isMerchantMode">当前页面右侧保留对外展示视角和业务提示，方便边改边确认商品信息是否完整。</p>
-              <p v-else>继续浏览同类配件，方便一次完成选购。</p>
             </div>
           </div>
 
@@ -673,13 +667,6 @@ onMounted(() => {
                 <strong>状态提醒</strong>
                 <p>{{ merchantStatusBadge.label }}</p>
                 <span>下架商品不会在用户公开商城中展示。</span>
-              </div>
-            </article>
-            <article class="related-card related-card--single">
-              <div>
-                <strong>后续操作</strong>
-                <p>如需处理商城订单或售后工单，可直接前往对应商家页面继续操作。</p>
-                <span>不修改小程序前端，也不修改后端接口。</span>
               </div>
             </article>
           </div>

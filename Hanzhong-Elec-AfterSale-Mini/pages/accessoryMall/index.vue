@@ -92,22 +92,30 @@
               <text class="price-symbol">¥</text>
               <text class="price-num">{{ item.price }}</text>
             </view>
-            <button
-              v-if="isMerchant"
-              class="detail-btn"
-              @tap.stop="openMerchantEditor(item.id)"
-            >
-              查看详情
-            </button>
-            <button
-              v-else
-              class="cart-btn"
-              :data-goods="item"
-              @tap.stop="addCart"
-              :disabled="item.stock <= 0"
-            >
-              {{ item.stock <= 0 ? '已售罄' : '加入购物车' }}
-            </button>
+            <view class="action-group action-group-right">
+              <button
+                class="detail-btn"
+                @tap.stop="handleDetailAction(item)"
+              >
+                查看详情
+              </button>
+              <button
+                v-if="isMerchant"
+                class="icon-btn delete-icon-btn"
+                @tap.stop="confirmDeleteGoods(item)"
+              >
+                <text class="delete-icon">🗑</text>
+              </button>
+              <button
+                v-else
+                class="icon-btn add-cart-btn"
+                :data-goods="item"
+                @tap.stop="addCart"
+                :disabled="item.stock <= 0"
+              >
+                <text class="add-cart-icon">{{ item.stock <= 0 ? '×' : '+' }}</text>
+              </button>
+            </view>
           </view>
         </view>
       </view>
@@ -201,6 +209,7 @@ import {
   getMerchantAccessoryDetail,
   updateMerchantAccessory,
   addMerchantAccessory,
+  deleteMerchantAccessory,
   uploadMerchantAccessoryImage
 } from '@/api/merchantAccessory'
 import { syncRoleTabBar } from '@/utils/tabbar'
@@ -373,6 +382,10 @@ export default {
       if (!item || !item.id) return
       this.isMerchant ? this.openMerchantEditor(item.id) : this.goDetail(item.id)
     },
+    handleDetailAction(item) {
+      if (!item || !item.id) return
+      this.isMerchant ? this.openMerchantEditor(item.id) : this.goDetail(item.id)
+    },
     openAddMerchantGoods() {
       this.isAddMode = true
       this.merchantForm = {
@@ -480,6 +493,27 @@ export default {
     toggleShelfStatus() {
       if (!this.isMerchant || this.isAddMode) return
       this.merchantForm.status = this.merchantForm.status === '0' ? '1' : '0'
+    },
+    confirmDeleteGoods(item) {
+      if (!this.isMerchant || !item || !item.id) return
+      uni.showModal({
+        title: '是否确认删除',
+        content: `删除后将无法恢复，是否确认删除“${item.name}”？`,
+        confirmColor: '#ff4d4f',
+        success: async (res) => {
+          if (!res.confirm) return
+          try {
+            await deleteMerchantAccessory(item.id)
+            uni.showToast({ title: '删除成功', icon: 'success' })
+            if (this.showMerchantEditor && String(this.merchantForm.accessoryId) === String(item.id)) {
+              this.closeMerchantEditor()
+            }
+            await this.loadGoodsList()
+          } catch (error) {
+            uni.showToast({ title: error?.msg || '删除失败', icon: 'none' })
+          }
+        }
+      })
     },
     addCart(e) {
       const item = e.currentTarget.dataset.goods
@@ -898,6 +932,7 @@ page {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20rpx;
 }
 
 .price-wrap {
@@ -916,20 +951,6 @@ page {
   color: #ff7d00;
 }
 
-.cart-btn {
-  min-width: 180rpx;
-  height: 76rpx;
-  line-height: 76rpx;
-  background: #2f54eb;
-  color: #ffffff;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  border: none;
-  flex-shrink: 0;
-  transition: all 0.25s ease;
-  box-shadow: 0 4rpx 12rpx rgba(47, 84, 235, 0.15);
-}
-
 .detail-btn {
   min-width: 180rpx;
   height: 76rpx;
@@ -943,15 +964,64 @@ page {
   transition: all 0.25s ease;
 }
 
-.cart-btn:active,
+.icon-btn:active,
 .detail-btn:active {
   transform: scale(0.96);
 }
 
-.cart-btn:disabled {
-  background: #c9cdd4;
+.action-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16rpx;
+  flex-shrink: 0;
+}
+
+.action-group-right {
+  margin-left: auto;
+}
+
+.icon-btn {
+  width: 76rpx;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999rpx;
+  padding: 0;
+  flex-shrink: 0;
+  background: #fff1f0;
+  transition: all 0.25s ease;
+}
+
+.icon-btn:active {
+  transform: scale(0.96);
+}
+
+.delete-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+.add-cart-btn {
+  background: #eef2ff;
+}
+
+.add-cart-btn:disabled {
+  background: #f2f3f5;
+  opacity: 1;
   transform: none;
-  box-shadow: none;
+}
+
+.add-cart-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  color: #2f54eb;
+}
+
+.add-cart-btn:disabled .add-cart-icon {
+  color: #c9cdd4;
 }
 
 .editor-mask {

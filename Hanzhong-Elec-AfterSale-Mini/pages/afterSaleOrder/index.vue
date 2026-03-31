@@ -57,9 +57,9 @@
             <text class="label">{{ isMerchantMode ? '用户昵称' : '接单商家' }}</text>
             <text class="value">{{ displayCounterpart(item) }}</text>
           </view>
-          <view v-if="item.serviceRemark" class="info-row">
-            <text class="label">回执内容</text>
-            <text class="value">{{ item.serviceRemark }}</text>
+          <view v-if="shouldShowRejectRemark(item)" class="info-row">
+            <text class="label">售后结果</text>
+            <text class="value">{{ formatRejectRemark(item.serviceRemark) }}</text>
           </view>
           <view v-if="item.imageList.length" class="info-row">
             <text class="label">故障图片</text>
@@ -90,39 +90,12 @@
               {{ actioningOrderId === item.orderId ? '处理中...' : '取消申请' }}
             </button>
             <button
-              v-if="canTake(item)"
-              class="btn primary-btn"
-              size="mini"
-              :disabled="actioningOrderId === item.orderId"
-              @tap="takeOrder(item)"
-            >
-              {{ actioningOrderId === item.orderId ? '处理中...' : '接单' }}
-            </button>
-            <button
-              v-if="canStartRepair(item)"
-              class="btn primary-btn"
-              size="mini"
-              :disabled="actioningOrderId === item.orderId"
-              @tap="updateOrderStatus(item, STATUS.REPAIRING, '开始维修', '已更新为维修中')"
-            >
-              {{ actioningOrderId === item.orderId ? '处理中...' : '开始维修' }}
-            </button>
-            <button
               v-if="canOpenReceipt(item)"
               class="btn success-btn"
               size="mini"
               @tap="openReceiptPanel(item)"
             >
-              售后回执
-            </button>
-            <button
-              v-if="canMerchantCancel(item)"
-              class="btn warn-btn"
-              size="mini"
-              :disabled="actioningOrderId === item.orderId"
-              @tap="updateOrderStatus(item, STATUS.CANCELED, merchantCancelRemark(item), '订单已取消')"
-            >
-              {{ actioningOrderId === item.orderId ? '处理中...' : '终止订单' }}
+              售后处理
             </button>
           </view>
         </view>
@@ -146,9 +119,7 @@ import {
   cancelAfterSaleOrder,
   getMerchantOrders,
   getMerchantPendingOrders,
-  getUserAfterSaleOrders,
-  takeMerchantOrder,
-  updateMerchantOrderStatus
+  getUserAfterSaleOrders
 } from '@/api/afterSale'
 
 const STATUS = {
@@ -188,7 +159,7 @@ export default {
 
       if (this.type === 'pending') {
         if (this.isMerchantMode) {
-          return this.orderList.filter((item) => item.status === STATUS.WAIT_ACCEPT)
+          return this.orderList.filter((item) => this.isUnfinishedStatus(item.status))
         }
         return this.orderList.filter((item) =>
           [STATUS.WAIT_ACCEPT, STATUS.ACCEPTED, STATUS.REPAIRING].includes(item.status)
@@ -197,9 +168,7 @@ export default {
 
       if (this.type === 'finished') {
         if (this.isMerchantMode) {
-          return this.orderList.filter((item) =>
-            [STATUS.ACCEPTED, STATUS.REPAIRING, STATUS.COMPLETED, STATUS.CANCELED].includes(item.status)
-          )
+          return this.orderList.filter((item) => this.isFinishedStatus(item.status))
         }
         return this.orderList.filter((item) =>
           [STATUS.COMPLETED, STATUS.CANCELED].includes(item.status)
@@ -210,7 +179,7 @@ export default {
     },
     emptyText() {
       if (this.isMerchantMode && this.type === 'pending') {
-        return '暂无待接单订单'
+        return '暂无未完成工单'
       }
       return '暂无售后订单'
     },
@@ -248,9 +217,9 @@ export default {
     setNavigationTitle() {
       const titleMap = this.isMerchantMode
         ? {
-            pending: '待接单订单',
-            finished: '已处理订单',
-            all: '售后订单管理'
+            pending: '未完成工单',
+            finished: '已完成工单',
+            all: '售后订单'
           }
         : {
             pending: '处理中订单',
@@ -389,26 +358,38 @@ export default {
     displayCounterpart(item) {
       return this.isMerchantMode ? item.userName : item.merchantName
     },
+    isUnfinishedStatus(status) {
+      return [STATUS.WAIT_ACCEPT, STATUS.ACCEPTED, STATUS.REPAIRING].includes(String(status))
+    },
+    isFinishedStatus(status) {
+      return [STATUS.COMPLETED, STATUS.CANCELED].includes(String(status))
+    },
     getStatusText(status) {
-      const statusMap = {
-        [STATUS.WAIT_ACCEPT]: '待接单',
-        [STATUS.ACCEPTED]: '已接单',
-        [STATUS.REPAIRING]: '维修中',
-        [STATUS.COMPLETED]: '已完成',
-        [STATUS.CANCELED]: '已取消'
+      if (this.isMerchantMode) {
+        return this.isFinishedStatus(status) ? '已完成' : '未完成'
       }
 
+      const statusMap = {
+        [STATUS.WAIT_ACCEPT]: '未完成',
+        [STATUS.ACCEPTED]: '未完成',
+        [STATUS.REPAIRING]: '未完成',
+        [STATUS.COMPLETED]: '已完成',
+        [STATUS.CANCELED]: '已完成'
+      }
       return statusMap[String(status)] || '未知状态'
     },
     getStatusClass(status) {
+      if (this.isMerchantMode) {
+        return this.isFinishedStatus(status) ? 'status-completed' : 'status-pending'
+      }
+
       const classMap = {
         [STATUS.WAIT_ACCEPT]: 'status-pending',
-        [STATUS.ACCEPTED]: 'status-accepted',
-        [STATUS.REPAIRING]: 'status-repairing',
+        [STATUS.ACCEPTED]: 'status-pending',
+        [STATUS.REPAIRING]: 'status-pending',
         [STATUS.COMPLETED]: 'status-completed',
         [STATUS.CANCELED]: 'status-canceled'
       }
-
       return classMap[String(status)] || 'status-unknown'
     },
     formatTime(value) {
@@ -432,23 +413,8 @@ export default {
         [STATUS.WAIT_ACCEPT, STATUS.ACCEPTED, STATUS.REPAIRING].includes(item.status)
       )
     },
-    canTake(item) {
-      return this.isMerchantMode && item.status === STATUS.WAIT_ACCEPT
-    },
-    canStartRepair(item) {
-      return this.isMerchantMode && item.status === STATUS.ACCEPTED
-    },
-    canComplete(item) {
-      return false
-    },
-    canMerchantCancel(item) {
-      return this.isMerchantMode && [STATUS.ACCEPTED, STATUS.REPAIRING].includes(item.status)
-    },
     canOpenReceipt(item) {
-      return this.isMerchantMode && item.status === STATUS.REPAIRING
-    },
-    merchantCancelRemark(item) {
-      return item.status === STATUS.REPAIRING ? '维修终止，订单取消' : '商家取消接单'
+      return this.isMerchantMode && this.isUnfinishedStatus(item.status)
     },
     openReceiptPanel(item) {
       uni.setStorageSync(RECEIPT_ORDER_KEY, item.orderId)
@@ -508,43 +474,11 @@ export default {
         }
       })
     },
-    takeOrder(item) {
-      uni.showModal({
-        title: '确认接单',
-        content: '确定接下这条售后订单吗？',
-        success: ({ confirm }) => {
-          if (confirm) {
-            this.runOrderAction(
-              item.orderId,
-              () => takeMerchantOrder(item.orderId),
-              '接单成功',
-              '接单失败'
-            )
-          }
-        }
-      })
+    shouldShowRejectRemark(item) {
+      return !this.isMerchantMode && String(item.serviceRemark || '').trim().startsWith('已拒绝')
     },
-    updateOrderStatus(item, targetStatus, serviceRemark, successText) {
-      const actionText = targetStatus === STATUS.CANCELED ? '取消订单' : successText
-      uni.showModal({
-        title: actionText,
-        content: `确认执行“${actionText}”吗？`,
-        success: ({ confirm }) => {
-          if (confirm) {
-            this.runOrderAction(
-              item.orderId,
-              () =>
-                updateMerchantOrderStatus({
-                  orderId: item.orderId,
-                  status: targetStatus,
-                  serviceRemark
-                }),
-              successText,
-              '更新状态失败'
-            )
-          }
-        }
-      })
+    formatRejectRemark(serviceRemark) {
+      return serviceRemark || ''
     },
     previewImage(images, currentIndex) {
       if (!Array.isArray(images) || !images.length) {

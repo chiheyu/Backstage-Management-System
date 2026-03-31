@@ -25,10 +25,18 @@ const router = useRouter()
 const loading = ref(false)
 const orderList = ref([])
 const favoriteList = ref([])
+const reviewModalVisible = ref(false)
+const reviewSubmitting = ref(false)
+const currentReviewOrder = ref(null)
 
 const filters = reactive({
   orderNo: '',
   status: ''
+})
+
+const reviewForm = reactive({
+  rating: 5,
+  reviewContent: ''
 })
 
 const roleState = computed(() => getRoleState(session.roleType))
@@ -88,6 +96,14 @@ function canApplyAfterSale(order) {
   return String(order.status) === '2'
 }
 
+function canReview(order) {
+  return String(order.status) === '2' && !order.reviewed
+}
+
+function isReviewed(order) {
+  return !!order.reviewed
+}
+
 function goAfterSale(order) {
   saveAfterSalePrefill({
     sourceType: 'accessoryOrder',
@@ -99,6 +115,56 @@ function goAfterSale(order) {
     receiverAddress: order.receiverAddress || ''
   })
   router.push({ name: 'after-sales-apply' })
+}
+
+function openReview(order) {
+  if (!canReview(order)) {
+    return
+  }
+
+  currentReviewOrder.value = order
+  reviewForm.rating = 5
+  reviewForm.reviewContent = ''
+  reviewModalVisible.value = true
+}
+
+function closeReview() {
+  reviewModalVisible.value = false
+  currentReviewOrder.value = null
+  reviewForm.rating = 5
+  reviewForm.reviewContent = ''
+}
+
+function setReviewRating(value) {
+  reviewForm.rating = value
+}
+
+async function submitReview() {
+  if (!currentReviewOrder.value || reviewSubmitting.value) {
+    return
+  }
+
+  const reviewContent = reviewForm.reviewContent.trim()
+  if (!reviewContent) {
+    pushNotice('请先填写评价内容', 'danger')
+    return
+  }
+
+  reviewSubmitting.value = true
+  try {
+    await userApi.createMerchantReview({
+      accessoryOrderId: currentReviewOrder.value.accessoryOrderId,
+      rating: reviewForm.rating || 5,
+      reviewContent
+    })
+    pushNotice('评价成功', 'success')
+    closeReview()
+    await loadData()
+  } catch (error) {
+    pushNotice(error.message || '评价失败', 'danger')
+  } finally {
+    reviewSubmitting.value = false
+  }
 }
 
 function resetFilters() {
@@ -135,7 +201,6 @@ onMounted(() => {
         <div>
           <span class="eyebrow">订单中心</span>
           <h1>我的配件订单与收藏</h1>
-          <p>统一查看配件订单、收货信息和常用收藏商品。</p>
         </div>
         <StatusBadge :label="`订单 ${orderList.length} 条 / 收藏 ${favoriteList.length} 件`" tone="brand" />
       </section>
@@ -146,7 +211,6 @@ onMounted(() => {
             <div>
               <span class="eyebrow">配件订单</span>
               <h2>配件订单</h2>
-              <p>这里展示已提交的配件订单、收货信息和处理状态。</p>
             </div>
           </div>
 
@@ -195,6 +259,20 @@ onMounted(() => {
                   </div>
                   <div v-if="canApplyAfterSale(order)" class="action-row order-card__actions">
                     <button class="btn btn--ghost btn--small" @click="goAfterSale(order)">申请售后</button>
+                    <button
+                      v-if="canReview(order)"
+                      class="btn btn--secondary btn--small"
+                      @click="openReview(order)"
+                    >
+                      评价商家
+                    </button>
+                    <button
+                      v-else-if="isReviewed(order)"
+                      class="btn btn--ghost btn--small"
+                      disabled
+                    >
+                      已评价
+                    </button>
                   </div>
                 </div>
               </div>
@@ -214,7 +292,6 @@ onMounted(() => {
             <div>
               <span class="eyebrow">收藏商品</span>
               <h2>我的收藏</h2>
-              <p>保留常看的配件，方便再次查看详情或直接下单。</p>
             </div>
           </div>
 
@@ -235,9 +312,51 @@ onMounted(() => {
           <EmptyState
             v-else
             title="还没有收藏"
-            description="在商品详情页点击收藏后，这里会同步显示。"
+            description="遇到喜欢的东西记的点收藏哦"
           />
         </section>
+      </section>
+
+      <section v-if="reviewModalVisible" class="review-mask" @click.self="closeReview">
+        <div class="surface-card review-dialog">
+          <div class="between-row review-dialog__head">
+            <div>
+              <span class="eyebrow">订单评价</span>
+              <h2>{{ currentReviewOrder?.accessoryName || '评价商家' }}</h2>
+            </div>
+            <button class="btn btn--ghost btn--small" @click="closeReview">关闭</button>
+          </div>
+
+          <div class="review-dialog__stars">
+            <button
+              v-for="value in 5"
+              :key="value"
+              type="button"
+              class="review-star"
+              :class="{ active: value <= reviewForm.rating }"
+              @click="setReviewRating(value)"
+            >
+              ★
+            </button>
+            <span>{{ reviewForm.rating }} 分</span>
+          </div>
+
+          <label class="review-dialog__field">
+            <span>评价内容</span>
+            <textarea
+              v-model.trim="reviewForm.reviewContent"
+              class="textarea"
+              placeholder="请输入对商家服务、发货速度和商品质量的评价"
+            ></textarea>
+          </label>
+
+          <div class="action-row review-dialog__actions">
+            <button class="btn btn--primary" :disabled="reviewSubmitting" @click="submitReview">
+              {{ reviewSubmitting ? '提交中...' : '提交评价' }}
+            </button>
+            <button class="btn btn--ghost" @click="closeReview">取消</button>
+          </div>
+        </div>
       </section>
     </template>
   </section>
@@ -354,6 +473,66 @@ onMounted(() => {
 .favorite-card strong {
   display: block;
   margin-bottom: 8px;
+}
+
+.review-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(15, 23, 42, 0.44);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.review-dialog {
+  width: min(560px, 100%);
+  padding: 24px;
+}
+
+.review-dialog__head {
+  margin-bottom: 18px;
+}
+
+.review-dialog__head h2 {
+  margin: 10px 0 0;
+}
+
+.review-dialog__stars {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.review-star {
+  border: none;
+  background: transparent;
+  color: rgba(200, 128, 36, 0.24);
+  font-size: 28px;
+  line-height: 1;
+  padding: 0;
+}
+
+.review-star.active {
+  color: var(--accent);
+}
+
+.review-dialog__field {
+  display: grid;
+  gap: 10px;
+}
+
+.review-dialog__field span {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary-deep);
+}
+
+.review-dialog__actions {
+  margin-top: 18px;
 }
 
 @keyframes orders-pulse {

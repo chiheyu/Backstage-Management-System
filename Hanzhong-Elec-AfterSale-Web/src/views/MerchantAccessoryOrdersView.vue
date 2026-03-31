@@ -43,22 +43,18 @@ const summaryCards = computed(() => [
   {
     title: '全部订单',
     value: orderList.value.length,
-    desc: '当前商家可见的全部配件订单。'
   },
   {
     title: '待处理',
     value: orderList.value.filter(item => ['0', '1'].includes(item.status)).length,
-    desc: '待发货和已发货未完结的订单。'
   },
   {
     title: '已处理',
     value: orderList.value.filter(item => ['2', '3'].includes(item.status)).length,
-    desc: '已完成或已取消的订单。'
   },
   {
     title: '当前视图',
     value: tabs.find(item => item.value === currentTab.value)?.label || '待处理',
-    desc: '通过顶部筛选切换订单分组。'
   }
 ])
 
@@ -195,7 +191,7 @@ onMounted(() => {
     <EmptyState
       v-else-if="!roleState.isMerchant"
       title="当前账号不是商家"
-      description="普通用户和待审核商家无法进入商家配件订单页。"
+      description="普通用户无法进入商家配件订单页。"
       action-label="返回个人中心"
       @action="router.push({ name: 'profile' })"
     />
@@ -205,7 +201,6 @@ onMounted(() => {
         <div>
           <span class="eyebrow">配件订单</span>
           <h1>商家配件订单管理</h1>
-          <p>网页端现在已经接入商家配件订单列表和状态流转，可直接处理发货、完成和取消操作。</p>
         </div>
 
         <div class="order-hero__actions">
@@ -311,7 +306,6 @@ onMounted(() => {
       <EmptyState
         v-else
         title="当前没有匹配的配件订单"
-        description="可以切换顶部视图，或者等待新的商城订单进入当前商家名下。"
         action-label="刷新订单"
         @action="loadOrders"
       />

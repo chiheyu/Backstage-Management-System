@@ -18,6 +18,14 @@ function appendBaseUrl(path) {
     return defaultAccessoryImage
   }
 
+  if (path.startsWith('/static/')) {
+    return path
+  }
+
+  if (path.startsWith('static/')) {
+    return `/${path}`
+  }
+
   if (/^https?:\/\//i.test(path)) {
     return path
   }

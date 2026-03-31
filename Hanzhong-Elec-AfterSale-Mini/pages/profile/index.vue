@@ -15,16 +15,6 @@
         <uni-icons type="arrowright" size="24" color="#fff" class="edit-icon"></uni-icons>
       </view>
 
-      <view class="section pending-merchant-section" v-if="isPendingMerchant">
-        <view class="pending-merchant-head">
-          <uni-icons type="info" size="22" color="#fa8c16"></uni-icons>
-          <text class="pending-merchant-title">商家入驻审核中</text>
-        </view>
-        <text class="pending-merchant-desc">
-          {{ pendingMerchantMessage }}
-        </text>
-      </view>
-
       <view class="section order-section" v-if="role === 'user'">
         <view class="section-header">
           <text class="more" @click="goOrder('all')">全部 ></text>
@@ -159,17 +149,11 @@
         </view>
         <view class="stat-content">
           <view class="stat-overview">
-            <view class="stat-card">
-              <text class="stat-card-label">今日待处理</text>
-              <text class="stat-card-value">{{ statData.todayPending }}</text>
-            </view>
-            <view class="stat-card">
-              <text class="stat-card-label">今日已处理</text>
-              <text class="stat-card-value">{{ statData.todayFinished }}</text>
-            </view>
-            <view class="stat-card">
-              <text class="stat-card-label">本月总数</text>
-              <text class="stat-card-value">{{ statData.monthTotal }}</text>
+            <view class="stat-row" v-for="(row, rowIndex) in merchantStatRows" :key="rowIndex">
+              <view class="stat-card" v-for="(item, itemIndex) in row" :key="`${rowIndex}-${itemIndex}`">
+                <text class="stat-card-label">{{ item.label }}：</text>
+                <text class="stat-card-value">{{ item.value }}</text>
+              </view>
             </view>
           </view>
 
@@ -187,7 +171,7 @@
           </view>
 
           <view class="stat-section">
-            <text class="stat-subtitle">近7天处理量</text>
+            <text class="stat-subtitle">近7天发货+售后量</text>
             <view class="trend-list">
               <view class="trend-item" v-for="(item, index) in statData.weekTrend" :key="index">
                 <text class="trend-date">{{ item.date }}</text>
@@ -243,7 +227,7 @@
 
 <script>
 import { getInfo, logout as appLogout } from '@/api/login'
-import { getCurrentMerchantInfo } from '@/api/merchant'
+import { getCurrentMerchantInfo, getMerchantStats } from '@/api/merchant'
 import { getToken, removeToken } from '@/utils/auth'
 import { resetDefaultTabBar, syncRoleTabBar } from '@/utils/tabbar'
 
@@ -264,23 +248,13 @@ export default {
       pendingCount: 0,
       auditCount: 0,
       statData: {
-        todayPending: 8,
-        todayFinished: 24,
-        monthTotal: 326,
-        typeRatio: [
-          { name: '退货', ratio: '45%', color: '#2f54eb' },
-          { name: '换货', ratio: '30%', color: '#fa8c16' },
-          { name: '退款', ratio: '25%', color: '#52c41a' }
-        ],
-        weekTrend: [
-          { date: '周一', value: 12 },
-          { date: '周二', value: 18 },
-          { date: '周三', value: 15 },
-          { date: '周四', value: 22 },
-          { date: '周五', value: 19 },
-          { date: '周六', value: 8 },
-          { date: '周日', value: 10 }
-        ]
+        todayPendingShipment: 0,
+        todayShipped: 0,
+        todayPendingAfterSale: 0,
+        todayCompletedAfterSale: 0,
+        monthTotal: 0,
+        typeRatio: [],
+        weekTrend: []
       },
       PAGE_PATH: {
         INDEX: '/pages/index/index',
@@ -301,14 +275,23 @@ export default {
   },
   computed: {
     showMerchantModules() {
-      return this.isLogin && this.role === 'merchant' && !this.isPendingMerchant
+      return this.isLogin && this.role === 'merchant'
     },
-    pendingMerchantMessage() {
-      const merchantName = this.merchantInfo && this.merchantInfo.merchantName
-      if (merchantName) {
-        return `已提交 ${merchantName} 的入驻资料，审核通过前可继续按普通用户模式使用小程序。`
+    merchantStatCards() {
+      return [
+        { label: '今日待发货', value: this.statData.todayPendingShipment },
+        { label: '今日已发货', value: this.statData.todayShipped },
+        { label: '今日待售后', value: this.statData.todayPendingAfterSale },
+        { label: '今日已售后', value: this.statData.todayCompletedAfterSale },
+        { label: '本月总数', value: this.statData.monthTotal }
+      ]
+    },
+    merchantStatRows() {
+      const rows = []
+      for (let i = 0; i < this.merchantStatCards.length; i += 2) {
+        rows.push(this.merchantStatCards.slice(i, i + 2))
       }
-      return '已提交商家入驻资料，审核通过前可继续按普通用户模式使用小程序。'
+      return rows
     }
   },
   async onShow() {
@@ -364,13 +347,12 @@ export default {
     },
     getRoleMeta(roleType) {
       const normalizedRoleType = String(roleType || '1');
+      const isMerchant = normalizedRoleType === '2' || normalizedRoleType === '0';
       return {
-        roleType: normalizedRoleType,
-        role: normalizedRoleType === '2' ? 'merchant' : 'user',
-        roleLabel: normalizedRoleType === '2'
-          ? '商家用户'
-          : (normalizedRoleType === '0' ? '待审核商家' : '普通用户'),
-        isPendingMerchant: normalizedRoleType === '0'
+        roleType: isMerchant ? '2' : '1',
+        role: isMerchant ? 'merchant' : 'user',
+        roleLabel: isMerchant ? '商家用户' : '普通用户',
+        isPendingMerchant: false
       };
     },
     mergeUserInfo(localUserInfo, remoteUser, merchantInfo) {
@@ -535,7 +517,36 @@ export default {
       if (!this.showMerchantModules) {
         return;
       }
-      this.showStatModal = true;
+      this.fetchMerchantStatData();
+    },
+    async fetchMerchantStatData() {
+      uni.showLoading({
+        title: '加载中...',
+        mask: true
+      })
+
+      try {
+        const res = await getMerchantStats()
+        const data = res.data || {}
+        this.statData = {
+          ...this.statData,
+          todayPendingShipment: Number(data.todayPendingShipment || 0),
+          todayShipped: Number(data.todayShipped || 0),
+          todayPendingAfterSale: Number(data.todayPendingAfterSale || 0),
+          todayCompletedAfterSale: Number(data.todayCompletedAfterSale || 0),
+          monthTotal: Number(data.monthTotal || 0),
+          typeRatio: Array.isArray(data.typeRatio) ? data.typeRatio : [],
+          weekTrend: Array.isArray(data.weekTrend) ? data.weekTrend : []
+        }
+        this.showStatModal = true
+      } catch (error) {
+        uni.showToast({
+          title: (error && error.msg) || '加载统计数据失败',
+          icon: 'none'
+        })
+      } finally {
+        uni.hideLoading()
+      }
     },
     closeStatPopup() {
       this.showStatModal = false;
@@ -1004,27 +1015,36 @@ export default {
 
 .stat-overview {
   display: flex;
-  gap: 24rpx;
-  margin-bottom: 48rpx;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 40rpx;
+}
+
+.stat-row {
+  display: flex;
+  gap: 16rpx;
 }
 
 .stat-card {
   flex: 1;
-  padding: 36rpx 20rpx;
+  min-height: 88rpx;
+  padding: 20rpx 24rpx;
   background: linear-gradient(135deg, var(--light-primary) 0%, var(--deep-light-primary) 100%);
   border-radius: var(--radius-md);
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .stat-card-label {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: var(--text-secondary);
-  display: block;
-  margin-bottom: 12rpx;
+  flex: 1;
+  padding-right: 12rpx;
 }
 
 .stat-card-value {
-  font-size: 44rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: var(--primary-color);
 }

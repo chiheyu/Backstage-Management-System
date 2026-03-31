@@ -24,6 +24,14 @@ export function getAccessoryOrderList(params = {}) {
   })
 }
 
+export function createMerchantReview(data) {
+  return request({
+    url: '/app/user/merchantReview',
+    method: 'POST',
+    data
+  })
+}
+
 export function normalizeAccessoryOrder(order = {}) {
   return {
     ...order,
@@ -32,7 +40,8 @@ export function normalizeAccessoryOrder(order = {}) {
     coverImage: resolveAccessoryImage(order.coverImage),
     quantity: Number(order.quantity || 0),
     price: Number(order.price || 0),
-    totalAmount: Number(order.totalAmount || 0)
+    totalAmount: Number(order.totalAmount || 0),
+    reviewed: !!order.reviewed
   }
 }
 

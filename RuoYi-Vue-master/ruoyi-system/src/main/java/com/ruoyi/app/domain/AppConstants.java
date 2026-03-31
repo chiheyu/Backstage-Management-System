@@ -17,7 +17,7 @@ public final class AppConstants
     /** 普通用户。 */
     public static final String ROLE_USER = "1";
 
-    /** 商家待审核。 */
+    /** 商家待审核（仅兼容历史数据）。 */
     public static final String ROLE_PENDING_MERCHANT = "0";
 
     /** 审核通过的商家。 */
@@ -29,7 +29,7 @@ public final class AppConstants
     /** 停用状态。 */
     public static final String STATUS_DISABLED = "1";
 
-    /** 商家待审核。 */
+    /** 商家待审核（仅兼容历史数据）。 */
     public static final String MERCHANT_AUDIT_PENDING = "0";
 
     /** 商家审核通过。 */

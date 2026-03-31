@@ -9,8 +9,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.app.domain.AppAccessory;
 import com.ruoyi.app.domain.AppConstants;
 import com.ruoyi.app.domain.AppMerchant;
+import com.ruoyi.app.domain.AppMerchantReview;
 import com.ruoyi.app.service.IAppAccessoryService;
 import com.ruoyi.app.service.IAppMerchantService;
+import com.ruoyi.app.service.IAppMerchantReviewService;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
@@ -33,6 +35,9 @@ public class AppCommonController extends BaseController
 
     @Autowired
     private IAppAccessoryService accessoryService;
+
+    @Autowired
+    private IAppMerchantReviewService merchantReviewService;
 
     /**
      * 商家列表。
@@ -66,6 +71,31 @@ public class AppCommonController extends BaseController
             throw new ServiceException("商家不存在或未审核通过");
         }
         return AjaxResult.success(merchant);
+    }
+
+    /**
+     * 商家评价列表。
+     */
+    @GetMapping("/merchant/{merchantId}/review/list")
+    public AjaxResult merchantReviewList(@PathVariable Long merchantId)
+    {
+        AppMerchant merchant = merchantService.selectMerchantById(merchantId);
+        if (StringUtils.isNull(merchant) || !AppConstants.MERCHANT_AUDIT_APPROVED.equals(merchant.getAuditStatus()))
+        {
+            throw new ServiceException("商家不存在或未审核通过");
+        }
+
+        AppMerchantReview query = new AppMerchantReview();
+        query.setMerchantId(merchantId);
+        List<AppMerchantReview> list = merchantReviewService.selectMerchantReviewList(query);
+        java.util.Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("rows", list);
+        data.put("total", list.size());
+        double avgRating = list.isEmpty()
+            ? 0D
+            : list.stream().mapToInt(item -> item.getRating() == null ? 0 : item.getRating()).average().orElse(0D);
+        data.put("avgRating", Math.round(avgRating * 10D) / 10D);
+        return AjaxResult.success(data);
     }
 
     /**

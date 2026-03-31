@@ -73,7 +73,6 @@ onMounted(() => {
       <div>
         <span class="eyebrow">门店服务</span>
         <h1>浏览维修服务门店</h1>
-        <p>默认展示汉中市门店，可按商家名称和城市继续筛选。</p>
       </div>
       <StatusBadge :label="pageText" tone="brand" />
     </section>

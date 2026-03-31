@@ -107,6 +107,7 @@ public class AppAfterSalesOrderServiceImpl implements IAppAfterSalesOrderService
         {
             throw new ServiceException("售后订单不存在");
         }
+        attachCurrentMerchantIfNeeded(order);
         validateOrderOperator(order);
         validateStatusTransition(order.getStatus(), actionBody.getStatus());
         validateServiceRemark(actionBody);
@@ -180,6 +181,23 @@ public class AppAfterSalesOrderServiceImpl implements IAppAfterSalesOrderService
         }
     }
 
+    private void attachCurrentMerchantIfNeeded(AppAfterSalesOrder order)
+    {
+        AppUser currentUser = appAuthService.getCurrentAppUser();
+        if (!AppConstants.ROLE_MERCHANT.equals(currentUser.getRoleType()))
+        {
+            return;
+        }
+        if (StringUtils.isNotNull(order.getMerchantId()))
+        {
+            return;
+        }
+
+        AppMerchant merchant = merchantService.selectCurrentMerchant();
+        order.setMerchantId(merchant.getMerchantId());
+        order.setAcceptTime(DateUtils.getNowDate());
+    }
+
     /**
      * 校验订单状态流转。
      */
@@ -187,21 +205,23 @@ public class AppAfterSalesOrderServiceImpl implements IAppAfterSalesOrderService
     {
         if (AppConstants.AFTER_SALES_WAIT_ACCEPT.equals(oldStatus)
             && !AppConstants.AFTER_SALES_ACCEPTED.equals(newStatus)
+            && !AppConstants.AFTER_SALES_COMPLETED.equals(newStatus)
             && !AppConstants.AFTER_SALES_CANCELED.equals(newStatus))
         {
-            throw new ServiceException("待接单状态只能变更为已接单或已取消");
+            throw new ServiceException("未完成工单只能变更为已完成或已取消");
         }
         if (AppConstants.AFTER_SALES_ACCEPTED.equals(oldStatus)
             && !AppConstants.AFTER_SALES_REPAIRING.equals(newStatus)
+            && !AppConstants.AFTER_SALES_COMPLETED.equals(newStatus)
             && !AppConstants.AFTER_SALES_CANCELED.equals(newStatus))
         {
-            throw new ServiceException("已接单状态只能变更为维修中或已取消");
+            throw new ServiceException("未完成工单只能变更为已完成或已取消");
         }
         if (AppConstants.AFTER_SALES_REPAIRING.equals(oldStatus)
             && !AppConstants.AFTER_SALES_COMPLETED.equals(newStatus)
             && !AppConstants.AFTER_SALES_CANCELED.equals(newStatus))
         {
-            throw new ServiceException("维修中状态只能变更为已完成或已取消");
+            throw new ServiceException("未完成工单只能变更为已完成或已取消");
         }
     }
 
@@ -213,7 +233,7 @@ public class AppAfterSalesOrderServiceImpl implements IAppAfterSalesOrderService
         if (AppConstants.AFTER_SALES_COMPLETED.equals(actionBody.getStatus())
             && StringUtils.isEmpty(StringUtils.trim(actionBody.getServiceRemark())))
         {
-            throw new ServiceException("请先填写售后回执说明后再完成订单");
+            throw new ServiceException("请先填写处理意见后再完成工单");
         }
     }
 }
