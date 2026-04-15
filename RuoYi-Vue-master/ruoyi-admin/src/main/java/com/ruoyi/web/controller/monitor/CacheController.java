@@ -9,6 +9,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,6 +29,7 @@ import com.ruoyi.system.domain.SysCache;
  * @author ruoyi
  */
 @RestController
+@Profile("!standalone")
 @RequestMapping("/monitor/cache")
 public class CacheController
 {

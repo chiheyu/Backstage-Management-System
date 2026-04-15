@@ -1,4 +1,8 @@
-export const API_FALLBACK_BASE_URL = 'http://127.0.0.1:8080'
+const browserOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+
+export const API_FALLBACK_BASE_URL = import.meta.env.DEV
+  ? 'http://127.0.0.1:8080'
+  : (browserOrigin || 'http://127.0.0.1:18080')
 
 export const ROLE_TYPES = {
   pendingMerchant: '0',
