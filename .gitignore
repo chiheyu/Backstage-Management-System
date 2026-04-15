@@ -1,3 +1,36 @@
 *AGENTS.md
 *CLAUDE.md
 security code.txt
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Workspace-local tools and temporary inspection output
+/.m2repo/
+/tools/
+/BOOT-INF/
+/mapper/
+/data/
+dump.rdb
+
+# Frontend build output
+Hanzhong-Elec-AfterSale-Web/node_modules/
+Hanzhong-Elec-AfterSale-Web/dist/
+
+# Uni-app build output
+Hanzhong-Elec-AfterSale-Mini/node_modules/
+Hanzhong-Elec-AfterSale-Mini/unpackage/
+Hanzhong-Elec-AfterSale-Mini/project.private.config.json
+
+# Java / Maven build output
+target/
+
+# Generated backend static bundle; source of truth is Hanzhong-Elec-AfterSale-Web
+RuoYi-Vue-master/ruoyi-admin/src/main/resources/static/
+
+# Desktop package build output: publish via Release attachments, not Git
+desktop-package/dist/

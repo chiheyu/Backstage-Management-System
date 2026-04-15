@@ -1,6 +1,21 @@
-const ADDRESS_KEY = 'after_sale_web_addresses'
-const CART_KEY = 'after_sale_web_cart'
-const AFTER_SALE_PREFILL_KEY = 'after_sale_web_after_sale_prefill'
+import { loadStoredSession } from './storage'
+
+const ADDRESS_KEY_PREFIX = 'after_sale_web_addresses_'
+const CART_KEY_PREFIX = 'after_sale_web_cart_'
+const AFTER_SALE_PREFILL_KEY_PREFIX = 'after_sale_web_after_sale_prefill_'
+
+function resolveStorageScope() {
+  const stored = loadStoredSession()
+  const appUserId = stored?.appUser?.appUserId
+  if (appUserId !== null && appUserId !== undefined && String(appUserId).trim() !== '') {
+    return `user_${appUserId}`
+  }
+  return 'guest'
+}
+
+function buildScopedKey(prefix) {
+  return `${prefix}${resolveStorageScope()}`
+}
 
 function readJson(key, fallback) {
   const raw = window.localStorage.getItem(key)
@@ -34,7 +49,7 @@ export function formatAddress(address = {}) {
 }
 
 export function loadAddressList() {
-  const list = readJson(ADDRESS_KEY, [])
+  const list = readJson(buildScopedKey(ADDRESS_KEY_PREFIX), [])
   return Array.isArray(list) ? list.map(normalizeAddress) : []
 }
 
@@ -45,7 +60,7 @@ export function saveAddressList(list = []) {
     ...item,
     isDefault: hasDefault ? item.isDefault : index === 0
   }))
-  writeJson(ADDRESS_KEY, finalList)
+  writeJson(buildScopedKey(ADDRESS_KEY_PREFIX), finalList)
   return finalList
 }
 
@@ -96,7 +111,7 @@ function normalizeCartItem(item = {}) {
 }
 
 export function loadCartList() {
-  const list = readJson(CART_KEY, [])
+  const list = readJson(buildScopedKey(CART_KEY_PREFIX), [])
   return Array.isArray(list) ? list.map(normalizeCartItem).filter(item => item.id) : []
 }
 
@@ -104,7 +119,7 @@ export function saveCartList(list = []) {
   const normalizedList = Array.isArray(list)
     ? list.map(normalizeCartItem).filter(item => item.id)
     : []
-  writeJson(CART_KEY, normalizedList)
+  writeJson(buildScopedKey(CART_KEY_PREFIX), normalizedList)
   return normalizedList
 }
 
@@ -132,15 +147,16 @@ export function addCartItem(item) {
 }
 
 export function clearCart() {
-  writeJson(CART_KEY, [])
+  writeJson(buildScopedKey(CART_KEY_PREFIX), [])
 }
 
 export function saveAfterSalePrefill(prefill = {}) {
-  writeJson(AFTER_SALE_PREFILL_KEY, prefill)
+  writeJson(buildScopedKey(AFTER_SALE_PREFILL_KEY_PREFIX), prefill)
 }
 
 export function consumeAfterSalePrefill() {
-  const payload = readJson(AFTER_SALE_PREFILL_KEY, null)
-  window.localStorage.removeItem(AFTER_SALE_PREFILL_KEY)
+  const storageKey = buildScopedKey(AFTER_SALE_PREFILL_KEY_PREFIX)
+  const payload = readJson(storageKey, null)
+  window.localStorage.removeItem(storageKey)
   return payload
 }

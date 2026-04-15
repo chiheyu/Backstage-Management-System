@@ -36,7 +36,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                aa.update_by, aa.update_time, aa.remark,
                <choose>
                    <when test="params != null and params.appUserId != null">
-                       if(ac.collection_id is null, false, true) as collected
+                       case when ac.collection_id is null then false else true end as collected
                    </when>
                    <otherwise>
                        false as collected

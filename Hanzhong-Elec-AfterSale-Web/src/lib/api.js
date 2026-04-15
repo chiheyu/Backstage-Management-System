@@ -225,29 +225,34 @@ export const commonApi = {
     return apiRequest('/app/common/accessory/list', {
       method: 'GET',
       params,
+      auth: false,
       raw: true
     })
   },
   getAccessory(id) {
     return apiRequest(`/app/common/accessory/${id}`, {
-      method: 'GET'
+      method: 'GET',
+      auth: false
     })
   },
   listMerchants(params = {}) {
     return apiRequest('/app/common/merchant/list', {
       method: 'GET',
       params,
+      auth: false,
       raw: true
     })
   },
   getMerchant(id) {
     return apiRequest(`/app/common/merchant/${id}`, {
-      method: 'GET'
+      method: 'GET',
+      auth: false
     })
   },
   listMerchantReviews(merchantId) {
     return apiRequest(`/app/common/merchant/${merchantId}/review/list`, {
-      method: 'GET'
+      method: 'GET',
+      auth: false
     })
   },
   uploadFile(file) {

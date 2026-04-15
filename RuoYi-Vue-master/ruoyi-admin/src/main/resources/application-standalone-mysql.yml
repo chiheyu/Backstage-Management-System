@@ -1,0 +1,62 @@
+server:
+  port: 18080
+  shutdown: graceful
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driverClassName: com.mysql.cj.jdbc.Driver
+    druid:
+      master:
+        url: jdbc:mysql://127.0.0.1:13306/ry-vue?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+        username: root
+        password: root
+      slave:
+        enabled: false
+      initialSize: 1
+      minIdle: 1
+      maxActive: 8
+      maxWait: 60000
+      connectTimeout: 30000
+      socketTimeout: 60000
+      timeBetweenEvictionRunsMillis: 60000
+      minEvictableIdleTimeMillis: 300000
+      maxEvictableIdleTimeMillis: 900000
+      validationQuery: SELECT 1
+      testWhileIdle: true
+      testOnBorrow: false
+      testOnReturn: false
+      webStatFilter:
+        enabled: false
+      statViewServlet:
+        enabled: false
+      filter:
+        stat:
+          enabled: false
+        wall:
+          config:
+            multi-statement-allow: true
+
+ruoyi:
+  profile: ${app.home:${user.dir}}/data/upload
+
+app:
+  standalone:
+    local-cache:
+      enabled: true
+  desktop:
+    auto-open-browser: true
+    window-title: Hanzhong After-Sale Desktop
+  debug:
+    smsCodeFile: ${app.home:${user.dir}}/data/security-code.txt
+
+logging:
+  level:
+    com.ruoyi: info
+    org.springframework: warn

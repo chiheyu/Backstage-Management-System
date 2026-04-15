@@ -1,51 +1,56 @@
-<p align="center">
-	<img alt="logo" src="https://oscimg.oschina.net/oscnet/up-43e3941654fa3054c9684bf53d1b1d356a1.png">
-</p>
-<h1 align="center" style="margin: 30px 0 30px; font-weight: bold;">RuoYi v1.2.0</h1>
-<h4 align="center">基于UniApp开发的轻量级移动端框架</h4>
-<p align="center">
-	<a href="https://gitee.com/y_project/RuoYi-App/stargazers"><img src="https://gitee.com/y_project/RuoYi-App/badge/star.svg?theme=dark"></a>
-	<a href="https://gitee.com/y_project/RuoYi-App"><img src="https://img.shields.io/badge/RuoYi-v1.2.0-brightgreen.svg"></a>
-	<a href="https://gitee.com/y_project/RuoYi-App/blob/master/LICENSE"><img src="https://img.shields.io/github/license/mashape/apistatus.svg"></a>
-</p>
+# 汉中电子售后小程序
 
-## 平台简介
+这是当前项目的 Uni-app 小程序端，面向普通用户与商家用户，复用同一套后端接口。
 
-RuoYi App 移动解决方案，采用uniapp框架，一份代码多终端适配，同时支持APP、小程序、H5！实现了与[RuoYi-Vue](https://gitee.com/y_project/RuoYi-Vue)、[RuoYi-Cloud](https://gitee.com/y_project/RuoYi-Cloud)完美对接的移动解决方案！目前已经实现登录、我的、工作台、编辑资料、头像修改、密码修改、常见问题、关于我们等基础功能。
+## 目录说明
 
-* 配套后端代码仓库地址[RuoYi-Vue](https://gitee.com/y_project/RuoYi-Vue) 或 [RuoYi-Cloud](https://github.com/yangzongzhuan/RuoYi-Cloud) 版本。
-* 应用框架基于[uniapp](https://uniapp.dcloud.net.cn/)，支持小程序、H5、Android和IOS。
-* 前端组件采用[uni-ui](https://github.com/dcloudio/uni-ui)，全端兼容的高性能UI框架。
-* 阿里云折扣场：[点我进入](http://aly.ruoyi.vip)，腾讯云秒杀场：[点我进入](http://txy.ruoyi.vip)&nbsp;&nbsp;
+- `pages/`：页面入口
+- `components/`：通用组件
+- `api/`：接口封装
+- `store/`：状态管理
+- `static/`：静态资源
+- `utils/`：工具方法
+- `config.js`：后端地址配置
+- `unpackage/`：构建产物，不提交、不手改
 
+## 本地开发
 
-## 技术文档
+推荐使用 `HBuilderX` 打开 `Hanzhong-Elec-AfterSale-Mini` 目录运行。
 
-- 官网网站：[http://ruoyi.vip](http://ruoyi.vip)
-- 文档地址：[http://doc.ruoyi.vip](http://doc.ruoyi.vip)
-- H5页体验：[http://h5.ruoyi.vip](http://h5.ruoyi.vip)
-- QQ交流群： ①133713780(满)、②146013835(满)、③189091635
-- 小程序体验
+如果联调当前桌面版后端，请检查 [config.js](/e:/Backstage-Management-System/Hanzhong-Elec-AfterSale-Mini/config.js) 中的 `baseUrl`，当前默认值为：
 
-<img src="https://oscimg.oschina.net/oscnet/up-26c76dc90b92acdbd9ac8cd5252f07c8ad9.jpg" alt="小程序演示"/>
- 
+```js
+http://localhost:18080
+```
 
-## 演示图
+如果是同机联调，这个地址可以直接使用。
 
-<table>
-    <tr>
-        <td><img src="https://oscimg.oschina.net/oscnet/up-21f6f842fdc94540469b4eb43fdadbaf7f8.png"/></td>
-        <td><img src="https://oscimg.oschina.net/oscnet/up-a6f23cf9a371a30165e135eff6d9ae89a9d.png"/></td>
-		<td><img src="https://oscimg.oschina.net/oscnet/up-ff5f62016bf6624c1ff27eee57499dccd44.png"/></td>
-    </tr>
-	<tr>
-        <td><img src="https://oscimg.oschina.net/oscnet/up-b9a582fdb26ec69d407fabd044d2c8494df.png"/></td>
-        <td><img src="https://oscimg.oschina.net/oscnet/up-96427ee08fca29d77934cfc8d1b1a637cef.png"/></td>
-		<td><img src="https://oscimg.oschina.net/oscnet/up-5fdadc582d24cccd7727030d397b63185a3.png"/></td>
-    </tr>
-	<tr>
-        <td><img src="https://oscimg.oschina.net/oscnet/up-0a36797b6bcc50c36d40c3c782665b89efc.png"/></td>
-        <td><img src="https://oscimg.oschina.net/oscnet/up-d77995cc00687cedd00d5ac7d68a07ea276.png"/></td>
-		<td><img src="https://oscimg.oschina.net/oscnet/up-fa8f5ab20becf59b4b38c1b92a9989e7109.png"/></td>
-    </tr>
-</table>
+## 常见联调场景
+
+连接本机桌面版后端：
+
+```text
+http://127.0.0.1:18080
+```
+
+连接局域网内另一台电脑：
+
+```text
+http://目标电脑IP:18080
+```
+
+如果小程序端无法访问接口，请优先检查：
+
+- 桌面版是否已经双击 `start-app.bat` 启动
+- `config.js` 中的 `baseUrl` 是否指向正确地址
+- 微信开发者工具或真机调试是否允许访问该域名/IP
+
+## 提交约定
+
+- 只提交源码和必要配置
+- 不提交 `unpackage/`
+- 不提交个人私有调试配置
+
+## 说明
+
+这个目录保留的是项目当前实际业务代码，不再使用若依原始模板说明。

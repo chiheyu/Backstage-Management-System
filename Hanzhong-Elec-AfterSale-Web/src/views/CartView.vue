@@ -142,7 +142,7 @@ async function loadWorkbenchData() {
 }
 
 watch(
-  () => session.roleType,
+  () => [session.roleType, session.appUser?.appUserId, session.token],
   () => {
     if (roleState.value.isMerchant) {
       loadWorkbenchData()

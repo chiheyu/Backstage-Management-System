@@ -1,6 +1,7 @@
 package com.ruoyi.web.controller.system;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.ruoyi.common.config.RuoYiConfig;
@@ -12,6 +13,7 @@ import com.ruoyi.common.utils.StringUtils;
  * @author ruoyi
  */
 @RestController
+@Profile("!standalone")
 public class SysIndexController
 {
     /** 系统基础配置 */

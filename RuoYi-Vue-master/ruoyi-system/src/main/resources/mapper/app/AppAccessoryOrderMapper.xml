@@ -36,7 +36,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                aao.receiver_address, aao.order_remark, aao.create_by, aao.create_time, aao.update_by,
                aao.update_time, aao.remark, aa.accessory_name, aa.cover_image, au.nick_name as user_name,
                am.merchant_name,
-               if(amr.review_id is null, false, true) as reviewed
+               case when amr.review_id is null then false else true end as reviewed
         from app_accessory_order aao
         left join app_accessory aa on aa.accessory_id = aao.accessory_id
         left join app_user au on au.app_user_id = aao.app_user_id

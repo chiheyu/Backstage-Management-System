@@ -12,7 +12,7 @@
     <artifactId>ruoyi-admin</artifactId>
 
     <description>
-        web服务入口
+        web鏈嶅姟鍏ュ彛
     </description>
 
     <dependencies>
@@ -21,7 +21,7 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
-            <optional>true</optional> <!-- 表示依赖不会传递 -->
+            <optional>true</optional> <!-- 琛ㄧず渚濊禆涓嶄細浼犻€?-->
         </dependency>
 
         <!-- swagger3-->
@@ -30,32 +30,38 @@
             <artifactId>springfox-boot-starter</artifactId>
         </dependency>
 
-        <!-- 防止进入swagger页面报类型转换错误，排除3.0.0中的引用，手动增加1.6.2版本 -->
+        <!-- 闃叉杩涘叆swagger椤甸潰鎶ョ被鍨嬭浆鎹㈤敊璇紝鎺掗櫎3.0.0涓殑寮曠敤锛屾墜鍔ㄥ鍔?.6.2鐗堟湰 -->
         <dependency>
             <groupId>io.swagger</groupId>
             <artifactId>swagger-models</artifactId>
             <version>1.6.2</version>
         </dependency>
 
-         <!-- Mysql驱动包 -->
+        <!-- Mysql椹卞姩鍖?-->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
         </dependency>
 
-        <!-- 核心模块-->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- 鏍稿績妯″潡-->
         <dependency>
             <groupId>com.ruoyi</groupId>
             <artifactId>ruoyi-framework</artifactId>
         </dependency>
 
-        <!-- 定时任务-->
+        <!-- 瀹氭椂浠诲姟-->
         <dependency>
             <groupId>com.ruoyi</groupId>
             <artifactId>ruoyi-quartz</artifactId>
         </dependency>
 
-        <!-- 代码生成-->
+        <!-- 浠ｇ爜鐢熸垚-->
         <dependency>
             <groupId>com.ruoyi</groupId>
             <artifactId>ruoyi-generator</artifactId>
@@ -71,7 +77,7 @@
                 <version>2.5.15</version>
                 <configuration>
                     <skip>false</skip>
-                    <fork>true</fork> <!-- 如果没有该配置，devtools不会生效 -->
+                    <fork>true</fork> <!-- 濡傛灉娌℃湁璇ラ厤缃紝devtools涓嶄細鐢熸晥 -->
                 </configuration>
                 <executions>
                     <execution>
@@ -81,15 +87,15 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>   
-                <groupId>org.apache.maven.plugins</groupId>   
-                <artifactId>maven-war-plugin</artifactId>   
-                <version>3.1.0</version>   
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.1.0</version>
                 <configuration>
                     <failOnMissingWebXml>false</failOnMissingWebXml>
                     <warName>${project.artifactId}</warName>
-                </configuration>   
-           </plugin>   
+                </configuration>
+           </plugin>
         </plugins>
         <finalName>${project.artifactId}</finalName>
     </build>
