@@ -1,26 +1,10 @@
 <template>
   <view class="home-page">
     <view class="banner-wrap">
-      <swiper 
-        class="banner" 
-        autoplay 
-        indicator-dots 
-        circular 
-        indicator-color="rgba(255,255,255,0.5)" 
-        indicator-active-color="#fff"
-        duration="500"
-        interval="3500"
-        indicator-dots-style="bottom: 24rpx; right: 32rpx;"
-      >
+      <swiper class="banner" autoplay indicator-dots circular indicator-color="rgba(255,255,255,0.5)" indicator-active-color="#fff" duration="500" interval="3500" indicator-dots-style="bottom: 24rpx; right: 32rpx;">
         <swiper-item v-for="(item, idx) in bannerList" :key="idx">
           <view class="banner-item" @click="handleBannerClick(item)">
-            <image 
-              :src="item.image" 
-              mode="aspectFill" 
-              class="banner-img"
-              lazy-load
-              @error="imgError($event)"
-            ></image>
+            <image :src="item.image" mode="aspectFill" class="banner-img" lazy-load @error="imgError($event)"></image>
             <view class="banner-mask" v-if="item.title">
               <text class="banner-title">{{ item.title }}</text>
               <text class="banner-subtitle">{{ item.subtitle }}</text>
@@ -29,37 +13,25 @@
         </swiper-item>
       </swiper>
     </view>
-
     <view class="func-list">
-      <view 
-        class="func-item" 
-        @click="toApplyAfterSale"
-        v-if="role === 'user'"
-      >
+      <view class="func-item" @click="toApplyAfterSale" v-if="role === 'user'">
         <view class="icon-wrap">
           <uni-icons type="compose" size="40" color="#2f54eb"></uni-icons>
         </view>
         <text class="func-text">申请售后</text>
       </view>
-
-      <view 
-        class="func-item" 
-        @click="toAfterSaleAudit"
-        v-if="role === 'merchant'"
-      >
+      <view class="func-item" @click="toAfterSaleAudit" v-if="role === 'merchant'">
         <view class="icon-wrap">
           <uni-icons type="checkbox" size="40" color="#2f54eb"></uni-icons>
         </view>
         <text class="func-text">售后审核</text>
       </view>
-
       <view class="func-item" @click="toAccessoryMall">
         <view class="icon-wrap">
           <uni-icons type="shop" size="40" color="#2f54eb"></uni-icons>
         </view>
         <text class="func-text">配件商城</text>
       </view>
-
       <view class="func-item" @click="toMerchantList">
         <view class="icon-wrap">
           <uni-icons :type="role === 'merchant' ? 'shop' : 'location'" size="40" color="#2f54eb"></uni-icons>
@@ -67,61 +39,38 @@
         <text class="func-text">{{ role === 'merchant' ? '我的店铺' : '附近商家' }}</text>
       </view>
     </view>
-
     <view class="hot-accessory">
       <view class="title-wrap">
-        <text class="title">{{ hotAccessoryTitle }}</text>
+        <text class="title">热门配件</text>
         <text class="more-text" @click="toAccessoryMall">更多 ></text>
       </view>
-      
       <view class="empty-wrap" v-if="!hotAccessoryList.length">
         <uni-icons type="shop" size="60" color="#ccc"></uni-icons>
-        <text class="empty-text">{{ hotAccessoryEmptyText }}</text>
+        <text class="empty-text">暂无热门配件</text>
       </view>
-
-      <swiper 
-        class="goods-swiper" 
-        autoplay 
-        circular 
-        indicator-dots
-        indicator-color="#e0e6f6"
-        indicator-active-color="#2f54eb"
-        interval="4000"
-        duration="800"
-        v-else
-      >
-        <swiper-item v-for="item in hotAccessoryList" :key="item.id">
-          <view class="swiper-item-box">
-            <view class="img-wrap">
-              <image 
-                :src="item.image" 
-                mode="aspectFill" 
-                class="item-img"
-                lazy-load
-                @error="imgError($event)"
-              ></image>
-              <view class="price-tag">
-                <text>销量 {{ item.salesCount || 0 }}</text>
-              </view>
-            </view>
-            <text class="item-name" :title="item.name">{{ item.name }}</text>
-            <view class="price-wrap">
-              <text class="item-price">¥{{ Number(item.price || 0).toFixed(2) }}</text>
-              <text class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</text>
+      <view class="goods-grid" v-else>
+        <view class="goods-item" v-for="(item, idx) in hotAccessoryList" :key="item.id" @click="toAccessoryDetail(item)" v-if="idx<4">
+          <view class="img-wrap">
+            <image :src="item.image" mode="aspectFill" class="item-img" lazy-load @error="imgError($event)"></image>
+            <view class="price-tag" v-if="item.originalPrice > item.price">
+              <text>省¥{{ item.originalPrice - item.price }}</text>
             </view>
           </view>
-        </swiper-item>
-      </swiper>
+          <text class="item-name" :title="item.name">{{ item.name }}</text>
+          <view class="price-wrap">
+            <text class="item-price">¥{{ item.price }}</text>
+            <text class="original-price" v-if="item.originalPrice">¥{{ item.originalPrice }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="back-top" @click="backToTop">
+      <uni-icons type="top" size="28" color="#fff"></uni-icons>
     </view>
   </view>
 </template>
 
 <script>
-import { getAccessoryList, normalizeAccessory } from '@/api/accessory'
-import { getMerchantAccessoryList } from '@/api/merchantAccessory'
-
-const HOT_ACCESSORY_LIMIT = 5
-
 export default {
   data() {
     return {
@@ -145,72 +94,37 @@ export default {
       role: 'user'
     }
   },
-  computed: {
-    hotAccessoryTitle() {
-      return this.role === 'merchant' ? '我的配件' : '热门配件'
-    },
-    hotAccessoryEmptyText() {
-      return this.role === 'merchant' ? '暂无已上架的我的配件' : '暂无热门配件'
-    }
-  },
   onShow() {
     this.getUserRole();
-    this.loadHotAccessories();
+  },
+  onUnload() {
+  },
+  onLoad() {
+    setTimeout(() => {
+      this.hotAccessoryList = [
+        { id: 1, name: "电源适配器", price: 89, originalPrice: 129, image: "/static/images/accessory/adapter.png" },
+        { id: 2, name: "手机电池", price: 129, originalPrice: 169, image: "/static/images/accessory/battery.png" },
+        { id: 3, name: "手机壳", price: 39, originalPrice: 59, image: "/static/images/accessory/case.png" },
+        { id: 4, name: "充电口", price: 49, originalPrice: 69, image: "/static/images/accessory/charging_port.png" },
+        { id: 6, name: "耳机", price: 199, originalPrice: 259, image: "/static/images/accessory/earphone.png" },
+        { id: 7, name: "手机膜", price: 29, originalPrice: 49, image: "/static/images/accessory/glass.png" },
+        { id: 8, name: "笔记本适配器", price: 129, originalPrice: 169, image: "/static/images/accessory/laptop_adapter.png" },
+        { id: 9, name: "笔记本电池", price: 299, originalPrice: 399, image: "/static/images/accessory/laptop_battery.png" },
+        { id: 10, name: "笔记本屏幕", price: 599, originalPrice: 799, image: "/static/images/accessory/laptop_screen.png" },
+        { id: 11, name: "手机屏幕", price: 399, originalPrice: 499, image: "/static/images/accessory/phone_screen.png" },
+        { id: 12, name: "扬声器", price: 89, originalPrice: 119, image: "/static/images/accessory/speaker.png" },
+        { id: 13, name: "固态硬盘", price: 399, originalPrice: 499, image: "/static/images/accessory/ssd.png" },
+        { id: 14, name: "平板电池", price: 199, originalPrice: 259, image: "/static/images/accessory/tablet_battery.png" },
+        { id: 15, name: "平板屏幕", price: 499, originalPrice: 649, image: "/static/images/accessory/tablet_screen.png" },
+        { id: 16, name: "Type-C数据线", price: 29, originalPrice: 49, image: "/static/images/accessory/typec_cable.png" },
+        { id: 17, name: "无线充电器", price: 129, originalPrice: 169, image: "/static/images/accessory/wireless_charger.png" }
+      ]
+    }, 300);
   },
   methods: {
     getUserRole() {
       const userInfo = wx.getStorageSync('userInfo');
-      this.role = userInfo?.role || (userInfo?.roleType === '2' ? 'merchant' : 'user');
-    },
-    shuffleList(list = []) {
-      const clonedList = [...list]
-      for (let i = clonedList.length - 1; i > 0; i -= 1) {
-        const randomIndex = Math.floor(Math.random() * (i + 1))
-        const currentItem = clonedList[i]
-        clonedList[i] = clonedList[randomIndex]
-        clonedList[randomIndex] = currentItem
-      }
-      return clonedList
-    },
-    formatHotAccessory(accessory = {}) {
-      const normalizedAccessory = normalizeAccessory(accessory)
-      return {
-        ...normalizedAccessory,
-        originalPrice: normalizedAccessory.originalPrice || '',
-        image: normalizedAccessory.image,
-        accessoryId: normalizedAccessory.accessoryId || normalizedAccessory.id,
-        id: normalizedAccessory.id || normalizedAccessory.accessoryId
-      }
-    },
-    async loadHotAccessories() {
-      try {
-        const accessoryRows = this.role === 'merchant'
-          ? await this.loadMerchantHotAccessories()
-          : await this.loadUserHotAccessories()
-        this.hotAccessoryList = accessoryRows.map((item) => this.formatHotAccessory(item))
-      } catch (error) {
-        this.hotAccessoryList = []
-        wx.showToast({
-          title: (error && error.msg) || '加载热门配件失败',
-          icon: 'none'
-        })
-      }
-    },
-    async loadMerchantHotAccessories() {
-      const res = await getMerchantAccessoryList({
-        status: '0'
-      })
-      const rows = Array.isArray(res.rows) ? res.rows : []
-      return [...rows]
-        .sort((left, right) => Number(right.salesCount || 0) - Number(left.salesCount || 0))
-        .slice(0, HOT_ACCESSORY_LIMIT)
-    },
-    async loadUserHotAccessories() {
-      const res = await getAccessoryList({
-        status: '0'
-      })
-      const rows = Array.isArray(res.rows) ? res.rows : []
-      return this.shuffleList(rows).slice(0, HOT_ACCESSORY_LIMIT)
+      this.role = userInfo ? userInfo.role : 'user';
     },
     imgError(e) {
       e.target.src = 'https://picsum.photos/750/300?random=3';
@@ -235,19 +149,12 @@ export default {
         : '/pages/merchantDetail/index'
       wx.navigateTo({ url });
     },
-    toAccessoryDetail(item) {
-      const accessoryId = item.accessoryId || item.id
-      if (!accessoryId) {
-        wx.showToast({
-          title: '缺少配件编号',
-          icon: 'none'
-        })
-        return
-      }
-
-      wx.navigateTo({
-        url: `/pages/accessoryDetail/index?id=${accessoryId}`
-      })
+    toAccessoryDetail(item) {},
+    backToTop() {
+      wx.pageScrollTo({
+        scrollTop: 0,
+        duration: 300
+      });
     }
   }
 }
@@ -271,14 +178,13 @@ export default {
   --radius-circle: 50%;
   --transition: all 0.3s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
-
 .home-page {
   min-height: 100vh;
   background: var(--bg-color);
   padding: 0 24rpx 120rpx 24rpx;
   margin-top: 0;
+  position: relative;
 }
-
 .banner-wrap {
   margin: 0 0 32rpx 0;
   overflow: hidden;
@@ -328,7 +234,6 @@ export default {
   text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.4);
   font-weight: 300;
 }
-
 .func-list {
   display: flex;
   justify-content: space-around;
@@ -369,7 +274,6 @@ export default {
   letter-spacing: 1rpx;
   white-space: nowrap;
 }
-
 .hot-accessory {
   background: var(--white);
   padding: 40rpx;
@@ -405,7 +309,6 @@ export default {
   color: var(--text-gray);
   font-weight: 400;
 }
-
 .empty-wrap {
   display: flex;
   flex-direction: column;
@@ -417,29 +320,25 @@ export default {
   color: var(--text-gray);
   margin-top: 24rpx;
 }
-
-.goods-swiper {
-  height: 460rpx;
-}
-.swiper-item-box {
+.goods-grid {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20rpx 40rpx;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.goods-item {
+  width: 48%;
+  margin-bottom: 24rpx;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 .img-wrap {
-  width: 280rpx;
+  width: 100%;
   height: 280rpx;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  margin-bottom: 24rpx;
-  background-color: #f7f8fa;
+  margin-bottom: 16rpx;
+  background: #f7f8fa;
   position: relative;
-  box-shadow: var(--shadow);
-  transition: var(--transition);
-}
-.img-wrap:active {
-  transform: scale(0.96);
 }
 .item-img {
   width: 100%;
@@ -456,31 +355,51 @@ export default {
   padding: 6rpx 12rpx;
   border-radius: var(--radius-sm);
   font-weight: 500;
-  box-shadow: 0 4rpx 8rpx rgba(255,61,61,0.3);
 }
 .item-name {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: var(--text-color);
-  margin-bottom: 12rpx;
-  text-align: center;
-  font-weight: 500;
   line-height: 1.4;
-  max-width: 280rpx;
+  margin-bottom: 8rpx;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .price-wrap {
   display: flex;
   align-items: baseline;
-  gap: 12rpx;
+  gap: 8rpx;
 }
 .item-price {
-  font-size: 34rpx;
+  font-size: 30rpx;
   color: var(--price-color);
   font-weight: 700;
 }
 .original-price {
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: var(--text-gray);
   text-decoration: line-through;
-  font-weight: 400;
+}
+.back-top {
+  position: fixed;
+  bottom: 130rpx;
+  right: 32rpx;
+  width: 72rpx;
+  height: 72rpx;
+  background: linear-gradient(135deg, #5a7dff, #2f54eb);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(47, 84, 235, 0.2);
+  z-index: 9999;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1rpx solid rgba(255,255,255,0.15);
+}
+.back-top:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+  box-shadow: 0 4rpx 12rpx rgba(47, 84, 235, 0.25);
 }
 </style>
